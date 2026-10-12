@@ -49,6 +49,15 @@ Work in **vertical slices**, one behavior at a time:
 
 Benchmarks and validation scripts (embedding throughput, ONNX ↔ PyTorch parity, USearch recall, retrieval metrics) contain logic — metric calculations, corpus loading, label parsing. That logic is test-driven like any other code; only the final measurement run itself is not a unit test. Parity and acceptance thresholds from the ADRs (e.g. cosine ≥ ~0.99 in ADR 0001) are expressed as executable tests.
 
+## Commits
+
+Always commit in the smallest possible units.
+
+- **One logical change per commit** — ideally a single file. Split unrelated edits (e.g. a doc tweak and a code change) into separate commits, even when made together.
+- **Every commit must build and pass the test suite.** In TDD this means a failing test and the code that makes it pass go in the same commit; commit after each GREEN, and again after each REFACTOR step.
+- Commit as you go, not in a batch at the end of a session.
+- Use Conventional Commit messages: `feat(scope):`, `fix(scope):`, `test(scope):`, `refactor(scope):`, `docs(scope):`, `build:`, `chore:`.
+
 ## Running tests
 
 - Rust: `cargo test --workspace`
