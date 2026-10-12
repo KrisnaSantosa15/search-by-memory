@@ -27,7 +27,7 @@ Alt + Space  ->  "That tutorial about attention mechanisms"  ->  Found in 32ms
 
 We collect thousands of files across deep folders, but our brains remember **concepts**, **context**, or **snippets**—not filenames like `Report_final_v2_final.docx` or `screenshot_20261012.png`.
 
-**Search by Memory** is a desktop launcher that bridges this gap using local semantic embeddings (**Google EmbeddingGemma 2**) and vector similarity search (**FAISS**).
+**Search by Memory** is a desktop launcher that bridges this gap using local semantic embeddings (**Google EmbeddingGemma 2** via ONNX Runtime) and vector similarity search (**USearch**), alongside instant filename and keyword search across your whole disk.
 
 ---
 
@@ -47,7 +47,7 @@ We collect thousands of files across deep folders, but our brains remember **con
 
 ### Instant Launcher (`Alt + Space`)
 * Keyboard-first workflow (Arrow keys, `Enter`, `Ctrl+Enter`).
-* Sub-second retrieval ($P95 < 1\text{s}$) across hundreds of thousands of vectors.
+* Sub-second retrieval ($P95 < 1\text{s}$) across millions of chunks on a 1 TB+ disk.
 * Minimal background memory and CPU footprint.
 
 </td>
@@ -57,16 +57,17 @@ We collect thousands of files across deep folders, but our brains remember **con
 
 ### Semantic-First Retrieval
 * No generative LLM hallucinations or chat latency.
-* Searches meaning, concepts, and synonyms—not just exact keywords.
+* Searches meaning, concepts, and synonyms—plus filenames and exact keywords, merged into one list.
 * True source snippets and direct page or line references.
 
 </td>
 <td width="50%">
 
 ### Resilient Background Indexing
-* Incremental file change detection (watches modified and deleted files).
-* Automatic pause, resume, and checkpoint recovery.
-* Granular folder and file-extension exclusions.
+* Name search ready in minutes; content indexed newest-first in the background.
+* Incremental change detection; moved and copied files are never re-embedded.
+* Pauses automatically for full-screen apps, battery, and busy hardware.
+* Choose any folder or drive, with sensible default exclusions pre-filled.
 
 </td>
 </tr>
@@ -94,19 +95,19 @@ graph TD
 
     subgraph Adapters["3. Platform Adapters"]
         Hotkeys["Global Shortcuts<br/>(Win32 / X11 / Cocoa)"]
-        Watcher["Filesystem Watcher<br/>(ReadDirectoryChangesW / inotify)"]
+        Watcher["Change Source<br/>(NTFS USN Journal / inotify / FSEvents)"]
         OSOps["OS File Operations<br/>(Default App Launch & Reveal)"]
     end
 
     subgraph Providers["4. Provider Interfaces"]
         IEmbed["EmbeddingProvider<br/>(EmbeddingGemma 2)"]
-        IVector["VectorStore<br/>(FAISS Abstraction)"]
+        IVector["VectorStore<br/>(USearch)"]
         IExtract["ContentExtractor<br/>(PDF, DOCX, Code, Text)"]
     end
 
     subgraph Storage["5. Storage Layer"]
-        DB[("SQLite Database<br/>Metadata, Chunks & Jobs")]
-        VIndex[("FAISS Vector Index<br/>Serialized Dense Vectors")]
+        DB[("SQLite Database<br/>Files, Chunks, Jobs & Full-text")]
+        VIndex[("USearch Vector Index<br/>Derived from SQLite")]
         Thumb["Thumbnail Cache"]
     end
 
@@ -121,8 +122,8 @@ graph TD
 
 * **Desktop Shell**: Tauri 2 + React + TypeScript + Tailwind CSS for a featherlight desktop footprint.
 * **Application Core**: Rust for deterministic concurrency, memory safety, and high-throughput job queueing.
-* **Embedding Engine**: Python with Google EmbeddingGemma 2 (local IPC, designed for future migration to native ONNX Runtime).
-* **Storage and Index**: SQLite for ACID relational metadata & FAISS for sub-second vector similarity retrieval.
+* **Embedding Engine**: Google EmbeddingGemma 2 running in-process via ONNX Runtime in Rust (no Python shipped; Python is used only for offline dev tooling).
+* **Storage and Index**: SQLite (with FTS5) for metadata, filename and keyword search & USearch for sub-second vector similarity retrieval.
 
 ---
 
@@ -130,10 +131,10 @@ graph TD
 
 | Phase | Modality | Supported Formats |
 | :--- | :--- | :--- |
-| **P0 (MVP)** | **Documents and Code** | `.pdf`, `.docx`, `.txt`, `.md`, source code (`.rs`, `.py`, `.ts`, `.go`, etc.) |
+| **P0 (MVP)** | **Names, Documents and Code** | Filename search for every file; content search (semantic + keyword) for `.pdf`, `.docx`, `.txt`, `.md`, source code (`.rs`, `.py`, `.ts`, `.go`, etc.) |
 | **P1** | **Visual and Screenshots**| Image embeddings, OCR for screenshots, thumbnail preview cards |
 | **P2** | **Audio and Video** | Audio transcription via local Whisper, FFmpeg soundtrack extraction, timestamp jumping |
-| **P3** | **Advanced Retrieval** | Hybrid lexical (BM25) + semantic search, cross-modal blending, non-generative reranking |
+| **P3** | **Advanced Retrieval** | Cross-modal blending, non-generative reranking, local query history |
 
 ---
 
@@ -142,6 +143,9 @@ graph TD
 For complete technical specifications, architectural diagrams, acceptance criteria, and benchmarks, check the full PRD:
 
 [Read the Full Product Requirements Document (PRD.md)](implementation/PRD.md)
+
+* [Domain glossary (CONTEXT.md)](CONTEXT.md) — the shared vocabulary used across docs and code.
+* [Architecture Decision Records (docs/adr/)](docs/adr/) — why we chose ONNX Runtime, USearch, two indexes, and content-keyed chunks.
 
 ---
 
