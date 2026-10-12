@@ -9,12 +9,12 @@
 - Matryoshka truncation to configured dimensions + unit normalization.
 - Batched embedding: one padded, masked model call per batch.
 - Parity gate: matches PyTorch reference at cosine ≥ 0.99 (`tools/make_parity_fixtures.py`).
+- Text beyond a configurable token limit is ignored (default 2,048; model max 8,192).
 
 ## In progress
-- Overlong input is truncated to the model limit without error.
+- —
 
 ## Next (M1)
-- Cross-lingual retrieval test.
 - Embedding throughput benchmark on Linux CPU (current dev machine: i7-1255U, no GPU).
 - USearch validation: insert, remove, mmap, `f16`/`i8` recall.
 - Public Corpus and first Benchmark labels.
