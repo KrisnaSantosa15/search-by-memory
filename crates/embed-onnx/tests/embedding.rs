@@ -105,7 +105,7 @@ fn embedding_chunks_in_a_batch_matches_embedding_them_one_by_one() {
         "Short note.",
         "A much longer chunk of text that spans many more tokens than the first one, so that batching \
          must pad the shorter inputs and mask the padding correctly for the embeddings to stay identical.",
-        "Kode ini memperbarui token JWT ketika sudah kedaluwarsa.",
+        "This code refreshes the JWT token once it has expired.",
     ];
 
     let batched = embedder.embed_chunks(&chunks).expect("batch embeds");
