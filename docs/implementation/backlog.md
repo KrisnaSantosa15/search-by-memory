@@ -14,11 +14,10 @@
 - Throughput runner `embed_throughput` (`crates/bench`); partial CPU fp32 result: ~2 Chunks/s at 256 tok (1M Chunks ≈ 140 h).
 
 ## In progress
-- —
+- `VectorStore` trait + USearch backend: add, remove, search, mmap view, f16/i8 recall.
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
-- USearch validation: insert, remove, mmap, `f16`/`i8` recall.
 - Public Corpus and first Benchmark labels.
 
 ## Deferred until development moves to Windows (RTX 4060 8 GB)
