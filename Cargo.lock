@@ -715,6 +715,7 @@ version = "0.1.0"
 dependencies = [
  "ort",
  "sbm-core",
+ "serde_json",
  "tokenizers",
 ]
 

@@ -60,3 +60,39 @@ fn embeddings_have_the_configured_dimensions_and_unit_length() {
         assert!((norm - 1.0).abs() < 1e-4, "expected unit length, got norm {norm}");
     }
 }
+
+/// ADR 0001 go/no-go gate: the ONNX embedder must reproduce the official
+/// PyTorch / sentence-transformers embeddings (tools/make_parity_fixtures.py).
+#[test]
+fn onnx_embeddings_match_the_pytorch_reference() {
+    let Some(dir) = model_dir() else { return };
+    let embedder = OnnxEmbedder::load(&dir, 768).expect("model loads");
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/parity.json")).expect("fixture parses");
+
+    for item in fixture["items"].as_array().expect("items") {
+        let text = item["text"].as_str().expect("text");
+        let reference: Vec<f32> = item["embedding"]
+            .as_array()
+            .expect("embedding")
+            .iter()
+            .map(|v| v.as_f64().expect("number") as f32)
+            .collect();
+        let actual = match item["kind"].as_str() {
+            Some("query") => embedder.embed_query(text),
+            Some("chunk") => embedder.embed_chunks(&[text]).map(|mut v| v.remove(0)),
+            other => panic!("unknown fixture kind {other:?}"),
+        }
+        .expect("embeds");
+
+        let reference_norm = reference.iter().map(|v| v * v).sum::<f32>().sqrt();
+        let cosine = actual
+            .as_slice()
+            .iter()
+            .zip(&reference)
+            .map(|(a, r)| a * r)
+            .sum::<f32>()
+            / reference_norm;
+        assert!(cosine >= 0.99, "cosine {cosine} < 0.99 for {:?}", text);
+    }
+}
