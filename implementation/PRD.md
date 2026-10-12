@@ -186,6 +186,7 @@ Following the **Modular 5-Layer Architecture** established in PRD 2.0, the core 
 * **Description**: A lightweight, overlay search window accessible globally from any active application.
 * **Specifications**:
   * Default shortcut: `Alt + Space` (configurable; conflict detection enabled; must not hijack standalone Windows key).
+    * Known conflicts: on Windows, `Alt + Space` opens the active window's system menu and is the default PowerToys Run shortcut. If registration fails or a conflict is detected, the app must notify the user and prompt for an alternative (suggested fallback: `Ctrl + Alt + Space`) rather than fail silently.
   * Opens within $\le 300\text{ ms}$ from warm background state.
   * Auto-focuses query input immediately upon opening.
   * Navigable entirely via keyboard:
@@ -195,10 +196,10 @@ Following the **Modular 5-Layer Architecture** established in PRD 2.0, the core 
     * `Ctrl + C`: Copy file path to clipboard.
     * `Escape`: Dismiss launcher window without interrupting background indexing.
 * **Acceptance Criteria**:
-  * [x] Launcher appears instantly on global hotkey trigger.
-  * [x] Selecting a result opens the target file in the correct default application.
-  * [x] Enclosing folder can be revealed in File Explorer without launching the file.
-  * [x] Dismissing the launcher retains background indexing processes seamlessly.
+  * [ ] Launcher appears instantly on global hotkey trigger.
+  * [ ] Selecting a result opens the target file in the correct default application.
+  * [ ] Enclosing folder can be revealed in File Explorer without launching the file.
+  * [ ] Dismissing the launcher retains background indexing processes seamlessly.
 
 ### FR-02: Semantic Query Encoding & Retrieval
 * **Description**: Converts the user's natural language input into a dense semantic vector and executes top-K nearest-neighbor search.
@@ -209,9 +210,9 @@ Following the **Modular 5-Layer Architecture** established in PRD 2.0, the core 
   * Returns configurable top-$K$ candidates (default: top 20, deduplicated per parent file).
   * Raw cosine/L2 distance scores normalized as ranking indicators rather than probability truth values.
 * **Acceptance Criteria**:
-  * [x] User query generates an embedding locally without network activity.
-  * [x] Retrieval returns relevant candidates across varied terminology (synonyms, conceptual descriptions).
-  * [x] Multiple chunks from the same document are aggregated/deduplicated to prevent single-document result flooding.
+  * [ ] User query generates an embedding locally without network activity.
+  * [ ] Retrieval returns relevant candidates across varied terminology (synonyms, conceptual descriptions).
+  * [ ] Multiple chunks from the same document are aggregated/deduplicated to prevent single-document result flooding.
 
 ### FR-03: Content Ingestion, Extraction & Chunking
 * **Description**: Discovers files in included directories, parses content, and splits long documents into coherent search chunks.
@@ -221,22 +222,23 @@ Following the **Modular 5-Layer Architecture** established in PRD 2.0, the core 
   * Robust error handling: Unreadable, encrypted, or corrupted files must be logged and bypassed without halting indexing.
   * Ignores binary executables, temporary lock files (`~$*.docx`), and excluded system folders (`$Recycle.Bin`, `node_modules`, `.git`, etc.).
 * **Acceptance Criteria**:
-  * [x] Parsing failure on an encrypted or corrupt document logs an error and continues with the queue.
-  * [x] Original user files are strictly treated as read-only and never modified.
-  * [x] Extracted chunks retain accurate page numbers or line ranges for result previews.
+  * [ ] Parsing failure on an encrypted or corrupt document logs an error and continues with the queue.
+  * [ ] Original user files are strictly treated as read-only and never modified.
+  * [ ] Extracted chunks retain accurate page numbers or line ranges for result previews.
 
 ### FR-04: Incremental Indexing & Job Resiliency
 * **Description**: Continuously tracks directory changes, updating the vector index and metadata store efficiently.
 * **Specifications**:
   * File change detection via OS filesystem watchers paired with periodic reconciliation scans.
-  * File tracking based on file path, size, modification timestamp (`mtime`), and fast hash checking (e.g., BLAKE3/xxHash) on modified headers.
+  * File tracking based on file path, size, and modification timestamp (`mtime`) as a cheap first-pass filter. When size or `mtime` differ, a full-content fast hash (e.g., BLAKE3/xxHash) confirms whether content actually changed before re-indexing. Header-only hashing is not sufficient, as edits beyond the header would go undetected.
   * Atomic index updates: Modifying a file deletes its obsolete chunk vectors and inserts new ones.
   * Deleting a file cascades removal of all associated chunks from SQLite and marks vector IDs as deleted.
+  * Vector deletion must be supported by the chosen index type. Not all FAISS indices support `remove_ids` (notably `IndexHNSWFlat` does not); in that case deletions are recorded as tombstones in SQLite, filtered out at query time, and physically removed during periodic index rebuild/compaction (see FR-05 and Section 11).
   * Job queue checkpoints progress so interrupted indexing resumes from the last completed file.
 * **Acceptance Criteria**:
-  * [x] Modifying a file updates its semantic index without initiating a full directory re-index.
-  * [x] Deleted files are purged from search results immediately or upon next queue reconciliation.
-  * [x] Sudden app shutdown or crash does not corrupt SQLite or FAISS indices; pending jobs resume on next startup.
+  * [ ] Modifying a file updates its semantic index without initiating a full directory re-index.
+  * [ ] Deleted files are purged from search results immediately or upon next queue reconciliation.
+  * [ ] Sudden app shutdown or crash does not corrupt SQLite or FAISS indices; pending jobs resume on next startup.
 
 ### FR-05: Storage, Reconciliation & Migrations
 * **Description**: Coordinates transactional relational metadata with serialized vector indices.
@@ -248,12 +250,12 @@ Following the **Modular 5-Layer Architecture** established in PRD 2.0, the core 
     * Schema versioning managed via automated database migrations.
   * **Vector Store**:
     * Maintains vector-to-chunk ID bidirectional mapping.
-    * Periodic index compaction and serialization to disk.
+    * Periodic index compaction and serialization to disk; compaction also purges tombstoned vectors for index types without native deletion support.
     * Self-healing reconciliation: If vector index and SQLite fall out of sync, SQLite serves as the source of truth for rebuilding vector index mappings.
 * **Acceptance Criteria**:
-  * [x] SQLite schema migrations apply automatically across application upgrades.
-  * [x] Database and vector store remain consistent across insertions and deletions.
-  * [x] Rebuilding vector index is possible from existing extracted chunk data without reparsing raw source files.
+  * [ ] SQLite schema migrations apply automatically across application upgrades.
+  * [ ] Database and vector store remain consistent across insertions and deletions.
+  * [ ] Rebuilding vector index is possible from existing extracted chunk data without reparsing raw source files.
 
 ### FR-06: Privacy, Offline Integrity & Exclusions
 * **Description**: Guarantees zero external data leakage and provides full exclusion controls to the user.
@@ -262,9 +264,9 @@ Following the **Modular 5-Layer Architecture** established in PRD 2.0, the core 
   * Explicit exclusion rules: Folders (glob patterns), file extensions, and file size thresholds (e.g., skip text files $>50\text{ MB}$).
   * "Clear All Data" action: One-click option to completely purge local SQLite databases, vector indices, and cached thumbnails.
 * **Acceptance Criteria**:
-  * [x] Application functions completely in an air-gapped environment with network adapters disabled.
-  * [x] Excluded directories and file patterns are never opened, parsed, or embedded.
-  * [x] Purge action thoroughly erases all index artifacts from disk.
+  * [ ] Application functions completely in an air-gapped environment with network adapters disabled.
+  * [ ] Excluded directories and file patterns are never opened, parsed, or embedded.
+  * [ ] Purge action thoroughly erases all index artifacts from disk.
 
 ### FR-07: Cross-Platform Abstraction
 * **Description**: Application core and data models remain platform-agnostic, with all OS-specific facilities delegated to platform adapters.
@@ -272,7 +274,7 @@ Following the **Modular 5-Layer Architecture** established in PRD 2.0, the core 
   * All paths stored internally in normalized format (forward-slash UTF-8 or platform-neutral abstractions).
   * Adapters implement distinct implementations for Windows (`windows-sys`/Win32), Linux (`X11`/`Wayland`, `inotify`), and macOS (`Cocoa`, `FSEvents`).
 * **Acceptance Criteria**:
-  * [x] Core Rust logic compiles and executes unit tests on Windows, Linux, and macOS environments without OS-specific `#cfg` branches in business logic.
+  * [ ] Core Rust logic compiles and executes unit tests on Windows, Linux, and macOS environments without OS-specific `#cfg` branches in business logic.
 
 ### FR-08: Observability & Status Dashboard
 * **Description**: Transparent status reporting for background indexing activities and resource utilization.
@@ -369,9 +371,10 @@ graph TD
 ```
 
 * **Milestone 1 — Technical Validation**:
+  * Confirm the exact EmbeddingGemma model variant/version, license, supported output dimensions, and official prompt/task format before building on it.
   * Validate EmbeddingGemma 2 local inference and prompt formatting.
   * Benchmark embedding generation latency on CPU vs GPU.
-  * Validate FAISS vector index insertion, search, and SQLite mapping.
+  * Validate FAISS vector index insertion, deletion, search, and SQLite mapping, including a Windows build of FAISS bindings from Rust.
   * Finalize Rust ↔ Python IPC communication protocol.
 * **Milestone 2 — Text Search MVP**:
   * Implement extractors for PDF, DOCX, TXT, Markdown, and code.
@@ -399,10 +402,11 @@ graph TD
 ## 11. Open Technical Decisions (To be resolved in Technical Spec)
 
 1. **Rust ↔ Python IPC Mechanism**: Selection between local gRPC over Unix Domain Sockets / Named Pipes vs JSON-RPC / lightweight shared memory vs direct C-ABI binding.
-2. **FAISS Index Configuration**: Evaluation of flat inner-product (`IndexFlatIP`) vs quantized/HNSW indices (`IndexHNSWFlat`) based on memory bounds.
-3. **Default Embedding Dimension**: Validation whether 256-dimension truncation preserves sufficient semantic fidelity compared to full dimension.
-4. **Embedding Runtime Migration**: Feasibility of migrating from Python PyTorch to ONNX Runtime / `ort` in Rust for unified single-binary distribution.
-5. **Concurrency & Resource Throttling Rules**: Exact CPU thread allocation and pause-on-battery logic for laptops.
+2. **FAISS Index Configuration**: Evaluation of flat inner-product (`IndexFlatIP`, wrapped in `IndexIDMap` for stable IDs and native deletion) vs quantized/HNSW indices (`IndexHNSWFlat`) based on memory bounds. HNSW lacks `remove_ids`, so choosing it requires the tombstone + periodic rebuild strategy described in FR-04.
+3. **Vector Store Backend**: FAISS from Rust requires building the FAISS C API, which is non-trivial on Windows. Easier-to-build alternatives (e.g., `usearch` with its self-contained Rust crate, or pure-Rust `hnsw_rs`) should be benchmarked against FAISS behind the same `VectorStore` interface during Milestone 1.
+4. **Default Embedding Dimension**: Validation whether 256-dimension truncation preserves sufficient semantic fidelity compared to full dimension.
+5. **Embedding Runtime Migration**: Feasibility of migrating from Python PyTorch to ONNX Runtime / `ort` in Rust for unified single-binary distribution.
+6. **Concurrency & Resource Throttling Rules**: Exact CPU thread allocation and pause-on-battery logic for laptops.
 
 ---
 
