@@ -21,4 +21,12 @@ impl Throughput {
         let seconds: f64 = self.timings.iter().map(Duration::as_secs_f64).sum();
         chunks / seconds
     }
+
+    /// Per-batch latency at `percentile` (0.0–1.0), using the nearest-rank method.
+    pub fn latency_percentile(&self, percentile: f64) -> Duration {
+        let mut sorted = self.timings.clone();
+        sorted.sort();
+        let rank = (percentile * sorted.len() as f64).ceil().max(1.0) as usize;
+        sorted[rank.min(sorted.len()) - 1]
+    }
 }
