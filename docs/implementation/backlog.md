@@ -13,10 +13,9 @@
 - Multilingual guard: English ↔ Indonesian Queries find related Chunks.
 
 ## In progress
-- —
+- Embedding throughput benchmark on Linux CPU (i7-1255U, no GPU).
 
 ## Next (M1)
-- Embedding throughput benchmark on Linux CPU (current dev machine: i7-1255U, no GPU).
 - USearch validation: insert, remove, mmap, `f16`/`i8` recall.
 - Public Corpus and first Benchmark labels.
 
