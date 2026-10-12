@@ -1,0 +1,24 @@
+//! Measurement logic for embedding benchmarks.
+
+use std::time::Duration;
+
+/// Timings of repeated embedding calls, each embedding `batch_size` Chunks.
+pub struct Throughput {
+    batch_size: usize,
+    timings: Vec<Duration>,
+}
+
+impl Throughput {
+    pub fn new(batch_size: usize, timings: &[Duration]) -> Self {
+        Self {
+            batch_size,
+            timings: timings.to_vec(),
+        }
+    }
+
+    pub fn chunks_per_second(&self) -> f64 {
+        let chunks = (self.batch_size * self.timings.len()) as f64;
+        let seconds: f64 = self.timings.iter().map(Duration::as_secs_f64).sum();
+        chunks / seconds
+    }
+}
