@@ -129,3 +129,30 @@ fn text_beyond_the_token_limit_is_ignored() {
     let cosine = embeddings[0].similarity(&embeddings[1]);
     assert!(cosine > 0.9999, "text past the token limit changed the embedding (cosine {cosine})");
 }
+
+/// Multilingual capability (PRD FR-02: English and Indonesian Queries).
+#[test]
+fn queries_find_related_chunks_across_english_and_indonesian() {
+    let Some(dir) = model_dir() else { return };
+    let embedder = OnnxEmbedder::load(&dir, 256, DEFAULT_MAX_TOKENS).expect("model loads");
+    let chunks = embedder
+        .embed_chunks(&[
+            "Rapat membahas anggaran kuartal ketiga dan target penjualan tahun depan.",
+            "The meeting discussed the third-quarter budget and next year's sales targets.",
+            "Preheat the oven to 180 degrees and bake for 25 minutes.",
+        ])
+        .expect("chunks embed");
+    let (indonesian_budget, english_budget, unrelated) = (&chunks[0], &chunks[1], &chunks[2]);
+
+    let english_query = embedder.embed_query("meeting notes about the quarterly budget").expect("query embeds");
+    assert!(
+        english_query.similarity(indonesian_budget) > english_query.similarity(unrelated),
+        "English Query should find the Indonesian Chunk"
+    );
+
+    let indonesian_query = embedder.embed_query("catatan rapat tentang anggaran kuartal").expect("query embeds");
+    assert!(
+        indonesian_query.similarity(english_budget) > indonesian_query.similarity(unrelated),
+        "Indonesian Query should find the English Chunk"
+    );
+}
