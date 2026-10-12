@@ -17,12 +17,12 @@ OUT = Path(__file__).resolve().parent.parent / "crates/embed-onnx/tests/fixtures
 QUERIES = [
     "tutorial explaining attention mechanisms: query, key and value",
     "auth service code that refreshes JWT tokens",
-    "meeting notes about the third-quarter budget",
+    "catatan rapat tentang anggaran kuartal ketiga",
 ]
 CHUNKS = [
     "Transformers compute attention by comparing query vectors against key vectors.",
     "pub async fn refresh_jwt_token(token: &str) -> Result<Token, AuthError>",
-    "The meeting discussed the third-quarter budget and next year's sales targets.",
+    "Rapat membahas anggaran kuartal ketiga dan target penjualan tahun depan.",
     "Preheat the oven to 180 degrees and bake for 25 minutes.",
 ]
 
