@@ -8,7 +8,7 @@
 **Primary Target Platform:** Windows 10/11 (64-bit)  
 **Long-term Target Platforms:** Linux, macOS (Cross-platform Core Architecture)  
 
-> Domain terms in this document (e.g., **Chunk**, **Name Index**, **Content Match**, **Copy**) are defined in [`CONTEXT.md`](../CONTEXT.md). Architectural decisions are recorded in [`docs/adr/`](../docs/adr/).
+> Domain terms in this document (e.g., **Chunk**, **Name Index**, **Content Match**, **Copy**) are defined in [`CONTEXT.md`](../CONTEXT.md). Architectural decisions are recorded in [`docs/adr/`](adr/).
 
 ---
 
@@ -30,7 +30,7 @@
 * *"PDF research paper about embedding models that I read a few months ago."*
 * `docker-compose` or `invoice march` — exact or partial filenames.
 
-The application is designed to cover an entire disk (1 TB+). It maintains two indexes (see [ADR 0003](../docs/adr/0003-name-index-and-content-index.md)):
+The application is designed to cover an entire disk (1 TB+). It maintains two indexes (see [ADR 0003](adr/0003-name-index-and-content-index.md)):
 * a **Name Index** of every file beneath the user's Indexed Folders, searchable by filename and path within minutes of setup; and
 * a **Content Index** of Chunks from supported formats, searchable by meaning (embeddings generated locally with **Google EmbeddingGemma 2**) and by keyword.
 
@@ -128,9 +128,9 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
 | **Desktop Shell** | **Tauri 2** | Window lifecycle, desktop system tray, secure IPC, native packaging. |
 | **Frontend UI** | **React + TypeScript** | Launcher UI, keyboard navigation, File/Passage views, Detail Panel, settings, indexing dashboard. |
 | **Application Core** | **Rust** | Search orchestration, rank fusion, file scheduling, throttling, SQLite interaction, memory bounds. |
-| **Embedding Runtime** | **ONNX Runtime (`ort`) in Rust + EmbeddingGemma 2** | In-process embedding of Queries and Chunks; GPU via CUDA/DirectML execution providers with CPU fallback. No Python ships with the app ([ADR 0001](../docs/adr/0001-onnx-runtime-in-rust-python-as-dev-tooling-only.md)). |
+| **Embedding Runtime** | **ONNX Runtime (`ort`) in Rust + EmbeddingGemma 2** | In-process embedding of Queries and Chunks; GPU via CUDA/DirectML execution providers with CPU fallback. No Python ships with the app ([ADR 0001](adr/0001-onnx-runtime-in-rust-python-as-dev-tooling-only.md)). |
 | **Dev Tooling** | **Python** (offline only) | Benchmark runner, embedding-dimension experiments, ONNX-vs-PyTorch parity checks. |
-| **Vector Index** | **USearch** (via `VectorStore` interface) | Approximate nearest-neighbour search over Chunk embeddings; memory-mapped, `f16`/`i8` storage ([ADR 0002](../docs/adr/0002-usearch-instead-of-faiss.md)). |
+| **Vector Index** | **USearch** (via `VectorStore` interface) | Approximate nearest-neighbour search over Chunk embeddings; memory-mapped, `f16`/`i8` storage ([ADR 0002](adr/0002-usearch-instead-of-faiss.md)). |
 | **Relational Metadata & Keyword Search** | **SQLite + FTS5** | File tracking, content hashes, Chunks, jobs, exclusions, configuration; full-text search for the Name Index and Chunk keywords. |
 | **File Extraction** | Modular Extractors (native Rust) | Extraction of raw text from PDF, DOCX, Markdown, plain text, and source code. |
 | **OCR & Vision** | Tesseract / Local Vision Pipeline | Extracting text from screenshots and image embeddings (P1). |
@@ -260,7 +260,7 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
   * **Live Updates**: files created or changed after Initial Indexing began are processed ahead of remaining Initial Indexing work.
   * Change detection via a platform `ChangeSource`: the NTFS USN Journal on Windows (catches changes made while the app was not running), falling back to filesystem watchers paired with periodic reconciliation scans.
   * File tracking uses path, size, and modification timestamp (`mtime`) as a cheap first-pass filter. When size or `mtime` differ, a full-content fast hash (e.g., BLAKE3/xxHash) confirms whether content actually changed. Header-only hashing is not sufficient.
-  * **Content reuse**: Chunks and embeddings are keyed by content hash ([ADR 0004](../docs/adr/0004-content-addressed-chunks.md)). A moved, renamed, or copied file with a known hash reuses existing Chunks without re-embedding.
+  * **Content reuse**: Chunks and embeddings are keyed by content hash ([ADR 0004](adr/0004-content-addressed-chunks.md)). A moved, renamed, or copied file with a known hash reuses existing Chunks without re-embedding.
   * Atomic index updates: Changed content gets new Chunks and vectors; obsolete vectors are removed from USearch when no file references their content any longer.
   * Job queue checkpoints progress so interrupted indexing resumes from the last completed file.
   * **Throttling**: Initial Indexing pauses while a full-screen application is running, while on battery power, or while CPU/GPU are busy with other work, and resumes after a quiet period. Live Updates continue on CPU in all of these cases. The tray menu offers manual pause (e.g., 1 hour / until tomorrow).
@@ -432,7 +432,7 @@ graph TD
 
 * **Milestone 1 — Technical Validation**:
   * Confirm the exact EmbeddingGemma model variant/version, license, supported output dimensions, and official prompt/task format.
-  * **ONNX parity gate** ([ADR 0001](../docs/adr/0001-onnx-runtime-in-rust-python-as-dev-tooling-only.md)): ONNX Runtime embeddings in Rust must match the PyTorch reference (cosine ≥ ~0.99 on Benchmark inputs), with tokenization and prompt formatting reproduced in Rust.
+  * **ONNX parity gate** ([ADR 0001](adr/0001-onnx-runtime-in-rust-python-as-dev-tooling-only.md)): ONNX Runtime embeddings in Rust must match the PyTorch reference (cosine ≥ ~0.99 on Benchmark inputs), with tokenization and prompt formatting reproduced in Rust.
   * Benchmark embedding throughput on CPU vs GPU (CUDA/DirectML) and estimate full-disk Initial Indexing time.
   * Validate USearch insertion, removal by key, search, memory-mapped loading, and `f16`/`i8` recall vs exact search.
   * Assemble the Public Corpus and first Benchmark labels.
@@ -464,10 +464,10 @@ graph TD
 ## 11. Technical Decisions
 
 ### 11.1 Resolved
-1. **Embedding runtime**: ONNX Runtime in Rust; no Python in the shipped app — [ADR 0001](../docs/adr/0001-onnx-runtime-in-rust-python-as-dev-tooling-only.md). (Eliminates the former Rust ↔ Python IPC decision.)
-2. **Vector index**: USearch instead of FAISS — [ADR 0002](../docs/adr/0002-usearch-instead-of-faiss.md).
-3. **Index structure**: separate Name Index and Content Index, with keyword search in the MVP — [ADR 0003](../docs/adr/0003-name-index-and-content-index.md).
-4. **Chunk identity**: Chunks and embeddings keyed by content hash — [ADR 0004](../docs/adr/0004-content-addressed-chunks.md).
+1. **Embedding runtime**: ONNX Runtime in Rust; no Python in the shipped app — [ADR 0001](adr/0001-onnx-runtime-in-rust-python-as-dev-tooling-only.md). (Eliminates the former Rust ↔ Python IPC decision.)
+2. **Vector index**: USearch instead of FAISS — [ADR 0002](adr/0002-usearch-instead-of-faiss.md).
+3. **Index structure**: separate Name Index and Content Index, with keyword search in the MVP — [ADR 0003](adr/0003-name-index-and-content-index.md).
+4. **Chunk identity**: Chunks and embeddings keyed by content hash — [ADR 0004](adr/0004-content-addressed-chunks.md).
 5. **Throttling**: automatic pause for full-screen apps, battery, and busy CPU/GPU; Live Updates exempt (FR-04).
 
 ### 11.2 Open (to be resolved by Milestone 1 measurements)

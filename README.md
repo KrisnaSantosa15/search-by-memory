@@ -6,9 +6,9 @@
 ### *Find what you remember, not what you named.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
-[![Local-First](https://img.shields.io/badge/Privacy-100%25%20Local-success?style=for-the-badge&logo=shield)](implementation/PRD.md)
-[![Architecture](https://img.shields.io/badge/Stack-Tauri%202%20%7C%20Rust%20%7C%20React-orange?style=for-the-badge&logo=rust)](implementation/PRD.md)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet?style=for-the-badge&logo=windows)](implementation/PRD.md)
+[![Local-First](https://img.shields.io/badge/Privacy-100%25%20Local-success?style=for-the-badge&logo=shield)](docs/PRD.md)
+[![Architecture](https://img.shields.io/badge/Stack-Tauri%202%20%7C%20Rust%20%7C%20React-orange?style=for-the-badge&logo=rust)](docs/PRD.md)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blueviolet?style=for-the-badge&logo=windows)](docs/PRD.md)
 
 <p align="center">
   <b>Instant semantic desktop search powered by local vector retrieval.</b><br>
@@ -142,7 +142,7 @@ graph TD
 
 For complete technical specifications, architectural diagrams, acceptance criteria, and benchmarks, check the full PRD:
 
-[Read the Full Product Requirements Document (PRD.md)](implementation/PRD.md)
+[Read the Full Product Requirements Document (PRD.md)](docs/PRD.md)
 
 * [Domain glossary (CONTEXT.md)](CONTEXT.md) — the shared vocabulary used across docs and code.
 * [Architecture Decision Records (docs/adr/)](docs/adr/) — why we chose ONNX Runtime, USearch, two indexes, and content-keyed chunks.

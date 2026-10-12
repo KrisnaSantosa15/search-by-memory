@@ -6,7 +6,7 @@ These rules apply to every agent and contributor working in this repository.
 
 - [`CONTEXT.md`](CONTEXT.md) — the domain glossary. Use its terms exactly (e.g. **Chunk**, **Content Match**, **Name Index**, **Copy**) in code, test names, and docs; avoid the words listed under `_Avoid_`.
 - [`docs/adr/`](docs/adr/) — accepted architecture decisions. Do not contradict an ADR; if a change requires it, propose a new ADR that supersedes it.
-- [`implementation/PRD.md`](implementation/PRD.md) — requirements, milestones, and acceptance criteria.
+- [`docs/PRD.md`](docs/PRD.md) — requirements, milestones, and acceptance criteria.
 
 ## Test-Driven Development is mandatory
 
