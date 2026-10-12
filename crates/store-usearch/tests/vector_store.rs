@@ -51,3 +51,12 @@ fn saved_store_reopened_as_a_view_returns_the_same_results() {
 
     assert_eq!(view.search(&query, 3).expect("searches view"), before);
 }
+
+#[test]
+fn searching_an_empty_store_returns_no_neighbors() {
+    let store = UsearchStore::new(3, Precision::F16).expect("store builds");
+
+    let neighbors = store.search(&unit(&[1.0, 0.0, 0.0]), 5).expect("searches");
+
+    assert!(neighbors.is_empty());
+}
