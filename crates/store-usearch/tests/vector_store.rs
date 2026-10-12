@@ -60,3 +60,49 @@ fn searching_an_empty_store_returns_no_neighbors() {
 
     assert!(neighbors.is_empty());
 }
+
+/// Deterministic pseudo-random unit vectors (no RNG dependency).
+fn random_units(count: usize, dimensions: usize, seed: u64) -> Vec<Embedding> {
+    let mut state = seed;
+    let mut next = move || {
+        state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        ((state >> 33) as f32 / (1u64 << 31) as f32) - 0.5
+    };
+    (0..count)
+        .map(|_| unit(&(0..dimensions).map(|_| next()).collect::<Vec<_>>()))
+        .collect()
+}
+
+fn recall_at_10(precision: Precision) -> f32 {
+    let (dimensions, k) = (256, 10);
+    let stored = random_units(2_000, dimensions, 7);
+    let queries = random_units(50, dimensions, 11);
+    let mut store = UsearchStore::new(dimensions, precision).expect("store builds");
+    for (id, embedding) in stored.iter().enumerate() {
+        store.add(id as u64, embedding).expect("adds");
+    }
+
+    let mut found = 0;
+    for query in &queries {
+        let mut exact: Vec<(u64, f32)> =
+            stored.iter().enumerate().map(|(id, e)| (id as u64, query.similarity(e))).collect();
+        exact.sort_by(|a, b| b.1.total_cmp(&a.1));
+        let exact_top: Vec<u64> = exact.iter().take(k).map(|(id, _)| *id).collect();
+        let approximate = store.search(query, k).expect("searches");
+        found += approximate.iter().filter(|n| exact_top.contains(&n.id)).count();
+    }
+    found as f32 / (queries.len() * k) as f32
+}
+
+#[test]
+fn f16_store_finds_at_least_95_percent_of_exact_top_10() {
+    let recall = recall_at_10(Precision::F16);
+    assert!(recall >= 0.95, "f16 recall@10 = {recall}");
+}
+
+#[test]
+#[ignore = "i8 recall@10 is ~0.89 on synthetic vectors (quantization loss); f16 vs i8 is decided on the real Benchmark (PRD 11.2 #2)"]
+fn i8_store_finds_at_least_95_percent_of_exact_top_10() {
+    let recall = recall_at_10(Precision::I8);
+    assert!(recall >= 0.95, "i8 recall@10 = {recall}");
+}

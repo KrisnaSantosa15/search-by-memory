@@ -27,7 +27,7 @@ impl UsearchStore {
             },
             connectivity: 0,
             expansion_add: 0,
-            expansion_search: 0,
+            expansion_search: 128,
             multi: false,
         };
         Ok(Self {
