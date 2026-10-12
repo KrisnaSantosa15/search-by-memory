@@ -28,3 +28,22 @@ pub trait EmbeddingProvider {
     fn embed_query(&self, query: &str) -> Result<Embedding>;
     fn embed_chunks(&self, chunks: &[&str]) -> Result<Vec<Embedding>>;
 }
+
+/// Identifier of a Chunk's vector inside a VectorStore.
+pub type VectorId = u64;
+
+/// A stored vector close to a Query.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Neighbor {
+    pub id: VectorId,
+    pub similarity: f32,
+}
+
+/// Nearest-neighbour index over Chunk Embeddings.
+pub trait VectorStore {
+    fn add(&mut self, id: VectorId, embedding: &Embedding) -> Result<()>;
+    fn remove(&mut self, id: VectorId) -> Result<()>;
+    /// Returns up to `limit` neighbours, most similar first.
+    fn search(&self, query: &Embedding, limit: usize) -> Result<Vec<Neighbor>>;
+    fn len(&self) -> usize;
+}
