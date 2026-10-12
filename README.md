@@ -74,55 +74,87 @@ We collect thousands of files across deep folders, but our brains remember **con
 
 ---
 
-## Launcher Experience
+## How It Works
 
-```text
-+-----------------------------------------------------------------------------+
-| [Search] Type what you remember about the file...                     [Esc] |
-+-----------------------------------------------------------------------------+
-| [DOC] Quarterly Financial Report Q3.docx                      (Page 14) 89% |
-|       "...net profit increased by 18% following the launch..."              |
-|       D:\Work\Finances\2026\Q3_Report.docx                                  |
-+-----------------------------------------------------------------------------+
-| [CODE] auth_service.rs                                         (Line 142)84%|
-|        "pub async fn refresh_jwt_token(token: &str) -> Result"              |
-|        D:\Projects\backend\src\auth_service.rs                              |
-+-----------------------------------------------------------------------------+
-| [IMG] database_architecture_diagram.png                                 78% |
-|       [Thumbnail Preview] Primary-Replica failover cluster                  |
-|       D:\Notes\Architecture\database_diagram.png                            |
-+-----------------------------------------------------------------------------+
-| [Enter: Open]      [Ctrl+Enter: Reveal Folder]      [Ctrl+C: Copy Path] 28ms|
-+-----------------------------------------------------------------------------+
+Search by Memory indexes files in the background so search is instantaneous when invoked.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Launcher as Tauri UI (React)
+    participant Core as Rust Core
+    participant Embedder as Embedding Engine
+    participant Store as FAISS & SQLite
+
+    Note over Core,Store: Background Indexing (Zero search latency)
+    Core->>Store: Extract chunks & generate vectors
+    
+    Note over User,Store: Instant Query Flow
+    User->>Launcher: Global shortcut (Alt + Space)
+    Launcher->>User: Overlay search bar appears (<300ms)
+    User->>Launcher: Types natural query ("auth refresh token")
+    Launcher->>Core: Dispatches search request
+    Core->>Embedder: Encode query vector
+    Embedder-->>Core: Query embedding
+    Core->>Store: Top-K Vector Search + Metadata Lookup
+    Store-->>Core: Ranked candidates with text snippets
+    Core-->>Launcher: Streams results
+    Launcher-->>User: Displays matches with direct page/line references
+    User->>Launcher: Press Enter to open file or Ctrl+Enter to reveal in folder
 ```
 
 ---
 
-## Architecture at a Glance
+## System Architecture
 
-Search by Memory is engineered around a clean **5-Layer Modular Architecture**:
+The project is structured around a clean 5-layer modular architecture to keep domain logic strictly decoupled from OS-specific integrations and UI rendering:
 
-```text
- ┌─────────────────────────────────────────────────────────┐
- │  Presentation Layer : React + TypeScript (Tauri Shell)  │
- └────────────────────────────┬────────────────────────────┘
-                              │ IPC
- ┌────────────────────────────▼────────────────────────────┐
- │  Application Core   : Rust (Orchestrator & Concurrency) │
- └──────────────┬───────────────────────────┬──────────────┘
-                ▼                           ▼
-   [ Platform Adapters ]          [ Provider Interfaces ]
-   (Shortcuts, Watcher, OS)       (Embedding, VectorStore)
-                │                           │
- ┌──────────────▼───────────────────────────▼──────────────┐
- │  Storage Layer      : SQLite (Metadata) + FAISS (Vectors)│
- └─────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Presentation["1. Presentation Layer"]
+        UI["React + TypeScript UI<br/>(Tailwind CSS, Virtualized Results)"]
+        Tauri["Tauri 2 Shell<br/>(Window Lifecycle, Tray, IPC)"]
+        UI <--> Tauri
+    end
+
+    subgraph Core["2. Application Core (Rust)"]
+        Orch["Search Orchestrator"]
+        Sched["Index Scheduler & Queue"]
+        Rank["Result Ranker & Deduplicator"]
+    end
+
+    subgraph Adapters["3. Platform Adapters"]
+        Hotkeys["Global Shortcuts<br/>(Win32 / X11 / Cocoa)"]
+        Watcher["Filesystem Watcher<br/>(ReadDirectoryChangesW / inotify)"]
+        OSOps["OS File Operations<br/>(Default App Launch & Reveal)"]
+    end
+
+    subgraph Providers["4. Provider Interfaces"]
+        IEmbed["EmbeddingProvider<br/>(EmbeddingGemma 2)"]
+        IVector["VectorStore<br/>(FAISS Abstraction)"]
+        IExtract["ContentExtractor<br/>(PDF, DOCX, Code, Text)"]
+    end
+
+    subgraph Storage["5. Storage Layer"]
+        DB[("SQLite Database<br/>Metadata, Chunks & Jobs")]
+        VIndex[("FAISS Vector Index<br/>Serialized Dense Vectors")]
+        Thumb["Thumbnail Cache"]
+    end
+
+    Presentation <==>|Tauri IPC Commands & Events| Core
+    Core <--> Adapters
+    Core <--> Providers
+    Providers <--> Storage
+    Core <--> Storage
 ```
 
-* **Frontend Shell**: Tauri 2 + React + TypeScript + Tailwind CSS.
-* **Core Engine**: Rust for memory-safe indexing orchestration, job queuing, and ranking.
-* **Embedding Backend**: Python + EmbeddingGemma 2 (local IPC, upgradeable to ONNX Runtime).
-* **Storage and Index**: SQLite for transactional metadata & FAISS for high-throughput vector search.
+### Technology Breakdown
+
+* **Desktop Shell**: Tauri 2 + React + TypeScript + Tailwind CSS for a featherlight desktop footprint.
+* **Application Core**: Rust for deterministic concurrency, memory safety, and high-throughput job queueing.
+* **Embedding Engine**: Python with Google EmbeddingGemma 2 (local IPC, designed for future migration to native ONNX Runtime).
+* **Storage and Index**: SQLite for ACID relational metadata & FAISS for sub-second vector similarity retrieval.
 
 ---
 
