@@ -1,5 +1,7 @@
 //! VectorStore backed by USearch (ADR 0002).
 
+use std::path::Path;
+
 use sbm_core::{Embedding, Neighbor, Result, VectorId, VectorStore};
 use usearch::{Index, IndexOptions, MetricKind, ScalarKind, new_index};
 
@@ -32,6 +34,23 @@ impl UsearchStore {
             index: new_index(&options)?,
         })
     }
+
+    /// Writes the index to `path`.
+    pub fn save(&self, path: &Path) -> Result<()> {
+        self.index.save(utf8(path)?)?;
+        Ok(())
+    }
+
+    /// Opens a saved index as a read-only, memory-mapped view (low idle RAM).
+    pub fn open_view(path: &Path) -> Result<Self> {
+        Ok(Self {
+            index: Index::restore_view(utf8(path)?)?,
+        })
+    }
+}
+
+fn utf8(path: &Path) -> Result<&str> {
+    path.to_str().ok_or_else(|| format!("index path is not UTF-8: {}", path.display()).into())
 }
 
 impl VectorStore for UsearchStore {

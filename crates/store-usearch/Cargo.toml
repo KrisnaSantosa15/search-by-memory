@@ -7,3 +7,6 @@ license.workspace = true
 [dependencies]
 sbm-core = { path = "../core" }
 usearch = "=2.26.2"
+
+[dev-dependencies]
+tempfile = "=3.27.0"

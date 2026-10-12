@@ -34,3 +34,20 @@ fn removed_vector_never_appears_in_search_results() {
     assert_eq!(ids, vec![2]);
     assert_eq!(store.len(), 1);
 }
+
+#[test]
+fn saved_store_reopened_as_a_view_returns_the_same_results() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let path = dir.path().join("vectors.usearch");
+    let mut store = UsearchStore::new(3, Precision::F16).expect("store builds");
+    store.add(1, &unit(&[1.0, 0.0, 0.0])).expect("adds");
+    store.add(2, &unit(&[0.0, 1.0, 0.0])).expect("adds");
+    store.add(3, &unit(&[0.9, 0.1, 0.0])).expect("adds");
+    let query = unit(&[1.0, 0.0, 0.0]);
+    let before = store.search(&query, 3).expect("searches");
+
+    store.save(&path).expect("saves");
+    let view = UsearchStore::open_view(&path).expect("opens view");
+
+    assert_eq!(view.search(&query, 3).expect("searches view"), before);
+}
