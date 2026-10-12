@@ -12,7 +12,7 @@
 - Text beyond a configurable token limit is ignored (default 2,048; model max 8,192).
 
 ## In progress
-- —
+- Multilingual retrieval test: English ↔ Indonesian.
 
 ## Next (M1)
 - Embedding throughput benchmark on Linux CPU (current dev machine: i7-1255U, no GPU).
