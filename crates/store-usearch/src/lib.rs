@@ -43,8 +43,9 @@ impl VectorStore for UsearchStore {
         Ok(())
     }
 
-    fn remove(&mut self, _id: VectorId) -> Result<()> {
-        todo!("driven by the removal behavior test")
+    fn remove(&mut self, id: VectorId) -> Result<()> {
+        self.index.remove(id)?;
+        Ok(())
     }
 
     fn search(&self, query: &Embedding, limit: usize) -> Result<Vec<Neighbor>> {
