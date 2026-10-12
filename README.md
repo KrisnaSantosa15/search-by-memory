@@ -74,38 +74,6 @@ We collect thousands of files across deep folders, but our brains remember **con
 
 ---
 
-## How It Works
-
-Search by Memory indexes files in the background so search is instantaneous when invoked.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant Launcher as Tauri UI (React)
-    participant Core as Rust Core
-    participant Embedder as Embedding Engine
-    participant Store as FAISS & SQLite
-
-    Note over Core,Store: Background Indexing (Zero search latency)
-    Core->>Store: Extract chunks & generate vectors
-    
-    Note over User,Store: Instant Query Flow
-    User->>Launcher: Global shortcut (Alt + Space)
-    Launcher->>User: Overlay search bar appears (<300ms)
-    User->>Launcher: Types natural query ("auth refresh token")
-    Launcher->>Core: Dispatches search request
-    Core->>Embedder: Encode query vector
-    Embedder-->>Core: Query embedding
-    Core->>Store: Top-K Vector Search + Metadata Lookup
-    Store-->>Core: Ranked candidates with text snippets
-    Core-->>Launcher: Streams results
-    Launcher-->>User: Displays matches with direct page/line references
-    User->>Launcher: Press Enter to open file or Ctrl+Enter to reveal in folder
-```
-
----
-
 ## System Architecture
 
 The project is structured around a clean 5-layer modular architecture to keep domain logic strictly decoupled from OS-specific integrations and UI rendering:
