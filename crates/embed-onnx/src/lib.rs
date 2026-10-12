@@ -6,11 +6,15 @@ use std::sync::Mutex;
 use ort::session::Session;
 use ort::value::Tensor;
 use sbm_core::{Embedding, EmbeddingProvider, Result};
-use tokenizers::Tokenizer;
+use tokenizers::{Tokenizer, TruncationParams};
 
 /// Prompt prefixes from the EmbeddingGemma 2 model card.
 const QUERY_PREFIX: &str = "task: search result | query: ";
 const CHUNK_PREFIX: &str = "title: none | text: ";
+
+/// Token limit per text used by the app. Chunks are 256–512 tokens (PRD FR-03), so this
+/// leaves headroom while capping the cost of oversized input. The model itself accepts 8,192.
+pub const DEFAULT_MAX_TOKENS: usize = 2048;
 
 /// Width of the (unused, text-only) image/video/audio feature inputs.
 const MEDIA_FEATURE_WIDTH: usize = 512;
@@ -24,8 +28,13 @@ pub struct OnnxEmbedder {
 
 impl OnnxEmbedder {
     /// Loads `tokenizer.json` and `onnx/model.onnx` from `model_dir`.
-    pub fn load(model_dir: &Path, dimensions: usize) -> Result<Self> {
-        let tokenizer = Tokenizer::from_file(model_dir.join("tokenizer.json"))?;
+    /// Text beyond `max_tokens` tokens is ignored.
+    pub fn load(model_dir: &Path, dimensions: usize, max_tokens: usize) -> Result<Self> {
+        let mut tokenizer = Tokenizer::from_file(model_dir.join("tokenizer.json"))?;
+        tokenizer.with_truncation(Some(TruncationParams {
+            max_length: max_tokens,
+            ..TruncationParams::default()
+        }))?;
         let pad_id = tokenizer.token_to_id("<pad>").map_or(0, i64::from);
         let session = Session::builder()?.commit_from_file(model_dir.join("onnx/model.onnx"))?;
         Ok(Self {

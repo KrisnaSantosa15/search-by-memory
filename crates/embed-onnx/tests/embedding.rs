@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use sbm_core::EmbeddingProvider;
-use sbm_embed_onnx::OnnxEmbedder;
+use sbm_embed_onnx::{DEFAULT_MAX_TOKENS, OnnxEmbedder};
 
 fn model_dir() -> Option<PathBuf> {
     let dir = std::env::var_os("SBM_MODEL_DIR").map(PathBuf::from).or_else(|| {
@@ -26,7 +26,7 @@ fn model_dir() -> Option<PathBuf> {
 #[test]
 fn related_chunk_scores_higher_than_unrelated_chunk_for_a_query() {
     let Some(dir) = model_dir() else { return };
-    let embedder = OnnxEmbedder::load(&dir, 256).expect("model loads");
+    let embedder = OnnxEmbedder::load(&dir, 256, DEFAULT_MAX_TOKENS).expect("model loads");
 
     let query = embedder
         .embed_query("tutorial explaining attention mechanisms: query, key and value")
@@ -49,7 +49,7 @@ fn related_chunk_scores_higher_than_unrelated_chunk_for_a_query() {
 #[test]
 fn embeddings_have_the_configured_dimensions_and_unit_length() {
     let Some(dir) = model_dir() else { return };
-    let embedder = OnnxEmbedder::load(&dir, 256).expect("model loads");
+    let embedder = OnnxEmbedder::load(&dir, 256, DEFAULT_MAX_TOKENS).expect("model loads");
 
     let query = embedder.embed_query("meeting notes from yesterday").expect("query embeds");
     let chunks = embedder.embed_chunks(&["Agenda: quarterly planning."]).expect("chunk embeds");
@@ -66,7 +66,7 @@ fn embeddings_have_the_configured_dimensions_and_unit_length() {
 #[test]
 fn onnx_embeddings_match_the_pytorch_reference() {
     let Some(dir) = model_dir() else { return };
-    let embedder = OnnxEmbedder::load(&dir, 768).expect("model loads");
+    let embedder = OnnxEmbedder::load(&dir, 768, DEFAULT_MAX_TOKENS).expect("model loads");
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/parity.json")).expect("fixture parses");
 
@@ -100,7 +100,7 @@ fn onnx_embeddings_match_the_pytorch_reference() {
 #[test]
 fn embedding_chunks_in_a_batch_matches_embedding_them_one_by_one() {
     let Some(dir) = model_dir() else { return };
-    let embedder = OnnxEmbedder::load(&dir, 256).expect("model loads");
+    let embedder = OnnxEmbedder::load(&dir, 256, DEFAULT_MAX_TOKENS).expect("model loads");
     let chunks = [
         "Short note.",
         "A much longer chunk of text that spans many more tokens than the first one, so that batching \
@@ -115,4 +115,17 @@ fn embedding_chunks_in_a_batch_matches_embedding_them_one_by_one() {
         let cosine = from_batch.similarity(alone);
         assert!(cosine > 0.9999, "batched vs single cosine {cosine} for {chunk:?}");
     }
+}
+
+#[test]
+fn text_beyond_the_token_limit_is_ignored() {
+    let Some(dir) = model_dir() else { return };
+    let embedder = OnnxEmbedder::load(&dir, 256, 64).expect("model loads");
+    let beyond_limit = "The quarterly budget meeting covered hiring plans. ".repeat(20);
+    let with_unrelated_tail = format!("{beyond_limit} Preheat the oven and bake the bread for twenty minutes.");
+
+    let embeddings = embedder.embed_chunks(&[&beyond_limit, &with_unrelated_tail]).expect("chunks embed");
+
+    let cosine = embeddings[0].similarity(&embeddings[1]);
+    assert!(cosine > 0.9999, "text past the token limit changed the embedding (cosine {cosine})");
 }
