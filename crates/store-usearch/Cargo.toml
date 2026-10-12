@@ -1,0 +1,9 @@
+[package]
+name = "sbm-store-usearch"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sbm-core = { path = "../core" }
+usearch = "=2.26.2"
