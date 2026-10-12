@@ -96,3 +96,23 @@ fn onnx_embeddings_match_the_pytorch_reference() {
         assert!(cosine >= 0.99, "cosine {cosine} < 0.99 for {:?}", text);
     }
 }
+
+#[test]
+fn embedding_chunks_in_a_batch_matches_embedding_them_one_by_one() {
+    let Some(dir) = model_dir() else { return };
+    let embedder = OnnxEmbedder::load(&dir, 256).expect("model loads");
+    let chunks = [
+        "Short note.",
+        "A much longer chunk of text that spans many more tokens than the first one, so that batching \
+         must pad the shorter inputs and mask the padding correctly for the embeddings to stay identical.",
+        "Kode ini memperbarui token JWT ketika sudah kedaluwarsa.",
+    ];
+
+    let batched = embedder.embed_chunks(&chunks).expect("batch embeds");
+    assert_eq!(batched.len(), chunks.len());
+    for (chunk, from_batch) in chunks.iter().zip(&batched) {
+        let alone = &embedder.embed_chunks(&[chunk]).expect("single embeds")[0];
+        let cosine = from_batch.similarity(alone);
+        assert!(cosine > 0.9999, "batched vs single cosine {cosine} for {chunk:?}");
+    }
+}
