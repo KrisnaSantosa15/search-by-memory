@@ -11,11 +11,13 @@
 - Parity gate: matches PyTorch reference at cosine ≥ 0.99 (`tools/make_parity_fixtures.py`).
 - Text beyond a configurable token limit is ignored (default 2,048; model max 8,192).
 - Multilingual guard: English ↔ Indonesian Queries find related Chunks.
+- Throughput runner `embed_throughput` (`crates/bench`); partial CPU fp32 result: ~2 Chunks/s at 256 tok (1M Chunks ≈ 140 h).
 
 ## In progress
-- Embedding throughput benchmark on Linux CPU (i7-1255U, no GPU).
+- —
 
 ## Next (M1)
+- Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
 - USearch validation: insert, remove, mmap, `f16`/`i8` recall.
 - Public Corpus and first Benchmark labels.
 
