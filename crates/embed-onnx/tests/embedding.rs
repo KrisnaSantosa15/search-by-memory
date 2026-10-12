@@ -45,3 +45,18 @@ fn related_chunk_scores_higher_than_unrelated_chunk_for_a_query() {
         "related chunk ({related}) should score higher than unrelated chunk ({unrelated})"
     );
 }
+
+#[test]
+fn embeddings_have_the_configured_dimensions_and_unit_length() {
+    let Some(dir) = model_dir() else { return };
+    let embedder = OnnxEmbedder::load(&dir, 256).expect("model loads");
+
+    let query = embedder.embed_query("meeting notes from yesterday").expect("query embeds");
+    let chunks = embedder.embed_chunks(&["Agenda: quarterly planning."]).expect("chunk embeds");
+
+    for embedding in [&query, &chunks[0]] {
+        assert_eq!(embedding.as_slice().len(), embedder.dimensions());
+        let norm = embedding.as_slice().iter().map(|v| v * v).sum::<f32>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-4, "expected unit length, got norm {norm}");
+    }
+}

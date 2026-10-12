@@ -49,8 +49,18 @@ impl OnnxEmbedder {
             "audio_features" => no_media()?,
         ])?;
         let (_shape, values) = outputs["sentence_embedding"].try_extract_tensor::<f32>()?;
-        Ok(Embedding::new(values.to_vec()))
+        Ok(Embedding::new(truncate_and_normalize(values, self.dimensions)))
     }
+}
+
+/// Matryoshka truncation: keep the leading `dimensions` values, then rescale to unit length.
+fn truncate_and_normalize(values: &[f32], dimensions: usize) -> Vec<f32> {
+    let mut truncated = values[..dimensions.min(values.len())].to_vec();
+    let norm = truncated.iter().map(|v| v * v).sum::<f32>().sqrt();
+    if norm > 0.0 {
+        truncated.iter_mut().for_each(|v| *v /= norm);
+    }
+    truncated
 }
 
 impl EmbeddingProvider for OnnxEmbedder {
