@@ -7,7 +7,7 @@ These rules apply to every agent and contributor working in this repository.
 - [`CONTEXT.md`](CONTEXT.md) — the domain glossary. Use its terms exactly (e.g. **Chunk**, **Content Match**, **Name Index**, **Copy**) in code, test names, and docs; avoid the words listed under `_Avoid_`.
 - [`docs/adr/`](docs/adr/) — accepted architecture decisions. Do not contradict an ADR; if a change requires it, propose a new ADR that supersedes it.
 - [`docs/PRD.md`](docs/PRD.md) — requirements, milestones, and acceptance criteria.
-- [`implementation/backlog.md`](implementation/backlog.md) — what is implemented, in progress, and next.
+- [`docs/implementation/backlog.md`](docs/implementation/backlog.md) — what is implemented, in progress, and next.
 
 ## Language
 
@@ -15,7 +15,7 @@ Everything in the codebase is in English: code, identifiers, comments, tests, do
 
 ## Implementation backlog
 
-Always record implementation progress in [`implementation/backlog.md`](implementation/backlog.md):
+Always record implementation progress in [`docs/implementation/backlog.md`](docs/implementation/backlog.md):
 
 - When work starts, put it under **In progress**; when it is done, move it to **Done**.
 - Keep entries to the point: one short line per item, no narrative.
