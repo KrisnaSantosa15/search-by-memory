@@ -15,6 +15,11 @@
 
 ## Next (M1)
 - Cross-lingual retrieval test.
-- Embedding throughput benchmark: CPU/GPU, Linux then Windows RTX 4060.
+- Embedding throughput benchmark on Linux CPU (current dev machine: i7-1255U, no GPU).
 - USearch validation: insert, remove, mmap, `f16`/`i8` recall.
 - Public Corpus and first Benchmark labels.
+
+## Deferred until development moves to Windows (RTX 4060 8 GB)
+- GPU throughput: CUDA and DirectML execution providers.
+- Windows builds of `ort` and USearch.
+- Full-disk Initial Indexing time estimate.
