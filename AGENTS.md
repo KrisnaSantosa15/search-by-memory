@@ -13,6 +13,8 @@ These rules apply to every agent and contributor working in this repository.
 
 Everything in the codebase is in English: code, identifiers, comments, tests, docs, and commit messages. Use another language only when the user explicitly requests it.
 
+Exception: test data that exercises multilingual capability (the PRD requires English and Indonesian Queries) may be in Indonesian. Test names, comments, and assertions stay in English, and non-English text must not be used where the language is irrelevant to the test.
+
 ## Implementation backlog
 
 Always record implementation progress in [`docs/implementation/backlog.md`](docs/implementation/backlog.md):
