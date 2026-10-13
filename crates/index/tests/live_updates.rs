@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{BagOfWords, FakeChangeSource, FakeVolumes, store, write};
+use common::{BagOfWords, FakeChangeSource, FakeVolumes, modified_days_ago, store, write};
 use sbm_core::VectorStore;
 use sbm_index::{Index, View};
 use tempfile::TempDir;
@@ -142,4 +142,50 @@ fn renamed_folder_moves_its_files_without_reembedding() {
             .iter()
             .all(|name| name.path.starts_with(drive.path().join("pictures")))
     );
+}
+
+#[test]
+fn live_updates_are_indexed_before_remaining_initial_indexing_work() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        drive.path(),
+        "inbox/today.txt",
+        "agenda for the team meeting
+",
+    );
+    write(
+        drive.path(),
+        "inbox/yesterday.txt",
+        "notes from the team meeting
+",
+    );
+    let journal = FakeChangeSource::default();
+    let mut index = indexed_drive(&data, &drive, &journal);
+
+    // Restored from a backup: changed now, but modified long ago.
+    let restored = write(
+        drive.path(),
+        "restored/minutes.txt",
+        "minutes of the team meeting
+",
+    );
+    modified_days_ago(&restored, 400);
+    journal.record("d-drive", "restored");
+    index.apply_changes(&journal).unwrap();
+    let mut store = store();
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, 1)
+        .unwrap();
+
+    let results = index
+        .search(
+            "team meeting",
+            &BagOfWords::default(),
+            &store,
+            View::Passage,
+            20,
+        )
+        .unwrap();
+    let paths: Vec<_> = results.iter().map(|r| r.path.clone()).collect();
+    assert_eq!(paths, [restored]);
 }

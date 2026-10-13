@@ -83,7 +83,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 8] = [
+const MIGRATIONS: [&str; 9] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -155,6 +155,8 @@ const MIGRATIONS: [&str; 8] = [
      );",
     // Where each volume's ChangeSource was last read (FR-04).
     "CREATE TABLE change_cursors (volume_id TEXT PRIMARY KEY, cursor TEXT NOT NULL);",
+    // Live Updates go ahead of Initial Indexing work (FR-04).
+    "ALTER TABLE index_jobs ADD COLUMN live INTEGER NOT NULL DEFAULT 0;",
 ];
 
 /// Chunk size in characters: about 256 tokens of prose.
@@ -251,16 +253,18 @@ impl Index {
         let folder = normalized(folder);
         let volume = self.volumes.volume_of(&folder)?;
         let folder_path = relative_path(&folder, &volume)?;
-        self.scan_path(&volume, &folder_path, exclusions)
+        self.scan_path(&volume, &folder_path, exclusions, false)
     }
 
     /// Brings the Name Index in line with the file or folder at the relative
-    /// `folder_path` on `volume`, which may no longer exist.
+    /// `folder_path` on `volume`, which may no longer exist. With `live`, content
+    /// work is queued as Live Updates.
     fn scan_path(
         &mut self,
         volume: &Volume,
         folder_path: &str,
         exclusions: &[Exclusion],
+        live: bool,
     ) -> Result<ScanChanges> {
         let folder = &beneath(&volume.root, folder_path);
         let mut changes = ScanChanges::default();
@@ -300,7 +304,7 @@ impl Index {
             if let Some((id, previous_size, previous_mtime)) = known {
                 if (previous_size, previous_mtime) != (size, mtime_ns) {
                     changes.changed.push(entry.path().to_path_buf());
-                    queue_job(&tx, id, mtime_ns)?;
+                    queue_job(&tx, id, mtime_ns, live)?;
                 }
                 tx.execute(
                     "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3
@@ -329,7 +333,7 @@ impl Index {
                 "INSERT INTO names (rowid, name, folder) VALUES (?1, ?2, ?3)",
                 params![id, name, folder],
             )?;
-            queue_job(&tx, id, mtime_ns)?;
+            queue_job(&tx, id, mtime_ns, live)?;
         }
         let gone: Vec<(i64, String)> = tx
             .prepare(
@@ -520,20 +524,21 @@ impl Index {
                     |row| row.get(0),
                 )
                 .optional()?;
-            let (paths, next) = match source
+            let (paths, next, live) = match source
                 .changes_since(&volume.id, cursor.map(ChangeCursor).as_ref())?
             {
-                Changes::Paths { paths, next } => (paths, next),
+                Changes::Paths { paths, next } => (paths, next, true),
                 Changes::Lost { next } => (
                     self.db
                         .prepare("SELECT relative_path FROM indexed_folders WHERE volume_id = ?1")?
                         .query_map(params![volume.id], |row| row.get(0))?
                         .collect::<rusqlite::Result<_>>()?,
                     next,
+                    false,
                 ),
             };
             for path in paths {
-                let found = self.scan_path(&volume, &path, &exclusions)?;
+                let found = self.scan_path(&volume, &path, &exclusions, live)?;
                 changes.added.extend(found.added);
                 changes.changed.extend(found.changed);
                 changes.removed.extend(found.removed);
@@ -569,7 +574,7 @@ impl Index {
             "SELECT index_jobs.id, files.volume_id, files.relative_path
              FROM index_jobs JOIN files ON files.id = index_jobs.file_id
              WHERE index_jobs.status = 'pending' AND files.volume_id NOT IN ({})
-             ORDER BY index_jobs.priority DESC LIMIT 1",
+             ORDER BY index_jobs.live DESC, index_jobs.priority DESC LIMIT 1",
             vec!["?"; disconnected.len()].join(", ")
         );
         let mut done = 0;
@@ -873,16 +878,18 @@ fn remember_volume(db: &Connection, volume: &Volume) -> rusqlite::Result<()> {
     Ok(())
 }
 
-/// Queues (or re-queues) indexing the content of file `file_id`, modified at `mtime_ns`.
-fn queue_job(db: &Connection, file_id: i64, mtime_ns: i64) -> Result<()> {
+/// Queues (or re-queues) indexing the content of file `file_id`, modified at
+/// `mtime_ns`; a Live Update stays one until its job is done.
+fn queue_job(db: &Connection, file_id: i64, mtime_ns: i64, live: bool) -> Result<()> {
     let now = std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| since.as_secs() as i64);
     db.execute(
-        "INSERT INTO index_jobs (file_id, priority, created_at) VALUES (?1, ?2, ?3)
+        "INSERT INTO index_jobs (file_id, priority, created_at, live) VALUES (?1, ?2, ?3, ?4)
          ON CONFLICT (file_id) DO UPDATE SET
-             priority = excluded.priority, status = 'pending', retry_count = 0, error_message = NULL",
-        params![file_id, mtime_ns, now],
+             priority = excluded.priority, status = 'pending', retry_count = 0, error_message = NULL,
+             live = max(live, excluded.live)",
+        params![file_id, mtime_ns, now, live],
     )?;
     Ok(())
 }
