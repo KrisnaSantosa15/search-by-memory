@@ -4,7 +4,7 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 
 ## State (2026-10-13)
 - M1 technical validation in progress. Embedding, vector store, Benchmark tooling and Public Corpus are done; all tests green, one deliberately ignored (i8 recall).
-- Nothing in progress. Next: a Benchmark runner scoring the semantic-only baseline, and the unfinished CPU throughput benchmark.
+- Nothing in progress. Next: diagnose low Location Accuracy, grow the corpus with distractors, and the unfinished CPU throughput benchmark.
 
 ## Workspace
 | Path | Purpose |
@@ -21,6 +21,7 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 - Ignored tests: `cargo test -p sbm-store-usearch -- --ignored`.
 - Benchmark: `cargo run --release -p sbm-bench --bin embed_throughput` (do not run tests at the same time).
 - Parity fixtures: `cd tools && uv run make_parity_fixtures.py`.
+- Retrieval Benchmark: `cargo run --release -p sbm-bench --bin retrieval_benchmark` (first run ≈ 40 min CPU; cached in `~/.cache/search-by-memory/bench-embeddings`).
 - Public Corpus: `cd tools && uv run fetch_public_corpus.py` → `~/.cache/search-by-memory/public-corpus` (override: `SBM_PUBLIC_CORPUS`). Corpus-dependent test prints `SKIPPED` when absent.
 
 ## Model
@@ -41,6 +42,8 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 - EmbeddingGemma 2 is multimodal (text, image, video, audio in one space); may simplify P1/P2.
 - Benchmark is for development only; the user's own files come in as a Personal Corpus later (labels outside git).
 - Public Corpus label caveats: most arXiv Targets are page 1 (abstract) — too easy; media time ranges verified from subtitles/frames; UU 36/2009 and UU 13/2003 are superseded/amended texts.
+- Real-corpus CPU embedding ≈ 1 Chunk/s (1,000-char Chunks, batch 8), half the synthetic estimate.
+- First retrieval run: file-level metrics saturated (Recall@5 = 1.0 everywhere); Location Accuracy 0.28–0.44 is the weak spot.
 - Wikimedia rate-limits bursts (429); the fetcher honours Retry-After.
 
 ## Open questions for the user
