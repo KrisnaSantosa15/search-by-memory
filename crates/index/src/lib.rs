@@ -8,7 +8,7 @@ use sbm_core::{
     ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, Location, Result,
     SystemVolumes, VectorStore, Volume, Volumes,
 };
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 /// A file whose filename or folder path is relevant to the Query.
 #[derive(Debug, Clone, PartialEq)]
@@ -51,12 +51,12 @@ impl Exclusion {
             .collect()
     }
 
-    fn excludes(&self, entry: &DirEntry) -> bool {
+    fn excludes(&self, path: &Path) -> bool {
         match self {
-            Exclusion::Name(pattern) => {
-                wildcard_match(pattern, &entry.file_name().to_string_lossy())
-            }
-            Exclusion::Folder(folder) => entry.path() == folder,
+            Exclusion::Name(pattern) => path
+                .file_name()
+                .is_some_and(|name| wildcard_match(pattern, &name.to_string_lossy())),
+            Exclusion::Folder(folder) => path == folder,
         }
     }
 }
@@ -278,7 +278,7 @@ impl Index {
         let entries = WalkDir::new(folder)
             .into_iter()
             .filter_entry(|entry| {
-                entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry))
+                entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry.path()))
             })
             // A deleted file or folder: whatever the index knows beneath it is swept below.
             .filter(|entry| folder.exists() || entry.is_ok());
@@ -527,7 +527,9 @@ impl Index {
             let (paths, next, live) = match source
                 .changes_since(&volume.id, cursor.map(ChangeCursor).as_ref())?
             {
-                Changes::Paths { paths, next } => (paths, next, true),
+                Changes::Paths { paths, next } => {
+                    (self.indexed_paths(&volume, paths, &exclusions)?, next, true)
+                }
                 Changes::Lost { next } => (
                     self.db
                         .prepare("SELECT relative_path FROM indexed_folders WHERE volume_id = ?1")?
@@ -550,6 +552,42 @@ impl Index {
             )?;
         }
         Ok(changes)
+    }
+
+    /// Of the changed relative `paths` on `volume`, those in an Indexed Folder and
+    /// not excluded; an Indexed Folder inside a changed folder stands for it.
+    fn indexed_paths(
+        &self,
+        volume: &Volume,
+        paths: Vec<String>,
+        exclusions: &[Exclusion],
+    ) -> Result<Vec<String>> {
+        let folders: Vec<String> = self
+            .db
+            .prepare("SELECT relative_path FROM indexed_folders WHERE volume_id = ?1")?
+            .query_map(params![volume.id], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut indexed = Vec::new();
+        for path in paths {
+            for folder in &folders {
+                if is_beneath(&path, folder) {
+                    // The Indexed Folder itself is never excluded.
+                    let folder = beneath(&volume.root, folder);
+                    let excluded = beneath(&volume.root, &path)
+                        .ancestors()
+                        .take_while(|ancestor| *ancestor != folder)
+                        .any(|ancestor| exclusions.iter().any(|e| e.excludes(ancestor)));
+                    if !excluded {
+                        indexed.push(path.clone());
+                    }
+                } else if is_beneath(folder, &path) {
+                    indexed.push(folder.clone());
+                }
+            }
+        }
+        indexed.sort();
+        indexed.dedup();
+        Ok(indexed)
     }
 
     /// Indexes the content of up to `limit` queued files. Each file is committed on

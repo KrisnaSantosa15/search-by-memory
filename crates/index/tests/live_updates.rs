@@ -4,7 +4,7 @@ mod common;
 
 use common::{BagOfWords, FakeChangeSource, FakeVolumes, modified_days_ago, store, write};
 use sbm_core::VectorStore;
-use sbm_index::{Index, View};
+use sbm_index::{Exclusion, Index, View};
 use tempfile::TempDir;
 
 /// An index whose Indexed Folder is the whole of volume "d-drive", with its
@@ -188,4 +188,42 @@ fn live_updates_are_indexed_before_remaining_initial_indexing_work() {
         .unwrap();
     let paths: Vec<_> = results.iter().map(|r| r.path.clone()).collect();
     assert_eq!(paths, [restored]);
+}
+
+#[test]
+fn changes_outside_indexed_folders_or_inside_exclusions_are_ignored() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let volumes = FakeVolumes::default();
+    volumes.mount("d-drive", drive.path());
+    let journal = FakeChangeSource::default();
+    let documents = drive.path().join("documents");
+    std::fs::create_dir(&documents).unwrap();
+    let mut index = Index::open(&data.path().join("index.sqlite"))
+        .unwrap()
+        .with_volumes(volumes);
+    index.add_indexed_folder(&documents).unwrap();
+    index
+        .add_exclusion(Exclusion::Name("*.tmp".to_string()))
+        .unwrap();
+    index.apply_changes(&journal).unwrap();
+
+    let report = write(drive.path(), "documents/report.txt", "quarterly report\n");
+    write(drive.path(), "downloads/setup.txt", "installer notes\n");
+    write(
+        drive.path(),
+        "documents/site/node_modules/left-pad/readme.txt",
+        "pads strings\n",
+    );
+    write(drive.path(), "documents/draft.tmp", "scratch\n");
+    for path in [
+        "documents/report.txt",
+        "downloads/setup.txt",
+        "documents/site/node_modules/left-pad/readme.txt",
+        "documents/draft.tmp",
+    ] {
+        journal.record("d-drive", path);
+    }
+    let changes = index.apply_changes(&journal).unwrap();
+
+    assert_eq!(changes.added, vec![report]);
 }
