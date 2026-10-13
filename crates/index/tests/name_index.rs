@@ -105,3 +105,18 @@ fn indexed_folder_is_scanned_even_when_its_own_name_is_excluded() {
 
     assert_eq!(index.search_names("release-notes", 20).unwrap().len(), 1);
 }
+
+#[test]
+fn files_beneath_an_excluded_folder_are_not_in_the_name_index() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "work/budget.xlsx");
+    touch(folder.path(), "private/budget.xlsx");
+    let mut index = Index::open_in_memory().unwrap();
+
+    let exclusions = [Exclusion::Folder(folder.path().join("private"))];
+    index.scan(folder.path(), &exclusions).unwrap();
+    let matches = index.search_names("budget", 20).unwrap();
+
+    let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
+    assert_eq!(paths, [folder.path().join("work/budget.xlsx")]);
+}

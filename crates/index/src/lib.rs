@@ -29,6 +29,8 @@ const DEFAULT_EXCLUDED_NAMES: [&str; 8] = [
 pub enum Exclusion {
     /// Any file or folder with this name, anywhere beneath an Indexed Folder.
     Name(String),
+    /// One folder and everything beneath it.
+    Folder(PathBuf),
 }
 
 impl Exclusion {
@@ -43,6 +45,7 @@ impl Exclusion {
     fn excludes(&self, entry: &DirEntry) -> bool {
         match self {
             Exclusion::Name(name) => entry.file_name() == name.as_str(),
+            Exclusion::Folder(folder) => entry.path() == folder,
         }
     }
 }
