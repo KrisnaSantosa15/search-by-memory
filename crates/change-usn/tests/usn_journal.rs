@@ -46,3 +46,22 @@ fn file_created_after_the_cursor_is_reported_by_its_path() {
 
     assert!(changed_paths(&volume, &cursor).contains(&relative(&volume, &created)));
 }
+
+#[test]
+fn deleted_file_is_reported_by_its_folder() {
+    let folder = TempDir::new().unwrap();
+    let notes = folder.path().join("notes");
+    fs::create_dir(&notes).unwrap();
+    let doomed = notes.join("doomed.txt");
+    fs::write(&doomed, "short-lived").unwrap();
+    let (volume, cursor) = volume_and_cursor(&folder);
+
+    fs::remove_file(&doomed).unwrap();
+
+    let paths = changed_paths(&volume, &cursor);
+    assert!(
+        paths.contains(&relative(&volume, &notes)),
+        "{paths:?} {}",
+        relative(&volume, &notes)
+    );
+}

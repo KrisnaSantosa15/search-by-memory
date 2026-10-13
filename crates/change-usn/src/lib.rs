@@ -28,7 +28,7 @@ mod platform {
     use windows_sys::Win32::System::IO::DeviceIoControl;
     use windows_sys::Win32::System::Ioctl::{
         FSCTL_QUERY_USN_JOURNAL, FSCTL_READ_UNPRIVILEGED_USN_JOURNAL, READ_USN_JOURNAL_DATA_V1,
-        USN_JOURNAL_DATA_V0, USN_RECORD_V2,
+        USN_JOURNAL_DATA_V0, USN_REASON_FILE_DELETE, USN_REASON_RENAME_OLD_NAME, USN_RECORD_V2,
     };
 
     /// Bytes of records per read.
@@ -104,7 +104,18 @@ mod platform {
                 if record.RecordLength == 0 {
                     break;
                 }
-                if let Some(path) = path_of(&root, record.FileReferenceNumber) {
+                // A file deleted or renamed away is gone from where it was, so its
+                // folder is re-checked instead; so is a file that no longer resolves.
+                let gone =
+                    record.Reason & (USN_REASON_FILE_DELETE | USN_REASON_RENAME_OLD_NAME) != 0;
+                let path = if gone {
+                    None
+                } else {
+                    path_of(&root, record.FileReferenceNumber)
+                };
+                if let Some(path) =
+                    path.or_else(|| path_of(&root, record.ParentFileReferenceNumber))
+                {
                     paths.push(path);
                 }
                 offset += record.RecordLength as usize;
@@ -205,7 +216,9 @@ mod platform {
         }
         // Without a volume name the path starts at the root: `\Users\me\notes.txt`.
         let path = String::from_utf16_lossy(&path[..length]);
-        Some(path.trim_start_matches('\\').replace('\\', "/"))
+        let path = path.trim_start_matches('\\').replace('\\', "/");
+        // NTFS metadata, e.g. `$Extend/$Deleted` holding files deleted while open.
+        (!path.starts_with("$Extend/")).then_some(path)
     }
 }
 
