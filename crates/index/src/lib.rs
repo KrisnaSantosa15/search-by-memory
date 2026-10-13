@@ -60,6 +60,15 @@ impl Exclusion {
     }
 }
 
+/// A folder or whole drive the user has chosen to make searchable.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndexedFolder {
+    /// Where the folder is now, or was when its drive was last connected.
+    pub path: PathBuf,
+    /// False while the folder's drive is a Disconnected Drive.
+    pub connected: bool,
+}
+
 /// What a scan found different from the previous one.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ScanChanges {
@@ -331,17 +340,31 @@ impl Index {
         Ok(())
     }
 
-    /// Scans every Indexed Folder, queueing a content job for each added or changed file.
-    pub fn scan_all(&mut self) -> Result<ScanChanges> {
+    /// The Indexed Folders, in the order they were added.
+    pub fn indexed_folders(&self) -> Result<Vec<IndexedFolder>> {
         let folders: Vec<(String, String)> = self
             .db
-            .prepare("SELECT volume_id, relative_path FROM indexed_folders")?
+            .prepare("SELECT volume_id, relative_path FROM indexed_folders ORDER BY id")?
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect::<rusqlite::Result<_>>()?;
+        folders
+            .into_iter()
+            .map(|(volume_id, path)| {
+                let (path, connected) = self.path_of(&volume_id, &path)?;
+                Ok(IndexedFolder { path, connected })
+            })
+            .collect()
+    }
+
+    /// Scans every connected Indexed Folder, queueing a content job for each added
+    /// or changed file. Folders on a Disconnected Drive keep their files.
+    pub fn scan_all(&mut self) -> Result<ScanChanges> {
         let mut changes = ScanChanges::default();
-        for (volume_id, path) in folders {
-            let (folder, _connected) = self.path_of(&volume_id, &path)?;
-            let found = self.scan(&folder, &Exclusion::defaults())?;
+        for folder in self.indexed_folders()? {
+            if !folder.connected {
+                continue;
+            }
+            let found = self.scan(&folder.path, &Exclusion::defaults())?;
             changes.added.extend(found.added);
             changes.changed.extend(found.changed);
             changes.removed.extend(found.removed);
@@ -705,7 +728,7 @@ fn relative_path(path: &Path, volume: &Volume) -> Result<String> {
 /// The relative `path` under `root`, spelled with the platform's separator.
 fn beneath(root: &Path, path: &str) -> PathBuf {
     let mut absolute = root.to_path_buf();
-    absolute.extend(path.split('/'));
+    absolute.extend(path.split('/').filter(|part| !part.is_empty()));
     absolute
 }
 

@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{BagOfWords, store, write};
+use common::{BagOfWords, FakeVolumes, store, write};
 use sbm_index::{Index, View};
 use tempfile::TempDir;
 
@@ -191,4 +191,31 @@ fn moved_file_is_indexed_through_the_queue_without_reembedding() {
         .unwrap();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].path, after);
+}
+
+#[test]
+fn indexed_folder_on_a_disconnected_drive_is_skipped_and_keeps_its_files() {
+    let (data, e_drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        e_drive.path(),
+        "photos/holiday-notes.txt",
+        "beach and mountains\n",
+    );
+    let volumes = FakeVolumes::default();
+    volumes.mount("usb-stick", e_drive.path());
+    let mut index = Index::open(&data.path().join("index.sqlite"))
+        .unwrap()
+        .with_volumes(volumes.clone());
+    index.add_indexed_folder(e_drive.path()).unwrap();
+    index.scan_all().unwrap();
+
+    volumes.disconnect("usb-stick");
+    let changes = index.scan_all().unwrap();
+
+    assert!(changes.removed.is_empty(), "{changes:?}");
+    assert_eq!(index.search_names("holiday", 20).unwrap().len(), 1);
+    let folders = index.indexed_folders().unwrap();
+    assert_eq!(folders.len(), 1);
+    assert_eq!(folders[0].path, e_drive.path());
+    assert!(!folders[0].connected);
 }
