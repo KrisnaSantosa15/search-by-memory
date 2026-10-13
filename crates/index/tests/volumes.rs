@@ -195,3 +195,21 @@ fn scanning_one_drive_keeps_the_files_of_another() {
     assert_eq!(changes.removed, Vec::<PathBuf>::new());
     assert_eq!(index.search_names("diary", 20).unwrap().len(), 1);
 }
+
+#[cfg(windows)]
+#[test]
+fn paths_in_results_use_backslashes_on_windows() {
+    let e_drive = TempDir::new().unwrap();
+    touch(e_drive.path(), "reports/2024/budget.xlsx");
+    let volumes = FakeVolumes::default();
+    volumes.mount("usb-stick", e_drive.path());
+    let mut index = Index::open_in_memory()
+        .unwrap()
+        .with_volumes(volumes.clone());
+    index.scan(e_drive.path(), &[]).unwrap();
+
+    let matches = index.search_names("budget", 20).unwrap();
+
+    let path = matches[0].path.to_string_lossy();
+    assert!(!path.contains('/'), "{path}");
+}

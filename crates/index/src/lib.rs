@@ -290,7 +290,7 @@ impl Index {
             if is_beneath(&path, &folder_path) {
                 tx.execute("DELETE FROM names WHERE rowid = ?1", params![id])?;
                 tx.execute("DELETE FROM files WHERE id = ?1", params![id])?;
-                changes.removed.push(volume.root.join(&path));
+                changes.removed.push(beneath(&volume.root, &path));
             }
         }
         tx.commit()?;
@@ -488,14 +488,14 @@ impl Index {
     /// the flag says whether the drive is connected.
     fn path_of(&self, volume_id: &str, path: &str) -> rusqlite::Result<(PathBuf, bool)> {
         if let Some(root) = self.volumes.mount_point(volume_id) {
-            return Ok((root.join(path), true));
+            return Ok((beneath(&root, path), true));
         }
         let last_root: String = self.db.query_row(
             "SELECT last_root FROM volumes WHERE id = ?1",
             params![volume_id],
             |row| row.get(0),
         )?;
-        Ok((Path::new(&last_root).join(path), false))
+        Ok((beneath(Path::new(&last_root), path), false))
     }
 
     /// Name Matches for a Query, best first.
@@ -540,6 +540,13 @@ fn relative_path(path: &Path, volume: &Volume) -> Result<String> {
         .map(|part| part.as_os_str().to_string_lossy())
         .collect();
     Ok(parts.join("/"))
+}
+
+/// The relative `path` under `root`, spelled with the platform's separator.
+fn beneath(root: &Path, path: &str) -> PathBuf {
+    let mut absolute = root.to_path_buf();
+    absolute.extend(path.split('/'));
+    absolute
 }
 
 /// Whether the relative path `path` is `folder` or beneath it.
