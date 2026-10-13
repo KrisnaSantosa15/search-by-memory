@@ -1374,6 +1374,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sbm-change-usn"
+version = "0.1.0"
+dependencies = [
+ "sbm-core",
+ "tempfile",
+ "windows-sys",
+]
+
+[[package]]
 name = "sbm-cli"
 version = "0.1.0"
 dependencies = [
