@@ -118,9 +118,16 @@ impl Volumes for FakeVolumes {
 }
 
 /// Stands in for the operating system's change journal: tests record the
-/// paths that changed on each volume. A cursor is the number of changes read.
+/// paths that changed on each volume. A cursor is the journal's generation and
+/// the number of its changes read.
 #[derive(Clone, Default)]
-pub struct FakeChangeSource(Arc<Mutex<HashMap<String, Vec<String>>>>);
+pub struct FakeChangeSource(Arc<Mutex<HashMap<String, Journal>>>);
+
+#[derive(Default)]
+pub struct Journal {
+    generation: u32,
+    changes: Vec<String>,
+}
 
 impl FakeChangeSource {
     /// Records that `path`, relative to the root of volume `volume_id`, changed.
@@ -130,22 +137,35 @@ impl FakeChangeSource {
             .unwrap()
             .entry(volume_id.to_string())
             .or_default()
+            .changes
             .push(path.to_string());
+    }
+
+    /// Starts a new journal on volume `volume_id`, as when the operating system
+    /// recreates it: changes before now are gone.
+    pub fn lose_history(&self, volume_id: &str) {
+        let mut journals = self.0.lock().unwrap();
+        let journal = journals.entry(volume_id.to_string()).or_default();
+        journal.generation += 1;
+        journal.changes.clear();
     }
 }
 
 impl ChangeSource for FakeChangeSource {
     fn changes_since(&self, volume_id: &str, since: Option<&ChangeCursor>) -> Result<Changes> {
-        let journal = self.0.lock().unwrap();
-        let log = journal.get(volume_id).map_or(&[][..], Vec::as_slice);
-        let next = ChangeCursor(log.len().to_string());
-        let Some(since) = since else {
-            return Ok(Changes::Lost { next });
-        };
-        let read: usize = since.0.parse()?;
-        Ok(Changes::Paths {
-            paths: log[read..].to_vec(),
-            next,
+        let mut journals = self.0.lock().unwrap();
+        let journal = journals.entry(volume_id.to_string()).or_default();
+        let next = ChangeCursor(format!("{}:{}", journal.generation, journal.changes.len()));
+        let read = since.and_then(|since| {
+            let (generation, read) = since.0.split_once(':')?;
+            (generation.parse() == Ok(journal.generation)).then(|| read.parse::<usize>().ok())?
+        });
+        Ok(match read {
+            Some(read) => Changes::Paths {
+                paths: journal.changes[read..].to_vec(),
+                next,
+            },
+            None => Changes::Lost { next },
         })
     }
 }

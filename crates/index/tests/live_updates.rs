@@ -227,3 +227,21 @@ fn changes_outside_indexed_folders_or_inside_exclusions_are_ignored() {
 
     assert_eq!(changes.added, vec![report]);
 }
+
+#[test]
+fn lost_change_history_rescans_the_indexed_folders() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let journal = FakeChangeSource::default();
+    let mut index = indexed_drive(&data, &drive, &journal);
+
+    let missed = write(
+        drive.path(),
+        "notes/missed.txt",
+        "written while the journal wrapped
+",
+    );
+    journal.lose_history("d-drive");
+    let changes = index.apply_changes(&journal).unwrap();
+
+    assert_eq!(changes.added, vec![missed]);
+}
