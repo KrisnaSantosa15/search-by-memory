@@ -234,6 +234,10 @@ language = "en"
 file = "id/wiki/Batik.txt"
 lines = [14, 14]
 
+[[query.target]]
+file = "id/wiki/Batik.txt"
+lines = [41, 41]
+
 # --- media ---
 
 [[query]]
