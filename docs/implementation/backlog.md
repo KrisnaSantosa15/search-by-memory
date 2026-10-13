@@ -80,6 +80,7 @@
 
 ## In progress
 - Clean GPU benchmark (background apps closed).
+- M4: saved Indexed Folders and Exclusions, `index_jobs` queue (newest first, retries, resume).
 
 ## Next
 - M2: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only), with the M1 benchmark work.
