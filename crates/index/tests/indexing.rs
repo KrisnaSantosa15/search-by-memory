@@ -82,3 +82,32 @@ fn recently_modified_files_are_indexed_before_older_ones() {
     let paths: Vec<_> = results.iter().map(|r| r.path.clone()).collect();
     assert_eq!(paths, [new]);
 }
+
+#[test]
+fn interrupted_indexing_resumes_without_embedding_finished_files_again() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "a.txt", "first letter to the landlord\n");
+    write(folder.path(), "b.txt", "second letter to the landlord\n");
+    let database = data.path().join("index.sqlite");
+    let embedder = BagOfWords::default();
+    let mut store = store();
+    let mut index = Index::open(&database).unwrap();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+    index.run_jobs(&embedder, &mut store, 1).unwrap();
+    drop(index);
+
+    let mut index = Index::open(&database).unwrap();
+    index.scan_all().unwrap();
+    index.run_jobs(&embedder, &mut store, usize::MAX).unwrap();
+
+    assert_eq!(
+        embedder.embedded(),
+        2,
+        "each file's single Chunk is embedded once"
+    );
+    let results = index
+        .search("letter landlord", &embedder, &store, View::Passage, 20)
+        .unwrap();
+    assert_eq!(results.len(), 2);
+}
