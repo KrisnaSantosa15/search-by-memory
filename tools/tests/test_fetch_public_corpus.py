@@ -46,3 +46,18 @@ def test_missing_file_is_downloaded_into_the_corpus(tmp_path, server):
     fetch_corpus(manifest, corpus)
 
     assert (corpus / "papers/paper.pdf").read_bytes() == b"%PDF paper"
+
+
+def test_hash_mismatch_fails_and_leaves_no_file_behind(tmp_path, server):
+    served, base_url = server
+    (served / "paper.pdf").write_bytes(b"tampered")
+    manifest = write_manifest(
+        tmp_path / "manifest.toml",
+        [{"path": "paper.pdf", "url": f"{base_url}/paper.pdf", "sha256": sha256(b"original"), "license": "CC-BY-4.0"}],
+    )
+    corpus = tmp_path / "corpus"
+
+    with pytest.raises(ValueError, match="sha256"):
+        fetch_corpus(manifest, corpus)
+
+    assert not (corpus / "paper.pdf").exists()
