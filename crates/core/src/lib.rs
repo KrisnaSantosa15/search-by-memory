@@ -122,6 +122,32 @@ pub trait Volumes {
     fn mount_point(&self, id: &str) -> Option<PathBuf>;
 }
 
+/// Where a ChangeSource stopped reading one volume's changes. The index stores
+/// it without looking inside (for the USN Journal: journal ID and next USN).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangeCursor(pub String);
+
+/// What changed on a volume since a ChangeCursor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Changes {
+    /// Files or folders, relative to the volume root with forward slashes, that
+    /// may have been created, edited, renamed, or deleted since the cursor. A
+    /// folder stands for everything beneath it.
+    Paths {
+        paths: Vec<String>,
+        next: ChangeCursor,
+    },
+    /// The change history since the cursor is gone (journal wrapped or recreated,
+    /// no cursor yet, or a volume without a journal): the volume needs a rescan.
+    Lost { next: ChangeCursor },
+}
+
+/// The operating system's record of file changes (platform adapter).
+pub trait ChangeSource {
+    /// Changes on volume `volume_id` since `since`; `None` means no cursor yet.
+    fn changes_since(&self, volume_id: &str, since: Option<&ChangeCursor>) -> Result<Changes>;
+}
+
 /// The operating system convention that decides where the app keeps its files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Platform {

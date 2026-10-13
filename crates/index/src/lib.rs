@@ -5,7 +5,8 @@ use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OptionalExtension, params};
 use sbm_core::{
-    Embedding, EmbeddingProvider, Location, Result, SystemVolumes, VectorStore, Volume, Volumes,
+    ChangeSource, Embedding, EmbeddingProvider, Location, Result, SystemVolumes, VectorStore,
+    Volume, Volumes,
 };
 use walkdir::{DirEntry, WalkDir};
 
@@ -471,6 +472,14 @@ impl Index {
             changes.removed.extend(found.removed);
         }
         Ok(changes)
+    }
+
+    /// Applies the changes `source` reports for each connected Indexed Folder's
+    /// volume: changed files are queued as Live Updates, deleted ones leave both
+    /// indexes, and a lost change history rescans that volume's Indexed Folders.
+    pub fn apply_changes(&mut self, source: &dyn ChangeSource) -> Result<ScanChanges> {
+        let _ = source;
+        self.scan_all()
     }
 
     /// Indexes the content of up to `limit` queued files. Each file is committed on

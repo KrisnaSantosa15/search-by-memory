@@ -8,7 +8,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use sbm_core::{Embedding, EmbeddingProvider, Result, Volume, Volumes};
+use sbm_core::{
+    ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, Result, Volume, Volumes,
+};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 pub const DIMENSIONS: usize = 64;
@@ -101,5 +103,38 @@ impl Volumes for FakeVolumes {
 
     fn mount_point(&self, id: &str) -> Option<PathBuf> {
         self.0.lock().unwrap().get(id).cloned()
+    }
+}
+
+/// Stands in for the operating system's change journal: tests record the
+/// paths that changed on each volume. A cursor is the number of changes read.
+#[derive(Clone, Default)]
+pub struct FakeChangeSource(Arc<Mutex<HashMap<String, Vec<String>>>>);
+
+impl FakeChangeSource {
+    /// Records that `path`, relative to the root of volume `volume_id`, changed.
+    pub fn record(&self, volume_id: &str, path: &str) {
+        self.0
+            .lock()
+            .unwrap()
+            .entry(volume_id.to_string())
+            .or_default()
+            .push(path.to_string());
+    }
+}
+
+impl ChangeSource for FakeChangeSource {
+    fn changes_since(&self, volume_id: &str, since: Option<&ChangeCursor>) -> Result<Changes> {
+        let journal = self.0.lock().unwrap();
+        let log = journal.get(volume_id).map_or(&[][..], Vec::as_slice);
+        let next = ChangeCursor(log.len().to_string());
+        let Some(since) = since else {
+            return Ok(Changes::Lost { next });
+        };
+        let read: usize = since.0.parse()?;
+        Ok(Changes::Paths {
+            paths: log[read..].to_vec(),
+            next,
+        })
     }
 }
