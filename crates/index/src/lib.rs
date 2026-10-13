@@ -73,7 +73,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 5] = [
+const MIGRATIONS: [&str; 6] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -119,6 +119,23 @@ const MIGRATIONS: [&str; 5] = [
      CREATE INDEX files_by_content ON files (content_hash);",
     // Where each volume was last mounted, to show files on a Disconnected Drive.
     "CREATE TABLE volumes (id TEXT PRIMARY KEY, last_root TEXT NOT NULL);",
+    // Indexed Folders the user chose, and the content work still to do (FR-04).
+    // A job is deleted once its file's content is indexed.
+    "CREATE TABLE indexed_folders (
+         id INTEGER PRIMARY KEY,
+         volume_id TEXT NOT NULL,
+         relative_path TEXT NOT NULL,
+         UNIQUE (volume_id, relative_path)
+     );
+     CREATE TABLE index_jobs (
+         id INTEGER PRIMARY KEY,
+         file_id INTEGER NOT NULL UNIQUE,
+         priority INTEGER NOT NULL,
+         status TEXT NOT NULL DEFAULT 'pending',
+         retry_count INTEGER NOT NULL DEFAULT 0,
+         error_message TEXT,
+         created_at INTEGER NOT NULL
+     );",
 ];
 
 /// Chunk size in characters: about 256 tokens of prose.
@@ -215,11 +232,7 @@ impl Index {
         let folder_path = relative_path(folder, &volume)?;
         let mut changes = ScanChanges::default();
         let tx = self.db.transaction()?;
-        tx.execute(
-            "INSERT INTO volumes (id, last_root) VALUES (?1, ?2)
-             ON CONFLICT (id) DO UPDATE SET last_root = excluded.last_root",
-            params![volume.id, volume.root.to_string_lossy()],
-        )?;
+        remember_volume(&tx, &volume)?;
         let scan: i64 = tx.query_row(
             "SELECT coalesce(max(seen_in_scan), 0) + 1 FROM files",
             [],
@@ -240,16 +253,17 @@ impl Index {
                 .modified()?
                 .duration_since(UNIX_EPOCH)
                 .map_or(0, |since| since.as_nanos() as i64);
-            let known: Option<(i64, i64)> = tx
+            let known: Option<(i64, i64, i64)> = tx
                 .query_row(
-                    "SELECT size, mtime_ns FROM files WHERE volume_id = ?1 AND relative_path = ?2",
+                    "SELECT id, size, mtime_ns FROM files WHERE volume_id = ?1 AND relative_path = ?2",
                     params![volume.id, path],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()?;
-            if let Some(previous) = known {
-                if previous != (size, mtime_ns) {
+            if let Some((id, previous_size, previous_mtime)) = known {
+                if (previous_size, previous_mtime) != (size, mtime_ns) {
                     changes.changed.push(entry.path().to_path_buf());
+                    queue_job(&tx, id, mtime_ns)?;
                 }
                 tx.execute(
                     "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3
@@ -270,13 +284,15 @@ impl Index {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![volume.id, path, name_lower, stem_lower, size, mtime_ns, scan],
             )?;
+            let id = tx.last_insert_rowid();
             changes.added.push(entry.path().to_path_buf());
             let name = entry.file_name().to_string_lossy();
             let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
             tx.execute(
-                "INSERT INTO names (rowid, name, folder) VALUES (last_insert_rowid(), ?1, ?2)",
-                params![name, folder],
+                "INSERT INTO names (rowid, name, folder) VALUES (?1, ?2, ?3)",
+                params![id, name, folder],
             )?;
+            queue_job(&tx, id, mtime_ns)?;
         }
         let gone: Vec<(i64, String)> = tx
             .prepare(
@@ -289,12 +305,79 @@ impl Index {
         for (id, path) in gone {
             if is_beneath(&path, &folder_path) {
                 tx.execute("DELETE FROM names WHERE rowid = ?1", params![id])?;
+                tx.execute("DELETE FROM index_jobs WHERE file_id = ?1", params![id])?;
                 tx.execute("DELETE FROM files WHERE id = ?1", params![id])?;
                 changes.removed.push(beneath(&volume.root, &path));
             }
         }
         tx.commit()?;
         Ok(changes)
+    }
+
+    /// Remembers `folder` as an Indexed Folder, by volume, so it survives drive-letter changes.
+    pub fn add_indexed_folder(&mut self, folder: &Path) -> Result<()> {
+        let folder = &normalized(folder);
+        let volume = self.volumes.volume_of(folder)?;
+        let path = relative_path(folder, &volume)?;
+        let tx = self.db.transaction()?;
+        remember_volume(&tx, &volume)?;
+        tx.execute(
+            "INSERT OR IGNORE INTO indexed_folders (volume_id, relative_path) VALUES (?1, ?2)",
+            params![volume.id, path],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Scans every Indexed Folder, queueing a content job for each added or changed file.
+    pub fn scan_all(&mut self) -> Result<ScanChanges> {
+        let folders: Vec<(String, String)> = self
+            .db
+            .prepare("SELECT volume_id, relative_path FROM indexed_folders")?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut changes = ScanChanges::default();
+        for (volume_id, path) in folders {
+            let (folder, _connected) = self.path_of(&volume_id, &path)?;
+            let found = self.scan(&folder, &Exclusion::defaults())?;
+            changes.added.extend(found.added);
+            changes.changed.extend(found.changed);
+            changes.removed.extend(found.removed);
+        }
+        Ok(changes)
+    }
+
+    /// Indexes the content of up to `limit` queued files. Each file is committed on
+    /// its own, so interrupted indexing resumes with the next file. Once the queue
+    /// is empty, content no file uses any longer is removed.
+    pub fn run_jobs(
+        &mut self,
+        embedder: &dyn EmbeddingProvider,
+        store: &mut impl VectorStore,
+        limit: usize,
+    ) -> Result<usize> {
+        let mut done = 0;
+        while done < limit {
+            let next: Option<(String, String)> = self
+                .db
+                .query_row(
+                    "SELECT files.volume_id, files.relative_path
+                     FROM index_jobs JOIN files ON files.id = index_jobs.file_id
+                     WHERE index_jobs.status = 'pending'
+                     ORDER BY index_jobs.id LIMIT 1",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
+            let Some((volume_id, path)) = next else {
+                self.remove_unreferenced_content(store)?;
+                break;
+            };
+            let (path, _connected) = self.path_of(&volume_id, &path)?;
+            self.index_content(&path, embedder, store)?;
+            done += 1;
+        }
+        Ok(done)
     }
 
     /// Adds the content of a file in the Name Index to the Content Index:
@@ -306,11 +389,12 @@ impl Index {
         store: &mut impl VectorStore,
     ) -> Result<()> {
         let path = &normalized(path);
-        let Some(extractor) = sbm_extract::extractor_for(path) else {
-            return Ok(());
-        };
         let volume = self.volumes.volume_of(path)?;
         let relative = relative_path(path, &volume)?;
+        let Some(extractor) = sbm_extract::extractor_for(path) else {
+            finish_job(&self.db, &volume.id, &relative)?;
+            return Ok(());
+        };
         // Streamed, so hashing never holds a large file in memory.
         let hash = blake3::Hasher::new()
             .update_reader(std::fs::File::open(path)?)?
@@ -328,6 +412,7 @@ impl Index {
                 "UPDATE files SET content_hash = ?1 WHERE volume_id = ?2 AND relative_path = ?3",
                 params![hash, volume.id, relative],
             )?;
+            finish_job(&self.db, &volume.id, &relative)?;
             return Ok(());
         }
         let chunks = sbm_extract::chunk_sections(
@@ -366,6 +451,7 @@ impl Index {
             "UPDATE files SET content_hash = ?1 WHERE volume_id = ?2 AND relative_path = ?3",
             params![hash, volume.id, relative],
         )?;
+        finish_job(&tx, &volume.id, &relative)?;
         tx.commit()?;
         Ok(())
     }
@@ -524,6 +610,40 @@ impl Index {
             .collect::<rusqlite::Result<_>>()?;
         Ok(matches)
     }
+}
+
+/// Records where `volume` is mounted, to show its files while it is disconnected.
+fn remember_volume(db: &Connection, volume: &Volume) -> rusqlite::Result<()> {
+    db.execute(
+        "INSERT INTO volumes (id, last_root) VALUES (?1, ?2)
+         ON CONFLICT (id) DO UPDATE SET last_root = excluded.last_root",
+        params![volume.id, volume.root.to_string_lossy()],
+    )?;
+    Ok(())
+}
+
+/// Queues (or re-queues) indexing the content of file `file_id`, modified at `mtime_ns`.
+fn queue_job(db: &Connection, file_id: i64, mtime_ns: i64) -> Result<()> {
+    let now = std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs() as i64);
+    db.execute(
+        "INSERT INTO index_jobs (file_id, priority, created_at) VALUES (?1, ?2, ?3)
+         ON CONFLICT (file_id) DO UPDATE SET
+             priority = excluded.priority, status = 'pending', retry_count = 0, error_message = NULL",
+        params![file_id, mtime_ns, now],
+    )?;
+    Ok(())
+}
+
+/// Removes the job of the file at `path` on volume `volume_id`: its content is indexed.
+fn finish_job(db: &Connection, volume_id: &str, path: &str) -> rusqlite::Result<()> {
+    db.execute(
+        "DELETE FROM index_jobs WHERE file_id =
+         (SELECT id FROM files WHERE volume_id = ?1 AND relative_path = ?2)",
+        params![volume_id, path],
+    )?;
+    Ok(())
 }
 
 /// `path` relative to the root of `volume`, with forward slashes (FR-05).
