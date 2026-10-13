@@ -87,9 +87,9 @@
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
-- Clean GPU benchmark (background apps closed).
 
 ## Next
+- Clean GPU benchmark (background apps closed); deferred by the user.
 - M2: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only), with the M1 benchmark work.
 
 ## Next (M1)
