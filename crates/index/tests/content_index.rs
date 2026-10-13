@@ -308,3 +308,73 @@ fn exact_filename_match_is_placed_at_the_top() {
 
     assert_eq!(results[0].path, sheet);
 }
+
+/// Twelve paragraphs about one topic, long enough for several Chunks.
+fn long_recipe() -> String {
+    (0..12)
+        .map(|n| {
+            format!(
+                "step {n}: stir the rendang slowly so the coconut milk does not burn, {}\n",
+                "and keep the heat low ".repeat(5)
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn file_view_shows_each_file_once_however_many_chunks_match() {
+    let folder = TempDir::new().unwrap();
+    let recipe = write(folder.path(), "recipes/rendang.txt", &long_recipe());
+    let other = write(
+        folder.path(),
+        "recipes/gulai.txt",
+        "gulai also uses coconut milk\n",
+    );
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    index
+        .index_content(&recipe, &BagOfWords, &mut store)
+        .unwrap();
+    index
+        .index_content(&other, &BagOfWords, &mut store)
+        .unwrap();
+    assert!(store.len() > 3, "the recipe should span several Chunks");
+
+    let results = index
+        .search("coconut milk", &BagOfWords, &store, View::File, 20)
+        .unwrap();
+
+    let paths: Vec<&Path> = results.iter().map(|result| result.path.as_path()).collect();
+    assert_eq!(paths.len(), 2);
+    assert!(paths.contains(&recipe.as_path()) && paths.contains(&other.as_path()));
+}
+
+#[test]
+fn passage_view_shows_each_content_match_and_no_name_only_files() {
+    let folder = TempDir::new().unwrap();
+    let recipe = write(folder.path(), "recipes/rendang.txt", &long_recipe());
+    write(
+        folder.path(),
+        "photos/coconut-milk.jpg",
+        "binary image data",
+    );
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    index
+        .index_content(&recipe, &BagOfWords, &mut store)
+        .unwrap();
+
+    let results = index
+        .search("coconut milk", &BagOfWords, &store, View::Passage, 20)
+        .unwrap();
+
+    assert_eq!(results.len(), store.len());
+    assert!(results.iter().all(|result| result.path == recipe));
+    assert!(
+        results
+            .iter()
+            .all(|result| result.match_reason == MatchReason::Content)
+    );
+}

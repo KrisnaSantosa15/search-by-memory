@@ -331,13 +331,14 @@ impl Index {
         Ok(())
     }
 
-    /// Results for a Query from the Content Index, best first.
+    /// Results for a Query, best first: in File view one per file from the Name
+    /// Index and Content Index, in Passage view one per Content Match.
     pub fn search(
         &self,
         query: &str,
         embedder: &dyn EmbeddingProvider,
         store: &impl VectorStore,
-        _view: View,
+        view: View,
         limit: usize,
     ) -> Result<Vec<SearchResult>> {
         let candidates = limit * CANDIDATES_PER_RESULT;
@@ -378,7 +379,7 @@ impl Index {
                     row.get(4)?,
                 ))
             })?;
-            if seen_contents.contains(&hash) {
+            if view == View::File && seen_contents.contains(&hash) {
                 continue;
             }
             let mut paths: Vec<PathBuf> = files
@@ -399,8 +400,10 @@ impl Index {
                 match_reason: MatchReason::Content,
             });
         }
-        let names = self.search_names(query, candidates)?;
-        let mut results = fuse_name_matches(results, &names);
+        if view == View::File {
+            let names = self.search_names(query, candidates)?;
+            results = fuse_name_matches(results, &names);
+        }
         results.truncate(limit);
         Ok(results)
     }
