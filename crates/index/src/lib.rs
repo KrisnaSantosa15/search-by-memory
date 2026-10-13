@@ -4,7 +4,9 @@ use std::path::{Component, Path, PathBuf, Prefix};
 use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OptionalExtension, params};
-use sbm_core::{Embedding, EmbeddingProvider, Location, Result, VectorStore};
+use sbm_core::{
+    Embedding, EmbeddingProvider, Location, Result, SystemVolumes, VectorStore, Volume, Volumes,
+};
 use walkdir::{DirEntry, WalkDir};
 
 /// A file whose filename or folder path is relevant to the Query.
@@ -69,7 +71,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 3] = [
+const MIGRATIONS: [&str; 4] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -95,6 +97,24 @@ const MIGRATIONS: [&str; 3] = [
      CREATE INDEX files_by_content ON files (content_hash);",
     // Keyword search over Chunk text; rowid is the Chunk id.
     "CREATE VIRTUAL TABLE chunk_words USING fts5(text);",
+    // Files are identified by volume ID plus a forward-slash path relative to the
+    // volume (FR-05). The catalog is cleared; a rescan rebuilds it and reuses Chunks
+    // by content hash, without re-embedding.
+    "DROP TABLE files;
+     DELETE FROM names;
+     CREATE TABLE files (
+         id INTEGER PRIMARY KEY,
+         volume_id TEXT NOT NULL,
+         relative_path TEXT NOT NULL,
+         name_lower TEXT NOT NULL,
+         stem_lower TEXT NOT NULL,
+         size INTEGER NOT NULL,
+         mtime_ns INTEGER NOT NULL,
+         seen_in_scan INTEGER NOT NULL,
+         content_hash TEXT,
+         UNIQUE (volume_id, relative_path)
+     );
+     CREATE INDEX files_by_content ON files (content_hash);",
 ];
 
 /// Chunk size in characters: about 256 tokens of prose.
@@ -138,6 +158,7 @@ pub struct SearchResult {
 /// The file catalog and Name Index, stored in SQLite.
 pub struct Index {
     db: Connection,
+    volumes: Box<dyn Volumes>,
 }
 
 impl Index {
@@ -148,6 +169,14 @@ impl Index {
 
     pub fn open_in_memory() -> Result<Self> {
         Self::migrated(Connection::open_in_memory()?)
+    }
+
+    /// Uses `volumes` instead of the operating system's to identify the drive of each file.
+    pub fn with_volumes(self, volumes: impl Volumes + 'static) -> Self {
+        Self {
+            volumes: Box::new(volumes),
+            ..self
+        }
     }
 
     fn migrated(mut db: Connection) -> Result<Self> {
@@ -165,7 +194,10 @@ impl Index {
         }
         tx.pragma_update(None, "user_version", MIGRATIONS.len() as i64)?;
         tx.commit()?;
-        Ok(Self { db })
+        Ok(Self {
+            db,
+            volumes: Box::new(SystemVolumes),
+        })
     }
 
     /// Brings the Name Index in line with the files beneath the Indexed Folder `folder`,
@@ -173,6 +205,8 @@ impl Index {
     /// changed files are reported.
     pub fn scan(&mut self, folder: &Path, exclusions: &[Exclusion]) -> Result<ScanChanges> {
         let folder = &normalized(folder);
+        let volume = self.volumes.volume_of(folder)?;
+        let folder_path = relative_path(folder, &volume)?;
         let mut changes = ScanChanges::default();
         let tx = self.db.transaction()?;
         let scan: i64 = tx.query_row(
@@ -188,7 +222,7 @@ impl Index {
             if !entry.file_type().is_file() {
                 continue;
             }
-            let path = entry.path().to_string_lossy();
+            let path = relative_path(entry.path(), &volume)?;
             let metadata = entry.metadata()?;
             let size = metadata.len() as i64;
             let mtime_ns = metadata
@@ -197,8 +231,8 @@ impl Index {
                 .map_or(0, |since| since.as_nanos() as i64);
             let known: Option<(i64, i64)> = tx
                 .query_row(
-                    "SELECT size, mtime_ns FROM files WHERE path = ?1",
-                    params![path],
+                    "SELECT size, mtime_ns FROM files WHERE volume_id = ?1 AND relative_path = ?2",
+                    params![volume.id, path],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )
                 .optional()?;
@@ -207,8 +241,9 @@ impl Index {
                     changes.changed.push(entry.path().to_path_buf());
                 }
                 tx.execute(
-                    "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3 WHERE path = ?4",
-                    params![scan, size, mtime_ns, path],
+                    "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3
+                     WHERE volume_id = ?4 AND relative_path = ?5",
+                    params![scan, size, mtime_ns, volume.id, path],
                 )?;
                 continue;
             }
@@ -219,27 +254,28 @@ impl Index {
                 .map(|stem| stem.to_string_lossy().to_lowercase())
                 .unwrap_or_default();
             tx.execute(
-                "INSERT INTO files (path, name_lower, stem_lower, size, mtime_ns, seen_in_scan)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![path, name_lower, stem_lower, size, mtime_ns, scan],
+                "INSERT INTO files
+                     (volume_id, relative_path, name_lower, stem_lower, size, mtime_ns, seen_in_scan)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![volume.id, path, name_lower, stem_lower, size, mtime_ns, scan],
             )?;
             changes.added.push(entry.path().to_path_buf());
             let name = entry.file_name().to_string_lossy();
-            let folder = entry.path().parent().unwrap_or(folder).to_string_lossy();
+            let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
             tx.execute(
                 "INSERT INTO names (rowid, name, folder) VALUES (last_insert_rowid(), ?1, ?2)",
                 params![name, folder],
             )?;
         }
         let gone: Vec<(i64, String)> = tx
-            .prepare("SELECT id, path FROM files WHERE seen_in_scan != ?1")?
+            .prepare("SELECT id, relative_path FROM files WHERE seen_in_scan != ?1")?
             .query_map(params![scan], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect::<rusqlite::Result<_>>()?;
         for (id, path) in gone {
-            if Path::new(&path).starts_with(folder) {
+            if is_beneath(&path, &folder_path) {
                 tx.execute("DELETE FROM names WHERE rowid = ?1", params![id])?;
                 tx.execute("DELETE FROM files WHERE id = ?1", params![id])?;
-                changes.removed.push(PathBuf::from(path));
+                changes.removed.push(volume.root.join(&path));
             }
         }
         tx.commit()?;
@@ -258,6 +294,8 @@ impl Index {
         let Some(extractor) = sbm_extract::extractor_for(path) else {
             return Ok(());
         };
+        let volume = self.volumes.volume_of(path)?;
+        let relative = relative_path(path, &volume)?;
         // Streamed, so hashing never holds a large file in memory.
         let hash = blake3::Hasher::new()
             .update_reader(std::fs::File::open(path)?)?
@@ -272,8 +310,8 @@ impl Index {
         if known {
             // A Copy, or a moved file: its content is already indexed (ADR 0004).
             self.db.execute(
-                "UPDATE files SET content_hash = ?1 WHERE path = ?2",
-                params![hash, path.to_string_lossy()],
+                "UPDATE files SET content_hash = ?1 WHERE volume_id = ?2 AND relative_path = ?3",
+                params![hash, volume.id, relative],
             )?;
             return Ok(());
         }
@@ -310,8 +348,8 @@ impl Index {
             store.add(id as u64, embedding)?;
         }
         tx.execute(
-            "UPDATE files SET content_hash = ?1 WHERE path = ?2",
-            params![hash, path.to_string_lossy()],
+            "UPDATE files SET content_hash = ?1 WHERE volume_id = ?2 AND relative_path = ?3",
+            params![hash, volume.id, relative],
         )?;
         tx.commit()?;
         Ok(())
@@ -380,7 +418,7 @@ impl Index {
         )?;
         let mut files = self
             .db
-            .prepare("SELECT path FROM files WHERE content_hash = ?1")?;
+            .prepare("SELECT volume_id, relative_path FROM files WHERE content_hash = ?1")?;
         let mut results: Vec<SearchResult> = Vec::new();
         let mut seen_contents: Vec<String> = Vec::new();
         for chunk_id in reciprocal_rank_fusion(&[&semantic, &keyword]) {
@@ -403,8 +441,9 @@ impl Index {
                 continue;
             }
             let mut paths: Vec<PathBuf> = files
-                .query_map(params![hash], |row| row.get::<_, String>(0))?
-                .map(|path| path.map(PathBuf::from))
+                .query_map(params![hash], |row| {
+                    Ok(self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?))
+                })?
                 .collect::<rusqlite::Result<_>>()?;
             paths.sort();
             if paths.is_empty() {
@@ -428,6 +467,14 @@ impl Index {
         Ok(results)
     }
 
+    /// Where the file at the relative `path` on volume `volume_id` is now.
+    fn path_of(&self, volume_id: &str, path: &str) -> PathBuf {
+        self.volumes
+            .mount_point(volume_id)
+            .unwrap_or_default()
+            .join(path)
+    }
+
     /// Name Matches for a Query, best first.
     pub fn search_names(&self, query: &str, limit: usize) -> Result<Vec<NameMatch>> {
         let exact = query.trim().to_lowercase();
@@ -435,7 +482,7 @@ impl Index {
             return Ok(Vec::new());
         };
         let mut statement = self.db.prepare(
-            "SELECT files.path, (files.name_lower = ?3 OR files.stem_lower = ?3)
+            "SELECT files.volume_id, files.relative_path, (files.name_lower = ?3 OR files.stem_lower = ?3)
              FROM names JOIN files ON files.id = names.rowid
              WHERE names MATCH ?1
              ORDER BY (files.name_lower = ?3 OR files.stem_lower = ?3) DESC, rank
@@ -444,13 +491,38 @@ impl Index {
         let matches = statement
             .query_map(params![query, limit as i64, exact], |row| {
                 Ok(NameMatch {
-                    path: PathBuf::from(row.get::<_, String>(0)?),
-                    exact: row.get(1)?,
+                    path: self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?),
+                    exact: row.get(2)?,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
         Ok(matches)
     }
+}
+
+/// `path` relative to the root of `volume`, with forward slashes (FR-05).
+fn relative_path(path: &Path, volume: &Volume) -> Result<String> {
+    let relative = path.strip_prefix(&volume.root).map_err(|_| {
+        format!(
+            "{} is not on the volume mounted at {}",
+            path.display(),
+            volume.root.display()
+        )
+    })?;
+    let parts: Vec<_> = relative
+        .components()
+        .map(|part| part.as_os_str().to_string_lossy())
+        .collect();
+    Ok(parts.join("/"))
+}
+
+/// Whether the relative path `path` is `folder` or beneath it.
+fn is_beneath(path: &str, folder: &str) -> bool {
+    folder.is_empty()
+        || path == folder
+        || path
+            .strip_prefix(folder)
+            .is_some_and(|rest| rest.starts_with('/'))
 }
 
 /// The Query as FTS5 syntax: each word quoted, so user text is never parsed as

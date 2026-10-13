@@ -1,7 +1,7 @@
 //! Domain types and provider interfaces for Search by Memory.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -99,6 +99,44 @@ pub trait VectorStore {
     /// Returns up to `limit` neighbours, most similar first.
     fn search(&self, query: &Embedding, limit: usize) -> Result<Vec<Neighbor>>;
     fn len(&self) -> usize;
+}
+
+/// A drive or other file system, identified independently of where it is mounted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Volume {
+    /// Stays the same when the volume is mounted elsewhere, e.g. under another drive letter.
+    pub id: String,
+    /// Where the volume is mounted now.
+    pub root: PathBuf,
+}
+
+/// The operating system's volume table (platform adapter).
+pub trait Volumes {
+    /// The volume holding the existing file or folder `path`.
+    fn volume_of(&self, path: &Path) -> Result<Volume>;
+    /// Where the volume `id` is mounted now, or `None` while it is not connected.
+    fn mount_point(&self, id: &str) -> Option<PathBuf>;
+}
+
+/// The running operating system's volumes.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SystemVolumes;
+
+impl Volumes for SystemVolumes {
+    fn volume_of(&self, path: &Path) -> Result<Volume> {
+        let root: PathBuf = path
+            .components()
+            .take_while(|c| matches!(c, Component::Prefix(_) | Component::RootDir))
+            .collect();
+        Ok(Volume {
+            id: root.to_string_lossy().into_owned(),
+            root,
+        })
+    }
+
+    fn mount_point(&self, id: &str) -> Option<PathBuf> {
+        Some(PathBuf::from(id))
+    }
 }
 
 /// The operating system convention that decides where the app keeps its files.
