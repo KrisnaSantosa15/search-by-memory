@@ -247,3 +247,46 @@ fn sha256_of(path: &Path) -> Result<String> {
         .map(|byte| format!("{byte:02x}"))
         .collect())
 }
+
+/// Installs a GPU runtime into `dir`: downloads the zip `archives` and unpacks
+/// the DLLs in their `bin` folders.
+pub fn install_runtime(
+    archives: &[RemoteFile],
+    dir: &Path,
+    http: &dyn Http,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<Finished> {
+    let downloads = dir.join(DOWNLOADS);
+    if download(archives, &downloads, http, cancel, progress)? == Finished::Cancelled {
+        return Ok(Finished::Cancelled);
+    }
+    for archive in archives {
+        unpack_dlls(&downloads.join(&archive.path), dir)?;
+    }
+    std::fs::remove_dir_all(&downloads)?;
+    Ok(Finished::Complete)
+}
+
+/// Folder inside a runtime folder that holds its archives while they download.
+const DOWNLOADS: &str = ".downloads";
+
+/// Copies the DLLs in the `bin` folders of the zip archive `archive` into `dir`.
+fn unpack_dlls(archive: &Path, dir: &Path) -> Result<()> {
+    let mut zip = zip::ZipArchive::new(File::open(archive)?)?;
+    for index in 0..zip.len() {
+        let mut entry = zip.by_index(index)?;
+        let Some(path) = entry.enclosed_name() else {
+            continue;
+        };
+        let in_bin = path.components().any(|part| part.as_os_str() == "bin");
+        let is_dll = path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("dll"));
+        // Only the file name is kept, so nothing lands outside `dir`.
+        if let (true, true, Some(name)) = (in_bin, is_dll, path.file_name()) {
+            std::io::copy(&mut entry, &mut File::create(dir.join(name))?)?;
+        }
+    }
+    Ok(())
+}
