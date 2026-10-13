@@ -31,7 +31,9 @@ pub struct PdfExtractor;
 
 impl ContentExtractor for PdfExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
-        let pages = pdf_extract::extract_text_by_pages(path)?;
+        // pdf-extract panics on some malformed PDFs; a bad file must not stop indexing.
+        let pages = std::panic::catch_unwind(|| pdf_extract::extract_text_by_pages(path))
+            .map_err(|_| format!("PDF parser crashed on {}", path.display()))??;
         Ok(pages
             .into_iter()
             .enumerate()

@@ -25,3 +25,11 @@ fn pdf_is_extracted_page_by_page() {
         ]
     );
 }
+
+#[test]
+fn corrupt_pdf_that_crashes_the_parser_is_an_error() {
+    // A one-byte corruption of two-pages.pdf that makes pdf-extract panic.
+    let result = PdfExtractor.extract(&fixture("corrupt-panics-parser.pdf"));
+
+    assert!(result.is_err());
+}
