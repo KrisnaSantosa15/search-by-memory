@@ -43,3 +43,15 @@ fn text_file_beyond_the_size_limit_is_refused() {
 
     assert!(error.to_string().contains("too large"), "{error}");
 }
+
+#[test]
+fn text_file_that_is_not_utf8_is_still_extracted() {
+    // Latin-1 "café au lait", as saved by older Windows editors.
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("menu.txt");
+    fs::write(&path, b"caf\xe9 au lait\n").unwrap();
+
+    let sections = TextExtractor.extract(&path).unwrap();
+
+    assert!(sections[0].text.contains("au lait"), "{:?}", sections[0].text);
+}

@@ -11,14 +11,16 @@ pub struct TextExtractor;
 
 impl ContentExtractor for TextExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
-        let mut text = String::new();
-        std::io::Read::read_to_string(
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(
             &mut Limited {
                 inner: std::fs::File::open(path)?,
                 remaining: MAX_EXTRACTED_BYTES,
             },
-            &mut text,
+            &mut bytes,
         )?;
+        // Files in legacy encodings still yield their ASCII words.
+        let text = String::from_utf8_lossy(&bytes).into_owned();
         let lines = text.lines().count() as u32;
         if lines == 0 {
             return Ok(Vec::new());
