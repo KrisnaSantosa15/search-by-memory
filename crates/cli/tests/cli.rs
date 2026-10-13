@@ -1,8 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use sbm_cli::{index_folder, search};
+use sbm_cli::{accelerator_option, index_folder, search};
 use sbm_core::{Embedding, EmbeddingProvider, Result};
+use sbm_embed_onnx::Accelerator;
 use sbm_index::View;
 use tempfile::TempDir;
 
@@ -122,4 +123,18 @@ fn bidirectional_and_invisible_formatting_characters_are_neutralised_for_display
     for hidden in ['\u{202e}', '\u{2066}', '\u{2069}', '\u{200b}', '\u{feff}'] {
         assert!(!shown.contains(hidden), "{shown:?} still has {hidden:?}");
     }
+}
+
+fn args(words: &[&str]) -> Vec<String> {
+    words.iter().map(|w| w.to_string()).collect()
+}
+
+#[test]
+fn named_accelerator_is_tried_before_falling_back_to_cpu() {
+    let (accelerators, rest) =
+        accelerator_option(&args(&["search", "--accelerator", "cuda", "tax", "letter"]))
+            .expect("option parses");
+
+    assert_eq!(accelerators, [Accelerator::Cuda, Accelerator::Cpu]);
+    assert_eq!(rest, args(&["search", "tax", "letter"]));
 }

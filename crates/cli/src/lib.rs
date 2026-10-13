@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use sbm_core::{EmbeddingProvider, Result};
+use sbm_embed_onnx::Accelerator;
 use sbm_index::{Exclusion, Index, ScanChanges, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
@@ -57,6 +58,23 @@ pub fn search(
     let index = Index::open(&data_dir.join(DATABASE))?;
     let store = UsearchStore::open_view(&vectors)?;
     index.search(query, embedder, &store, view, limit)
+}
+
+/// Takes `--accelerator <name>` out of `args`. Returns the Accelerators to try,
+/// in order, and the remaining arguments. A named GPU falls back to CPU.
+pub fn accelerator_option(args: &[String]) -> Result<(Vec<Accelerator>, Vec<String>)> {
+    let mut rest = Vec::new();
+    let mut accelerators = Vec::new();
+    let mut args = args.iter();
+    while let Some(arg) = args.next() {
+        if arg == "--accelerator" {
+            let name = args.next().ok_or("--accelerator needs a name")?;
+            accelerators = vec![name.parse()?, Accelerator::Cpu];
+        } else {
+            rest.push(arg.clone());
+        }
+    }
+    Ok((accelerators, rest))
 }
 
 /// Text from files or paths made safe to print: control characters, which could
