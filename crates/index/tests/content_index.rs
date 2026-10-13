@@ -244,3 +244,41 @@ fn edited_file_is_found_by_its_new_content_and_old_content_is_removed() {
             .contains("engine oil")
     );
 }
+
+#[test]
+fn name_and_content_results_are_merged_with_their_match_reason() {
+    let folder = TempDir::new().unwrap();
+    let photo = write(
+        folder.path(),
+        "photos/rendang-dinner.jpg",
+        "binary image data",
+    );
+    let recipe = write(
+        folder.path(),
+        "recipes/rendang.txt",
+        "rendang is beef slow cooked in coconut milk\n",
+    );
+    let other = write(
+        folder.path(),
+        "recipes/soup.txt",
+        "a clear soup, unlike rendang, uses no coconut milk\n",
+    );
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    for path in [&photo, &recipe, &other] {
+        index.index_content(path, &BagOfWords, &mut store).unwrap();
+    }
+
+    let results = index
+        .search("rendang", &BagOfWords, &store, View::File, 20)
+        .unwrap();
+
+    let reasons: Vec<(&Path, MatchReason)> = results
+        .iter()
+        .map(|result| (result.path.as_path(), result.match_reason))
+        .collect();
+    assert_eq!(reasons[0], (recipe.as_path(), MatchReason::Both));
+    assert!(reasons.contains(&(photo.as_path(), MatchReason::Name)));
+    assert!(reasons.contains(&(other.as_path(), MatchReason::Content)));
+}

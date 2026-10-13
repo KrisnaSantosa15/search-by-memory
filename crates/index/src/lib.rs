@@ -397,6 +397,8 @@ impl Index {
                 match_reason: MatchReason::Content,
             });
         }
+        let names = self.search_names(query, candidates)?;
+        let mut results = fuse_name_matches(results, &names);
         results.truncate(limit);
         Ok(results)
     }
@@ -495,7 +497,7 @@ fn reciprocal_rank_fusion(lists: &[&[i64]]) -> Vec<i64> {
     let mut scores: Vec<(i64, f64)> = Vec::new();
     for list in lists {
         for (rank, id) in list.iter().enumerate() {
-            let score = 1.0 / (FUSION_K + rank as f64 + 1.0);
+            let score = fusion_score(rank);
             match scores.iter_mut().find(|(seen, _)| seen == id) {
                 Some((_, total)) => *total += score,
                 None => scores.push((*id, score)),
@@ -504,4 +506,41 @@ fn reciprocal_rank_fusion(lists: &[&[i64]]) -> Vec<i64> {
     }
     scores.sort_by(|a, b| b.1.total_cmp(&a.1));
     scores.into_iter().map(|(id, _)| id).collect()
+}
+
+/// Merges File-view content Results with Name Matches by Reciprocal Rank
+/// Fusion; a file found both ways is one Result with Match Reason `Both`.
+fn fuse_name_matches(content: Vec<SearchResult>, names: &[NameMatch]) -> Vec<SearchResult> {
+    let mut scored: Vec<(SearchResult, f64)> = content
+        .into_iter()
+        .enumerate()
+        .map(|(rank, result)| (result, fusion_score(rank)))
+        .collect();
+    for (rank, name) in names.iter().enumerate() {
+        let found = scored
+            .iter_mut()
+            .find(|(result, _)| result.path == name.path || result.copies.contains(&name.path));
+        match found {
+            Some((result, score)) => {
+                result.match_reason = MatchReason::Both;
+                *score += fusion_score(rank);
+            }
+            None => scored.push((
+                SearchResult {
+                    path: name.path.clone(),
+                    copies: Vec::new(),
+                    snippet: None,
+                    location: None,
+                    match_reason: MatchReason::Name,
+                },
+                fusion_score(rank),
+            )),
+        }
+    }
+    scored.sort_by(|a, b| b.1.total_cmp(&a.1));
+    scored.into_iter().map(|(result, _)| result).collect()
+}
+
+fn fusion_score(rank: usize) -> f64 {
+    1.0 / (FUSION_K + rank as f64 + 1.0)
 }
