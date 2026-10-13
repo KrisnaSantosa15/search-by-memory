@@ -364,7 +364,7 @@ impl Index {
                     "SELECT files.volume_id, files.relative_path
                      FROM index_jobs JOIN files ON files.id = index_jobs.file_id
                      WHERE index_jobs.status = 'pending'
-                     ORDER BY index_jobs.id LIMIT 1",
+                     ORDER BY index_jobs.priority DESC LIMIT 1",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )
