@@ -292,7 +292,7 @@ language = "en"
 
 [[query.target]]
 file = "books/fall-of-the-house-of-usher.txt"
-lines = [543, 556]
+lines = [526, 556]
 
 [[query]]
 id = "en-018"
@@ -354,7 +354,7 @@ lines = [7, 7]
 
 [[query.target]]
 file = "id/wiki/Sate.txt"
-lines = [25, 25]
+lines = [23, 23]
 
 [[query]]
 id = "id-012"
