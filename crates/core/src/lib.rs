@@ -45,6 +45,16 @@ impl Embedding {
         &self.0
     }
 
+    /// Matryoshka truncation: keeps the leading `dimensions` values, rescaled to unit length.
+    pub fn truncated(&self, dimensions: usize) -> Embedding {
+        let mut values = self.0[..dimensions.min(self.0.len())].to_vec();
+        let norm = values.iter().map(|v| v * v).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            values.iter_mut().for_each(|v| *v /= norm);
+        }
+        Embedding(values)
+    }
+
     /// Relevance between two embeddings; higher means more similar.
     pub fn similarity(&self, other: &Embedding) -> f32 {
         self.0.iter().zip(&other.0).map(|(a, b)| a * b).sum()
