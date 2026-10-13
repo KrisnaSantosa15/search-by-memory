@@ -245,3 +245,32 @@ fn lost_change_history_rescans_the_indexed_folders() {
 
     assert_eq!(changes.added, vec![missed]);
 }
+
+#[test]
+fn saved_cursor_survives_reopening_the_index() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let journal = FakeChangeSource::default();
+    drop(indexed_drive(&data, &drive, &journal));
+
+    let reported = write(
+        drive.path(),
+        "notes/reported.txt",
+        "reported
+",
+    );
+    write(
+        drive.path(),
+        "notes/unreported.txt",
+        "unreported
+",
+    );
+    journal.record("d-drive", "notes/reported.txt");
+    let volumes = FakeVolumes::default();
+    volumes.mount("d-drive", drive.path());
+    let mut reopened = Index::open(&data.path().join("index.sqlite"))
+        .unwrap()
+        .with_volumes(volumes);
+    let changes = reopened.apply_changes(&journal).unwrap();
+
+    assert_eq!(changes.added, vec![reported]);
+}
