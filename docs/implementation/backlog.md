@@ -84,6 +84,13 @@
 - Online-only Files enter the Name Index only; queued content work is dropped when a file moves to the cloud.
 - A download (size and mtime unchanged) is noticed on the next scan or Live Update and content-indexed.
 
+### Setup for onboarding (`crates/setup`)
+- `download`: progress over all files, resumes from `.part`, SHA-256 verified, skips finished files, cancel keeps progress, oversize rejected.
+- `Web` adapter (ureq, rustls): HTTP ranges, also from servers that ignore them.
+- `embedding_model()` pinned to HF revision `daa72c5` (1.1 GB); `cuda_runtime()`: 4 NVIDIA redist zips (1.9 GB, 1.4 GB unpacked).
+- `install_runtime`: unpacks `bin` DLLs, deletes archives, not downloaded again.
+- `system_gpus` (DXGI, skips software renderers); `speed_options`: NVIDIA → CUDA, other ≥ 2 GB GPU → DirectML, else CPU recommended.
+
 ### Windows port
 - Builds with MSVC: usearch's NumKong linked statically (`.cargo/config.toml`); binary fixtures exempt from CRLF (`.gitattributes`).
 - `AppDirs`: data in `%LOCALAPPDATA%\search-by-memory`, cache (models, Public Corpus) in its `cache` folder; Unix unchanged. CLI, benches, tests, and `tools/` use it.
@@ -103,7 +110,6 @@
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
-- Setup (`crates/setup`): resumable, verified downloads (model, CUDA runtime) and GPU detection for onboarding.
 - Engine (`crates/engine`): long-running indexing + search for the desktop app.
   - Done: background worker, `add_indexed_folder`, `search`, `status` (files, pending, last error), `pause`/`resume`, Live Updates polled every 2 s, `wait_until_idle`.
   - Done: `Index::open` waits instead of failing while another connection writes.
