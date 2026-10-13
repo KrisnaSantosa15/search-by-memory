@@ -340,6 +340,46 @@ impl Index {
         Ok(())
     }
 
+    /// Forgets the Indexed Folder `folder`, even on a Disconnected Drive: its files
+    /// leave the Name Index, and their content, unless a Copy elsewhere uses it, the
+    /// Content Index and `store`.
+    pub fn remove_indexed_folder(
+        &mut self,
+        folder: &Path,
+        store: &mut impl VectorStore,
+    ) -> Result<()> {
+        let folder = normalized(folder);
+        let folders: Vec<(i64, String, String)> = self
+            .db
+            .prepare("SELECT id, volume_id, relative_path FROM indexed_folders")?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut found = None;
+        for (id, volume_id, path) in folders {
+            if self.path_of(&volume_id, &path)?.0 == folder {
+                found = Some((id, volume_id, path));
+            }
+        }
+        let Some((id, volume_id, folder_path)) = found else {
+            return Err(format!("{} is not an Indexed Folder", folder.display()).into());
+        };
+        let tx = self.db.transaction()?;
+        let files: Vec<(i64, String)> = tx
+            .prepare("SELECT id, relative_path FROM files WHERE volume_id = ?1")?
+            .query_map(params![volume_id], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        for (file, path) in files {
+            if is_beneath(&path, &folder_path) {
+                tx.execute("DELETE FROM names WHERE rowid = ?1", params![file])?;
+                tx.execute("DELETE FROM index_jobs WHERE file_id = ?1", params![file])?;
+                tx.execute("DELETE FROM files WHERE id = ?1", params![file])?;
+            }
+        }
+        tx.execute("DELETE FROM indexed_folders WHERE id = ?1", params![id])?;
+        tx.commit()?;
+        self.remove_unreferenced_content(store)
+    }
+
     /// The Indexed Folders, in the order they were added.
     pub fn indexed_folders(&self) -> Result<Vec<IndexedFolder>> {
         let folders: Vec<(String, String)> = self

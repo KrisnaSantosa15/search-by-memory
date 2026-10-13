@@ -246,3 +246,31 @@ fn queued_file_on_a_disconnected_drive_waits_for_the_drive_instead_of_failing() 
         .unwrap();
     assert_eq!(index.pending_jobs().unwrap(), 0);
 }
+
+#[test]
+fn removed_indexed_folder_leaves_both_indexes() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "recipes/curry.txt",
+        "slow cooked beef curry\n",
+    );
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    let mut store = store();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+
+    index
+        .remove_indexed_folder(folder.path(), &mut store)
+        .unwrap();
+
+    assert_eq!(index.indexed_folders().unwrap(), []);
+    assert_eq!(index.search_names("curry", 20).unwrap(), []);
+    let results = index
+        .search("beef curry", &BagOfWords::default(), &store, View::File, 20)
+        .unwrap();
+    assert_eq!(results, []);
+}
