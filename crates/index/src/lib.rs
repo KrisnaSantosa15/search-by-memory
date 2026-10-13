@@ -381,16 +381,29 @@ impl Index {
         store: &mut impl VectorStore,
         limit: usize,
     ) -> Result<usize> {
+        // Files on a Disconnected Drive wait in the queue until it returns.
+        let disconnected: Vec<String> = self
+            .db
+            .prepare("SELECT id FROM volumes")?
+            .query_map([], |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<String>>>()?
+            .into_iter()
+            .filter(|id| self.volumes.mount_point(id).is_none())
+            .collect();
+        let next_job = format!(
+            "SELECT index_jobs.id, files.volume_id, files.relative_path
+             FROM index_jobs JOIN files ON files.id = index_jobs.file_id
+             WHERE index_jobs.status = 'pending' AND files.volume_id NOT IN ({})
+             ORDER BY index_jobs.priority DESC LIMIT 1",
+            vec!["?"; disconnected.len()].join(", ")
+        );
         let mut done = 0;
         while done < limit {
             let next: Option<(i64, String, String)> = self
                 .db
                 .query_row(
-                    "SELECT index_jobs.id, files.volume_id, files.relative_path
-                     FROM index_jobs JOIN files ON files.id = index_jobs.file_id
-                     WHERE index_jobs.status = 'pending'
-                     ORDER BY index_jobs.priority DESC LIMIT 1",
-                    [],
+                    &next_job,
+                    rusqlite::params_from_iter(&disconnected),
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()?;

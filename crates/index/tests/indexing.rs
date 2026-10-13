@@ -219,3 +219,30 @@ fn indexed_folder_on_a_disconnected_drive_is_skipped_and_keeps_its_files() {
     assert_eq!(folders[0].path, e_drive.path());
     assert!(!folders[0].connected);
 }
+
+#[test]
+fn queued_file_on_a_disconnected_drive_waits_for_the_drive_instead_of_failing() {
+    let (data, e_drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(e_drive.path(), "thesis.txt", "chapter one of the thesis\n");
+    let volumes = FakeVolumes::default();
+    volumes.mount("usb-stick", e_drive.path());
+    let mut index = Index::open(&data.path().join("index.sqlite"))
+        .unwrap()
+        .with_volumes(volumes.clone());
+    let mut store = store();
+    index.add_indexed_folder(e_drive.path()).unwrap();
+    index.scan_all().unwrap();
+
+    volumes.disconnect("usb-stick");
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+    assert_eq!(index.failed_files().unwrap(), []);
+    assert_eq!(index.pending_jobs().unwrap(), 1);
+
+    volumes.mount("usb-stick", e_drive.path());
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+    assert_eq!(index.pending_jobs().unwrap(), 0);
+}
