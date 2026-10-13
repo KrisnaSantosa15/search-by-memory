@@ -37,13 +37,20 @@
 - Rescan: mark-and-sweep; reports added, changed (size/mtime), removed files.
 - On-disk database with `user_version` migrations; newer schema refused.
 
-## In progress
-- M2 extractors (`crates/extract`): text, PDF (pdf-extract), DOCX, failures, lock files; sliding-window chunker.
+### M2 — Extractors and chunking (`crates/extract`)
+- `ContentExtractor` + `Section` in core; text/Markdown/code (lossy UTF-8), PDF per page (pdf-extract), DOCX paragraphs as lines (zip + quick-xml, entities resolved).
+- Bad files never crash indexing: pdf-extract panics caught; text and DOCX capped at 50 MB decompressed (zip bomb).
+- `extractor_for`: picks by extension; Office `~$` lock files and unsupported formats skipped.
+- Sliding-window chunker: whole lines, overlap, line/page Locations kept, blank Chunks dropped.
+- Known gap: pdf-extract/lopdf return no text for the OCR layer of UU 27/2022 (pdftotext reads it).
+
+- —
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
 - File-level Recall still saturated: needs vaguer Queries or a much larger corpus (thousands of files).
 - More non-abstract PDF Targets.
+- Switch `retrieval_benchmark` from pdftotext to `PdfExtractor` and compare.
 
 ## Deferred until development moves to Windows (RTX 4060 8 GB)
 - GPU throughput: CUDA and DirectML execution providers.
