@@ -70,7 +70,10 @@ pub fn accelerator_option(args: &[String]) -> Result<(Vec<Accelerator>, Vec<Stri
     while let Some(arg) = args.next() {
         if arg == "--accelerator" {
             let name = args.next().ok_or("--accelerator needs a name")?;
-            accelerators = vec![name.parse()?, Accelerator::Cpu];
+            accelerators = vec![name.parse()?];
+            if accelerators[0] != Accelerator::Cpu {
+                accelerators.push(Accelerator::Cpu);
+            }
         } else {
             rest.push(arg.clone());
         }

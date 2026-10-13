@@ -147,3 +147,12 @@ fn without_accelerator_option_the_default_order_is_tried() {
     assert_eq!(accelerators, Accelerator::default_order());
     assert_eq!(rest, args(&["index", "Documents"]));
 }
+
+#[test]
+fn cpu_named_as_accelerator_is_tried_once() {
+    let (accelerators, _) =
+        accelerator_option(&args(&["index", "--accelerator", "cpu", "Documents"]))
+            .expect("option parses");
+
+    assert_eq!(accelerators, [Accelerator::Cpu]);
+}
