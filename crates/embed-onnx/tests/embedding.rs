@@ -134,6 +134,19 @@ fn assert_matches_pytorch_reference(embedder: &OnnxEmbedder) {
 fn embedding_chunks_in_a_batch_matches_embedding_them_one_by_one() {
     let Some(dir) = model_dir() else { return };
     let embedder = OnnxEmbedder::load(&dir, 256, DEFAULT_MAX_TOKENS).expect("model loads");
+    assert_batch_matches_one_by_one(&embedder);
+}
+
+#[cfg(windows)]
+#[test]
+fn directml_batch_matches_embedding_chunks_one_by_one() {
+    let Some(dir) = model_dir() else { return };
+    let embedder = OnnxEmbedder::load_on(&dir, 256, DEFAULT_MAX_TOKENS, Accelerator::DirectMl)
+        .expect("model loads");
+    assert_batch_matches_one_by_one(&embedder);
+}
+
+fn assert_batch_matches_one_by_one(embedder: &OnnxEmbedder) {
     let chunks = [
         "Short note.",
         "A much longer chunk of text that spans many more tokens than the first one, so that batching \
