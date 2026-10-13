@@ -3,6 +3,7 @@
 mod common;
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use common::{BagOfWords, BrokenJournal, NoJournal, write};
 use sbm_engine::Engine;
@@ -79,4 +80,26 @@ fn paused_engine_keeps_names_current_and_indexes_content_once_resumed() {
     assert_eq!((paused.files, paused.pending), (1, 1));
     let results = engine.search("beef coconut", View::Passage, 20).unwrap();
     assert_eq!(results[0].path, recipe);
+}
+
+#[test]
+fn file_created_after_indexing_becomes_searchable_without_asking() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    let recipe = write(
+        folder.path(),
+        "recipe.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while engine.status().unwrap().files == 0 && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    engine.wait_until_idle();
+    let results = engine.search("beef coconut", View::Passage, 20).unwrap();
+    assert_eq!(results.first().map(|r| &r.path), Some(&recipe));
 }
