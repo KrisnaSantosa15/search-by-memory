@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::Event;
 use sbm_core::{ContentExtractor, Location, Result, Section};
 
@@ -59,6 +60,13 @@ impl ContentExtractor for DocxExtractor {
                 Event::Start(tag) if tag.name().as_ref() == "w:t" => in_text = true,
                 Event::End(tag) if tag.name().as_ref() == "w:t" => in_text = false,
                 Event::Text(content) if in_text => text.push_str(&content),
+                Event::GeneralRef(entity) if in_text => {
+                    if let Some(character) = entity.resolve_char_ref()? {
+                        text.push(character);
+                    } else if let Some(resolved) = resolve_predefined_entity(&entity) {
+                        text.push_str(resolved);
+                    }
+                }
                 Event::End(tag) if tag.name().as_ref() == "w:p" => {
                     text.push('\n');
                     lines += 1;

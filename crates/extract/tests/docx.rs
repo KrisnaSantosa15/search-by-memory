@@ -41,3 +41,17 @@ fn docx_paragraphs_are_extracted_one_per_line() {
         }]
     );
 }
+
+#[test]
+fn docx_text_keeps_escaped_characters() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("contract.docx");
+    write_docx(
+        &path,
+        "<w:p><w:r><w:t>Smith &amp; Sons &lt;draft&gt; &#169; 2024</w:t></w:r></w:p>",
+    );
+
+    let sections = DocxExtractor.extract(&path).unwrap();
+
+    assert_eq!(sections[0].text, "Smith & Sons <draft> \u{a9} 2024\n");
+}
