@@ -11,7 +11,14 @@ pub struct TextExtractor;
 
 impl ContentExtractor for TextExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
-        let text = std::fs::read_to_string(path)?;
+        let mut text = String::new();
+        std::io::Read::read_to_string(
+            &mut Limited {
+                inner: std::fs::File::open(path)?,
+                remaining: MAX_EXTRACTED_BYTES,
+            },
+            &mut text,
+        )?;
         let lines = text.lines().count() as u32;
         if lines == 0 {
             return Ok(Vec::new());
