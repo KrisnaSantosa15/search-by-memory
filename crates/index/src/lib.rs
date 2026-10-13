@@ -250,7 +250,12 @@ impl Index {
         let Some(extractor) = sbm_extract::extractor_for(path) else {
             return Ok(());
         };
-        let hash = blake3::hash(&std::fs::read(path)?).to_hex().to_string();
+        // Streamed, so hashing never holds a large file in memory.
+        let hash = blake3::Hasher::new()
+            .update_reader(std::fs::File::open(path)?)?
+            .finalize()
+            .to_hex()
+            .to_string();
         let known: bool = self.db.query_row(
             "SELECT EXISTS (SELECT 1 FROM chunks WHERE content_hash = ?1)",
             params![hash],
