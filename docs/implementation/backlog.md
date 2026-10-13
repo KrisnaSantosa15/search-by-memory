@@ -98,6 +98,7 @@
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
+- M4: Online-only Files in the Name Index, never opened for content until downloaded.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
