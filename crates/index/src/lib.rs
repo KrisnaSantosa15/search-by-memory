@@ -205,8 +205,8 @@ pub struct SearchResult {
 /// The file catalog and Name Index, stored in SQLite.
 pub struct Index {
     db: Connection,
-    volumes: Box<dyn Volumes>,
-    availability: Box<dyn FileAvailability>,
+    volumes: Box<dyn Volumes + Send>,
+    availability: Box<dyn FileAvailability + Send>,
 }
 
 impl Index {
@@ -220,7 +220,7 @@ impl Index {
     }
 
     /// Uses `volumes` instead of the operating system's to identify the drive of each file.
-    pub fn with_volumes(self, volumes: impl Volumes + 'static) -> Self {
+    pub fn with_volumes(self, volumes: impl Volumes + Send + 'static) -> Self {
         Self {
             volumes: Box::new(volumes),
             ..self
@@ -228,7 +228,10 @@ impl Index {
     }
 
     /// Uses `availability` instead of the operating system's to tell Online-only Files apart.
-    pub fn with_file_availability(self, availability: impl FileAvailability + 'static) -> Self {
+    pub fn with_file_availability(
+        self,
+        availability: impl FileAvailability + Send + 'static,
+    ) -> Self {
         Self {
             availability: Box::new(availability),
             ..self
