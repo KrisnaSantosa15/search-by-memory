@@ -32,6 +32,18 @@ impl Location {
     }
 }
 
+/// Extracted text of one part of a file, such as a page, with its Location.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Section {
+    pub location: Location,
+    pub text: String,
+}
+
+/// Reads the text content of files in a supported format, never modifying them.
+pub trait ContentExtractor {
+    fn extract(&self, path: &std::path::Path) -> Result<Vec<Section>>;
+}
+
 /// A dense vector representing the meaning of a Query or a Chunk.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Embedding(Vec<f32>);

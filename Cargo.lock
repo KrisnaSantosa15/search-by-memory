@@ -1024,6 +1024,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sbm-extract"
+version = "0.1.0"
+dependencies = [
+ "sbm-core",
+ "tempfile",
+]
+
+[[package]]
 name = "sbm-index"
 version = "0.1.0"
 dependencies = [
