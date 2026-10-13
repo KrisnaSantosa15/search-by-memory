@@ -96,6 +96,13 @@ impl Index {
     fn migrated(mut db: Connection) -> Result<Self> {
         let tx = db.transaction()?;
         let version: i64 = tx.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if version as usize > MIGRATIONS.len() {
+            return Err(format!(
+                "index database schema {version} is newer than this app supports ({})",
+                MIGRATIONS.len()
+            )
+            .into());
+        }
         for migration in MIGRATIONS.iter().skip(version as usize) {
             tx.execute_batch(migration)?;
         }

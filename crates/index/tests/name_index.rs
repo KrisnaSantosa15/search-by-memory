@@ -200,3 +200,15 @@ fn name_index_persists_across_reopening_the_database() {
 
     assert_eq!(reopened.search_names("shopping", 20).unwrap().len(), 1);
 }
+
+#[test]
+fn database_from_a_newer_app_version_is_refused() {
+    let data = TempDir::new().unwrap();
+    let db_path = data.path().join("index.sqlite");
+    drop(Index::open(&db_path).unwrap());
+    let db = rusqlite::Connection::open(&db_path).unwrap();
+    db.pragma_update(None, "user_version", 999).unwrap();
+    drop(db);
+
+    assert!(Index::open(&db_path).is_err());
+}
