@@ -49,6 +49,23 @@ pub fn chunk_text(file: &Path, text: &str, max_chars: usize) -> Vec<Chunk> {
     chunks
 }
 
+/// Splits paged text (pages separated by form feeds, as pdftotext writes them)
+/// into Chunks of whole lines within each page, located by 1-based page.
+pub fn chunk_pages(file: &Path, text: &str, max_chars: usize) -> Vec<Chunk> {
+    text.split('\x0c')
+        .enumerate()
+        .flat_map(|(index, page)| {
+            chunk_text(file, page, max_chars)
+                .into_iter()
+                .map(move |chunk| Chunk {
+                    location: Location::Page(index as u32 + 1),
+                    ..chunk
+                })
+        })
+        .filter(|chunk| !chunk.text.trim().is_empty())
+        .collect()
+}
+
 /// Exhaustive nearest-neighbour search: the exact baseline for approximate stores.
 #[derive(Default)]
 pub struct ExactStore {
