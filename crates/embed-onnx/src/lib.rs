@@ -77,19 +77,9 @@ impl OnnxEmbedder {
         let width = usize::try_from(shape[1])?;
         Ok(values
             .chunks(width)
-            .map(|row| Embedding::new(truncate_and_normalize(row, self.dimensions)))
+            .map(|row| Embedding::new(row.to_vec()).truncated(self.dimensions))
             .collect())
     }
-}
-
-/// Matryoshka truncation: keep the leading `dimensions` values, then rescale to unit length.
-fn truncate_and_normalize(values: &[f32], dimensions: usize) -> Vec<f32> {
-    let mut truncated = values[..dimensions.min(values.len())].to_vec();
-    let norm = truncated.iter().map(|v| v * v).sum::<f32>().sqrt();
-    if norm > 0.0 {
-        truncated.iter_mut().for_each(|v| *v /= norm);
-    }
-    truncated
 }
 
 impl EmbeddingProvider for OnnxEmbedder {
