@@ -257,6 +257,23 @@ pub fn install_runtime(
     cancel: &AtomicBool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<Finished> {
+    // The archives are gone once unpacked; this records which ones were.
+    let marker = dir.join(INSTALLED);
+    let installed: String = archives
+        .iter()
+        .map(|archive| {
+            format!(
+                "{}
+",
+                archive.sha256
+            )
+        })
+        .collect();
+    if std::fs::read_to_string(&marker).is_ok_and(|done| done == installed) {
+        let total = archives.iter().map(|archive| archive.size).sum();
+        progress(Progress { done: total, total });
+        return Ok(Finished::Complete);
+    }
     let downloads = dir.join(DOWNLOADS);
     if download(archives, &downloads, http, cancel, progress)? == Finished::Cancelled {
         return Ok(Finished::Cancelled);
@@ -265,11 +282,14 @@ pub fn install_runtime(
         unpack_dlls(&downloads.join(&archive.path), dir)?;
     }
     std::fs::remove_dir_all(&downloads)?;
+    std::fs::write(&marker, installed)?;
     Ok(Finished::Complete)
 }
 
 /// Folder inside a runtime folder that holds its archives while they download.
 const DOWNLOADS: &str = ".downloads";
+/// File inside a runtime folder listing the SHA-256 of each archive installed.
+const INSTALLED: &str = ".installed";
 
 /// Copies the DLLs in the `bin` folders of the zip archive `archive` into `dir`.
 fn unpack_dlls(archive: &Path, dir: &Path) -> Result<()> {

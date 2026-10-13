@@ -20,10 +20,12 @@ fn archive(files: &[(&str, &[u8])]) -> Vec<u8> {
     zip.finish().unwrap().into_inner()
 }
 
+/// Names of the files in `dir`, without the hidden ones setup keeps for itself.
 fn names_in(dir: &std::path::Path) -> Vec<String> {
     let mut names: Vec<_> = std::fs::read_dir(dir)
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| !name.starts_with('.'))
         .collect();
     names.sort();
     names
@@ -65,4 +67,23 @@ fn dlls_in_the_downloaded_archives_are_unpacked_into_the_runtime_folder() {
         std::fs::read(dir.path().join("cudnn64_9.dll")).unwrap(),
         b"cudnn"
     );
+}
+
+#[test]
+fn installed_runtime_is_not_downloaded_again() {
+    let dir = TempDir::new().unwrap();
+    let http = FakeHttp::default();
+    let archives = [http.serve(
+        "https://example.test/cudart.zip",
+        "cudart.zip",
+        &archive(&[("cudart/bin/x64/cudart64_13.dll", b"cudart")]),
+    )];
+    let cancel = AtomicBool::new(false);
+    install_runtime(&archives, dir.path(), &http, &cancel, &mut |_| {}).unwrap();
+    http.requests.lock().unwrap().clear();
+
+    let finished = install_runtime(&archives, dir.path(), &http, &cancel, &mut |_| {}).unwrap();
+
+    assert_eq!(finished, Finished::Complete);
+    assert!(http.requests.lock().unwrap().is_empty());
 }
