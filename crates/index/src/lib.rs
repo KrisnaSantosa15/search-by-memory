@@ -144,6 +144,8 @@ const CHUNK_CHARS: usize = 1000;
 const CHUNK_OVERLAP_CHARS: usize = 150;
 /// Chunks per embedding call: bounds memory for files with many Chunks.
 const EMBEDDING_BATCH: usize = 8;
+/// Tries to index a file's content before it is reported as failed.
+const ATTEMPTS_PER_FILE: i64 = 3;
 /// Content Matches considered per Result requested.
 const CANDIDATES_PER_RESULT: usize = 10;
 
@@ -358,26 +360,54 @@ impl Index {
     ) -> Result<usize> {
         let mut done = 0;
         while done < limit {
-            let next: Option<(String, String)> = self
+            let next: Option<(i64, String, String)> = self
                 .db
                 .query_row(
-                    "SELECT files.volume_id, files.relative_path
+                    "SELECT index_jobs.id, files.volume_id, files.relative_path
                      FROM index_jobs JOIN files ON files.id = index_jobs.file_id
                      WHERE index_jobs.status = 'pending'
                      ORDER BY index_jobs.priority DESC LIMIT 1",
                     [],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )
                 .optional()?;
-            let Some((volume_id, path)) = next else {
+            let Some((job, volume_id, path)) = next else {
                 self.remove_unreferenced_content(store)?;
                 break;
             };
             let (path, _connected) = self.path_of(&volume_id, &path)?;
-            self.index_content(&path, embedder, store)?;
+            if let Err(error) = self.index_content(&path, embedder, store) {
+                // A bad file must not stop indexing (FR-03); it stays in the Name Index.
+                self.db.execute(
+                    "UPDATE index_jobs SET
+                         retry_count = retry_count + 1,
+                         error_message = ?2,
+                         status = CASE WHEN retry_count + 1 >= ?3 THEN 'failed' ELSE status END
+                     WHERE id = ?1",
+                    params![job, error.to_string(), ATTEMPTS_PER_FILE],
+                )?;
+            }
             done += 1;
         }
         Ok(done)
+    }
+
+    /// Files whose content could not be indexed, with the last error.
+    pub fn failed_files(&self) -> Result<Vec<(PathBuf, String)>> {
+        let failed: Vec<(String, String, String)> = self
+            .db
+            .prepare(
+                "SELECT files.volume_id, files.relative_path, index_jobs.error_message
+                 FROM index_jobs JOIN files ON files.id = index_jobs.file_id
+                 WHERE index_jobs.status = 'failed'
+                 ORDER BY files.relative_path",
+            )?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        failed
+            .into_iter()
+            .map(|(volume_id, path, error)| Ok((self.path_of(&volume_id, &path)?.0, error)))
+            .collect()
     }
 
     /// Files whose content is still to be indexed.

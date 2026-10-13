@@ -131,3 +131,35 @@ fn rescan_queues_only_files_that_changed() {
 
     assert_eq!(index.pending_jobs().unwrap(), 1);
 }
+
+#[test]
+fn file_that_cannot_be_indexed_is_reported_and_does_not_block_others() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let good = write(folder.path(), "good.txt", "notes about the garden fence\n");
+    let broken = write(folder.path(), "broken.docx", "not really a zip archive");
+    modified_days_ago(&good, 10);
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    let mut store = store();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+
+    assert_eq!(index.pending_jobs().unwrap(), 0);
+    let failed = index.failed_files().unwrap();
+    assert_eq!(failed.len(), 1, "{failed:?}");
+    assert_eq!(failed[0].0, broken);
+    assert!(!failed[0].1.is_empty());
+    let results = index
+        .search(
+            "garden fence",
+            &BagOfWords::default(),
+            &store,
+            View::Passage,
+            20,
+        )
+        .unwrap();
+    assert_eq!(results[0].path, good);
+}
