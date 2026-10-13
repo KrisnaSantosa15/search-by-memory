@@ -86,6 +86,9 @@ pub struct SpeedOption {
     pub needs_cuda_runtime: bool,
 }
 
+/// Video memory a GPU needs before it is recommended over the CPU.
+const MIN_GPU_MEMORY: u64 = 2 << 30;
+
 /// The ways to run the embedding model on a machine with `gpus`, fastest first.
 pub fn speed_options(gpus: &[Gpu]) -> Vec<SpeedOption> {
     let option = |accelerator, gpu: Option<&Gpu>, recommended| SpeedOption {
@@ -99,10 +102,12 @@ pub fn speed_options(gpus: &[Gpu]) -> Vec<SpeedOption> {
         options.push(option(Accelerator::Cuda, Some(nvidia), true));
     }
     if let Some(strongest) = gpus.iter().max_by_key(|gpu| gpu.dedicated_memory) {
-        let recommended = options.is_empty();
+        // Integrated graphics shares memory with the CPU and is rarely faster than it.
+        let recommended = options.is_empty() && strongest.dedicated_memory >= MIN_GPU_MEMORY;
         options.push(option(Accelerator::DirectMl, Some(strongest), recommended));
     }
-    options.push(option(Accelerator::Cpu, None, false));
+    let recommended = !options.iter().any(|option| option.recommended);
+    options.push(option(Accelerator::Cpu, None, recommended));
     options
 }
 

@@ -47,3 +47,23 @@ fn other_graphics_card_is_recommended_through_directml() {
         [(Accelerator::DirectMl, true), (Accelerator::Cpu, false)]
     );
 }
+
+#[test]
+fn without_a_graphics_card_the_cpu_is_recommended() {
+    assert_eq!(
+        accelerators(&speed_options(&[])),
+        [(Accelerator::Cpu, true)]
+    );
+}
+
+#[test]
+fn integrated_graphics_is_offered_but_the_cpu_is_recommended() {
+    let gpus = [gpu("Intel(R) UHD Graphics 770", GpuVendor::Intel, 0)];
+
+    let options = speed_options(&gpus);
+
+    assert_eq!(
+        accelerators(&options),
+        [(Accelerator::DirectMl, false), (Accelerator::Cpu, true)]
+    );
+}
