@@ -28,6 +28,8 @@ pub enum Accelerator {
     DirectMl,
     /// The DirectX 12 GPU with this adapter index on Windows.
     DirectMlDevice(u32),
+    /// The first NVIDIA GPU, through CUDA 13 and cuDNN 9.
+    Cuda,
 }
 
 impl std::str::FromStr for Accelerator {
@@ -38,12 +40,13 @@ impl std::str::FromStr for Accelerator {
         match name.split_once(':') {
             None if name == "cpu" => Ok(Accelerator::Cpu),
             None if name == "directml" => Ok(Accelerator::DirectMl),
+            None if name == "cuda" => Ok(Accelerator::Cuda),
             Some(("directml", device)) => device
                 .parse()
                 .map(Accelerator::DirectMlDevice)
                 .map_err(|_| format!("invalid DirectML adapter index {device:?}")),
             _ => Err(format!(
-                "unknown accelerator {name:?}; expected cpu, directml, or directml:<index>"
+                "unknown accelerator {name:?}; expected cpu, cuda, directml, or directml:<index>"
             )),
         }
     }
@@ -162,6 +165,11 @@ fn session_builder(accelerator: Accelerator) -> ort::Result<SessionBuilder> {
                 .with_parallel_execution(false)?
                 .with_execution_providers([directml.build().error_on_failure()])?)
         }
+        #[cfg(windows)]
+        Accelerator::Cuda => Ok(builder
+            .with_execution_providers([ort::ep::CUDA::default().build().error_on_failure()])?),
+        #[cfg(not(windows))]
+        Accelerator::Cuda => Err(ort::Error::new("CUDA is only enabled in Windows builds")),
         #[cfg(not(windows))]
         Accelerator::DirectMl | Accelerator::DirectMlDevice(_) => {
             Err(ort::Error::new("DirectML is only available on Windows"))

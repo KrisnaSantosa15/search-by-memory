@@ -1,6 +1,6 @@
 //! Measures Chunk embedding throughput on this machine.
 //!
-//! Usage: cargo run --release -p sbm-bench --bin embed_throughput [-- --accelerator cpu|directml|directml:<index>]
+//! Usage: cargo run --release -p sbm-bench --bin embed_throughput [-- --accelerator cpu|cuda|directml|directml:<index>]
 //! Model directory: `SBM_MODEL_DIR` (default `models/embeddinggemma-2-onnx` in the cache directory, see `AppDirs`).
 
 use std::path::PathBuf;

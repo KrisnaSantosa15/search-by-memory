@@ -11,11 +11,13 @@ fn accelerator_is_named_on_the_command_line() {
         "directml:1".parse::<Accelerator>().unwrap(),
         Accelerator::DirectMlDevice(1)
     );
+    assert_eq!("cuda".parse::<Accelerator>().unwrap(), Accelerator::Cuda);
 }
 
 #[test]
 fn unknown_accelerator_name_is_an_error_listing_the_choices() {
-    let error = "cuda".parse::<Accelerator>().unwrap_err();
+    let error = "tpu".parse::<Accelerator>().unwrap_err();
 
     assert!(error.contains("directml"), "{error}");
+    assert!(error.contains("cuda"), "{error}");
 }
