@@ -79,6 +79,11 @@
 - Measured: 88k journal records read in 0.43 s; 2,000 changed paths on a 50k-file catalog applied in 0.13 s (was 68 s before batching).
 - Smoke-tested `sbm` on Windows: add, folder rename, and delete picked up between runs.
 
+### M4 — Online-only Files (`crates/core`, `crates/index`)
+- `FileAvailability` adapter; `SystemFileAvailability` reads Windows recall/offline attributes without opening the file (other platforms: never Online-only).
+- Online-only Files enter the Name Index only; queued content work is dropped when a file moves to the cloud.
+- A download (size and mtime unchanged) is noticed on the next scan or Live Update and content-indexed.
+
 ### Windows port
 - Builds with MSVC: usearch's NumKong linked statically (`.cargo/config.toml`); binary fixtures exempt from CRLF (`.gitattributes`).
 - `AppDirs`: data in `%LOCALAPPDATA%\search-by-memory`, cache (models, Public Corpus) in its `cache` folder; Unix unchanged. CLI, benches, tests, and `tools/` use it.
@@ -98,7 +103,6 @@
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
-- M4: Online-only Files in the Name Index, never opened for content until downloaded.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
