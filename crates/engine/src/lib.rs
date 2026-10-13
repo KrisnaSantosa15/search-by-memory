@@ -21,6 +21,15 @@ const CHANGE_POLL: Duration = Duration::from_secs(2);
 
 type Embedder = Arc<dyn EmbeddingProvider + Send + Sync>;
 
+/// What the Engine has indexed so far (FR-08).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Status {
+    /// Files in the Name Index.
+    pub files: usize,
+    /// Files whose content is still to be indexed.
+    pub pending: usize,
+}
+
 pub struct Engine {
     shared: Arc<Shared>,
     embedder: Embedder,
@@ -93,6 +102,14 @@ impl Engine {
             .changed
             .wait_while(work, |work| work.completed < target && !work.stop)
             .unwrap();
+    }
+
+    pub fn status(&self) -> Result<Status> {
+        let index = self.index.lock().unwrap();
+        Ok(Status {
+            files: index.file_count()?,
+            pending: index.pending_jobs()?,
+        })
     }
 
     pub fn search(&self, query: &str, view: View, limit: usize) -> Result<Vec<SearchResult>> {

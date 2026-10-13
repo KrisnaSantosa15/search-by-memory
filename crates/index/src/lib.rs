@@ -621,6 +621,14 @@ impl Index {
             .collect()
     }
 
+    /// Files in the Name Index.
+    pub fn file_count(&self) -> Result<usize> {
+        let count: i64 = self
+            .db
+            .query_row("SELECT count(*) FROM files", [], |row| row.get(0))?;
+        Ok(count as usize)
+    }
+
     /// Files whose content is still to be indexed.
     pub fn pending_jobs(&self) -> Result<usize> {
         let count: i64 = self.db.query_row(
