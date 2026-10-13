@@ -101,6 +101,8 @@ const MIGRATIONS: [&str; 3] = [
 const CHUNK_CHARS: usize = 1000;
 /// Characters each Chunk repeats from the one before (15%).
 const CHUNK_OVERLAP_CHARS: usize = 150;
+/// Chunks per embedding call: bounds memory for files with many Chunks.
+const EMBEDDING_BATCH: usize = 8;
 /// Content Matches considered per Result requested.
 const CANDIDATES_PER_RESULT: usize = 10;
 
@@ -279,7 +281,10 @@ impl Index {
             CHUNK_OVERLAP_CHARS,
         );
         let texts: Vec<&str> = chunks.iter().map(|chunk| chunk.text.as_str()).collect();
-        let embeddings = embedder.embed_chunks(&texts)?;
+        let mut embeddings = Vec::with_capacity(texts.len());
+        for batch in texts.chunks(EMBEDDING_BATCH) {
+            embeddings.extend(embedder.embed_chunks(batch)?);
+        }
         let tx = self.db.transaction()?;
         for (chunk, embedding) in chunks.iter().zip(&embeddings) {
             let (page, line_start, line_end) = location_columns(&chunk.location);

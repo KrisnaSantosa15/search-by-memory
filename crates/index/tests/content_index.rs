@@ -414,3 +414,38 @@ fn vector_index_is_rebuilt_from_stored_embeddings_without_reembedding() {
     assert_eq!(rebuilt.len(), lost.len());
     assert_eq!(results[0].path, recipe);
 }
+
+/// Records the size of every embedding call.
+struct BatchRecorder(std::cell::RefCell<Vec<usize>>);
+
+impl EmbeddingProvider for BatchRecorder {
+    fn dimensions(&self) -> usize {
+        DIMENSIONS
+    }
+    fn embed_query(&self, query: &str) -> Result<Embedding> {
+        Ok(BagOfWords::embed(query))
+    }
+    fn embed_chunks(&self, chunks: &[&str]) -> Result<Vec<Embedding>> {
+        self.0.borrow_mut().push(chunks.len());
+        Ok(chunks
+            .iter()
+            .map(|chunk| BagOfWords::embed(chunk))
+            .collect())
+    }
+}
+
+#[test]
+fn file_with_many_chunks_is_embedded_in_small_batches() {
+    let folder = TempDir::new().unwrap();
+    let book = write(folder.path(), "book.txt", &long_recipe().repeat(10));
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    let recorder = BatchRecorder(Default::default());
+
+    index.index_content(&book, &recorder, &mut store).unwrap();
+
+    let batches = recorder.0.into_inner();
+    assert_eq!(batches.iter().sum::<usize>(), store.len());
+    assert!(batches.iter().all(|&size| size <= 8), "{batches:?}");
+}
