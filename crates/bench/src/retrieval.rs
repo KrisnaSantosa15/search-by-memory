@@ -17,17 +17,36 @@ pub struct Chunk {
     pub text: String,
 }
 
-/// Splits text or code into Chunks of whole lines.
-pub fn chunk_text(file: &Path, text: &str, _max_chars: usize) -> Vec<Chunk> {
-    let lines = text.lines().count() as u32;
-    vec![Chunk {
-        file: file.to_path_buf(),
-        location: Location::Lines {
-            start: 1,
-            end: lines,
-        },
-        text: text.to_string(),
-    }]
+/// Splits text or code into Chunks of whole lines, each at most `max_chars`
+/// long unless a single line is longer.
+pub fn chunk_text(file: &Path, text: &str, max_chars: usize) -> Vec<Chunk> {
+    let mut chunks = Vec::new();
+    let mut current = String::new();
+    let mut start = 1;
+    for (index, line) in text.split_inclusive('\n').enumerate() {
+        let number = index as u32 + 1;
+        if !current.is_empty() && current.len() + line.len() > max_chars {
+            chunks.push(Chunk {
+                file: file.to_path_buf(),
+                location: Location::Lines {
+                    start,
+                    end: number - 1,
+                },
+                text: std::mem::take(&mut current),
+            });
+            start = number;
+        }
+        current.push_str(line);
+    }
+    if !current.is_empty() {
+        let end = start + current.split_inclusive('\n').count() as u32 - 1;
+        chunks.push(Chunk {
+            file: file.to_path_buf(),
+            location: Location::Lines { start, end },
+            text: current,
+        });
+    }
+    chunks
 }
 
 /// Exhaustive nearest-neighbour search: the exact baseline for approximate stores.
