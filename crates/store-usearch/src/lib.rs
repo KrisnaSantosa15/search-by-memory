@@ -50,7 +50,8 @@ impl UsearchStore {
 }
 
 fn utf8(path: &Path) -> Result<&str> {
-    path.to_str().ok_or_else(|| format!("index path is not UTF-8: {}", path.display()).into())
+    path.to_str()
+        .ok_or_else(|| format!("index path is not UTF-8: {}", path.display()).into())
 }
 
 impl VectorStore for UsearchStore {

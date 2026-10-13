@@ -22,7 +22,7 @@ impl Index {
         let db = Connection::open_in_memory()?;
         db.execute_batch(
             "CREATE TABLE files (id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE);
-             CREATE VIRTUAL TABLE names USING fts5(name);",
+             CREATE VIRTUAL TABLE names USING fts5(name, folder);",
         )?;
         Ok(Self { db })
     }
@@ -38,9 +38,10 @@ impl Index {
             let path = entry.path().to_string_lossy();
             tx.execute("INSERT INTO files (path) VALUES (?1)", params![path])?;
             let name = entry.file_name().to_string_lossy();
+            let folder = entry.path().parent().unwrap_or(folder).to_string_lossy();
             tx.execute(
-                "INSERT INTO names (rowid, name) VALUES (last_insert_rowid(), ?1)",
-                params![name],
+                "INSERT INTO names (rowid, name, folder) VALUES (last_insert_rowid(), ?1, ?2)",
+                params![name, folder],
             )?;
         }
         tx.commit()?;

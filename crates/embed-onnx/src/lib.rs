@@ -65,7 +65,10 @@ impl OnnxEmbedder {
         }
 
         let no_media = || Tensor::from_array(([0usize, MEDIA_FEATURE_WIDTH], Vec::<f32>::new()));
-        let mut session = self.session.lock().map_err(|_| "embedding session poisoned")?;
+        let mut session = self
+            .session
+            .lock()
+            .map_err(|_| "embedding session poisoned")?;
         let outputs = session.run(ort::inputs![
             "input_ids" => Tensor::from_array(([batch, len], ids))?,
             "attention_mask" => Tensor::from_array(([batch, len], mask))?,
@@ -93,6 +96,11 @@ impl EmbeddingProvider for OnnxEmbedder {
     }
 
     fn embed_chunks(&self, chunks: &[&str]) -> Result<Vec<Embedding>> {
-        self.embed_texts(chunks.iter().map(|chunk| format!("{CHUNK_PREFIX}{chunk}")).collect())
+        self.embed_texts(
+            chunks
+                .iter()
+                .map(|chunk| format!("{CHUNK_PREFIX}{chunk}"))
+                .collect(),
+        )
     }
 }

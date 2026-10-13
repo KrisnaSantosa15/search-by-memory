@@ -11,14 +11,20 @@ use sbm_core::EmbeddingProvider;
 use sbm_embed_onnx::{DEFAULT_MAX_TOKENS, OnnxEmbedder};
 
 fn model_dir() -> Option<PathBuf> {
-    let dir = std::env::var_os("SBM_MODEL_DIR").map(PathBuf::from).or_else(|| {
-        std::env::var_os("HOME")
-            .map(|home| PathBuf::from(home).join(".cache/search-by-memory/models/embeddinggemma-2-onnx"))
-    })?;
+    let dir = std::env::var_os("SBM_MODEL_DIR")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME").map(|home| {
+                PathBuf::from(home).join(".cache/search-by-memory/models/embeddinggemma-2-onnx")
+            })
+        })?;
     if dir.join("onnx/model.onnx").exists() {
         Some(dir)
     } else {
-        eprintln!("SKIPPED: EmbeddingGemma 2 ONNX model not found at {}", dir.display());
+        eprintln!(
+            "SKIPPED: EmbeddingGemma 2 ONNX model not found at {}",
+            dir.display()
+        );
         None
     }
 }
@@ -51,13 +57,25 @@ fn embeddings_have_the_configured_dimensions_and_unit_length() {
     let Some(dir) = model_dir() else { return };
     let embedder = OnnxEmbedder::load(&dir, 256, DEFAULT_MAX_TOKENS).expect("model loads");
 
-    let query = embedder.embed_query("meeting notes from yesterday").expect("query embeds");
-    let chunks = embedder.embed_chunks(&["Agenda: quarterly planning."]).expect("chunk embeds");
+    let query = embedder
+        .embed_query("meeting notes from yesterday")
+        .expect("query embeds");
+    let chunks = embedder
+        .embed_chunks(&["Agenda: quarterly planning."])
+        .expect("chunk embeds");
 
     for embedding in [&query, &chunks[0]] {
         assert_eq!(embedding.as_slice().len(), embedder.dimensions());
-        let norm = embedding.as_slice().iter().map(|v| v * v).sum::<f32>().sqrt();
-        assert!((norm - 1.0).abs() < 1e-4, "expected unit length, got norm {norm}");
+        let norm = embedding
+            .as_slice()
+            .iter()
+            .map(|v| v * v)
+            .sum::<f32>()
+            .sqrt();
+        assert!(
+            (norm - 1.0).abs() < 1e-4,
+            "expected unit length, got norm {norm}"
+        );
     }
 }
 
@@ -113,7 +131,10 @@ fn embedding_chunks_in_a_batch_matches_embedding_them_one_by_one() {
     for (chunk, from_batch) in chunks.iter().zip(&batched) {
         let alone = &embedder.embed_chunks(&[chunk]).expect("single embeds")[0];
         let cosine = from_batch.similarity(alone);
-        assert!(cosine > 0.9999, "batched vs single cosine {cosine} for {chunk:?}");
+        assert!(
+            cosine > 0.9999,
+            "batched vs single cosine {cosine} for {chunk:?}"
+        );
     }
 }
 
@@ -122,12 +143,18 @@ fn text_beyond_the_token_limit_is_ignored() {
     let Some(dir) = model_dir() else { return };
     let embedder = OnnxEmbedder::load(&dir, 256, 64).expect("model loads");
     let beyond_limit = "The quarterly budget meeting covered hiring plans. ".repeat(20);
-    let with_unrelated_tail = format!("{beyond_limit} Preheat the oven and bake the bread for twenty minutes.");
+    let with_unrelated_tail =
+        format!("{beyond_limit} Preheat the oven and bake the bread for twenty minutes.");
 
-    let embeddings = embedder.embed_chunks(&[&beyond_limit, &with_unrelated_tail]).expect("chunks embed");
+    let embeddings = embedder
+        .embed_chunks(&[&beyond_limit, &with_unrelated_tail])
+        .expect("chunks embed");
 
     let cosine = embeddings[0].similarity(&embeddings[1]);
-    assert!(cosine > 0.9999, "text past the token limit changed the embedding (cosine {cosine})");
+    assert!(
+        cosine > 0.9999,
+        "text past the token limit changed the embedding (cosine {cosine})"
+    );
 }
 
 /// Multilingual capability (PRD FR-02: English and Indonesian Queries).
@@ -144,13 +171,17 @@ fn queries_find_related_chunks_across_english_and_indonesian() {
         .expect("chunks embed");
     let (indonesian_budget, english_budget, unrelated) = (&chunks[0], &chunks[1], &chunks[2]);
 
-    let english_query = embedder.embed_query("meeting notes about the quarterly budget").expect("query embeds");
+    let english_query = embedder
+        .embed_query("meeting notes about the quarterly budget")
+        .expect("query embeds");
     assert!(
         english_query.similarity(indonesian_budget) > english_query.similarity(unrelated),
         "English Query should find the Indonesian Chunk"
     );
 
-    let indonesian_query = embedder.embed_query("catatan rapat tentang anggaran kuartal").expect("query embeds");
+    let indonesian_query = embedder
+        .embed_query("catatan rapat tentang anggaran kuartal")
+        .expect("query embeds");
     assert!(
         indonesian_query.similarity(english_budget) > indonesian_query.similarity(unrelated),
         "Indonesian Query should find the English Chunk"

@@ -65,7 +65,9 @@ fn searching_an_empty_store_returns_no_neighbors() {
 fn random_units(count: usize, dimensions: usize, seed: u64) -> Vec<Embedding> {
     let mut state = seed;
     let mut next = move || {
-        state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         ((state >> 33) as f32 / (1u64 << 31) as f32) - 0.5
     };
     (0..count)
@@ -84,12 +86,18 @@ fn recall_at_10(precision: Precision) -> f32 {
 
     let mut found = 0;
     for query in &queries {
-        let mut exact: Vec<(u64, f32)> =
-            stored.iter().enumerate().map(|(id, e)| (id as u64, query.similarity(e))).collect();
+        let mut exact: Vec<(u64, f32)> = stored
+            .iter()
+            .enumerate()
+            .map(|(id, e)| (id as u64, query.similarity(e)))
+            .collect();
         exact.sort_by(|a, b| b.1.total_cmp(&a.1));
         let exact_top: Vec<u64> = exact.iter().take(k).map(|(id, _)| *id).collect();
         let approximate = store.search(query, k).expect("searches");
-        found += approximate.iter().filter(|n| exact_top.contains(&n.id)).count();
+        found += approximate
+            .iter()
+            .filter(|n| exact_top.contains(&n.id))
+            .count();
     }
     found as f32 / (queries.len() * k) as f32
 }
