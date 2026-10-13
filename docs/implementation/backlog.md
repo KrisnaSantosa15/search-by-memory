@@ -67,6 +67,7 @@
 - Removing an Indexed Folder drops its files unless another Indexed Folder covers them.
 - `sbm index [<folder>...]` (vectors saved every 100 files), `sbm folders`, `sbm remove`, `sbm exclude <folder> | --name <pattern>`.
 - Smoke-tested on Windows: kill -9 mid-run, rerun finishes the 16 pending files.
+- Search skips vectors whose Chunk is gone (vector file saved before a crash).
 
 ### Windows port
 - Builds with MSVC: usearch's NumKong linked statically (`.cargo/config.toml`); binary fixtures exempt from CRLF (`.gitattributes`).
