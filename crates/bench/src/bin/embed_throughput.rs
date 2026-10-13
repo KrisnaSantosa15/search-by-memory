@@ -1,6 +1,6 @@
 //! Measures Chunk embedding throughput on this machine.
 //!
-//! Usage: cargo run --release -p sbm-bench --bin embed_throughput
+//! Usage: cargo run --release -p sbm-bench --bin embed_throughput [-- --accelerator cpu|directml|directml:<index>]
 //! Model directory: `SBM_MODEL_DIR` (default `models/embeddinggemma-2-onnx` in the cache directory, see `AppDirs`).
 
 use std::path::PathBuf;
@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use sbm_bench::Throughput;
 use sbm_core::EmbeddingProvider;
-use sbm_embed_onnx::{DEFAULT_MAX_TOKENS, OnnxEmbedder};
+use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
 
 const SENTENCE: &str = "The indexing service splits each document into overlapping chunks and stores their embeddings. ";
 const CHUNKS_PER_SETTING: usize = 64;
@@ -24,7 +24,18 @@ fn main() -> sbm_core::Result<()> {
                 .cache
                 .join("models/embeddinggemma-2-onnx")
         });
-    let embedder = OnnxEmbedder::load(&model_dir, 256, DEFAULT_MAX_TOKENS)?;
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let accelerator = match args.as_slice() {
+        [] => Accelerator::Cpu,
+        [flag, name] if flag == "--accelerator" => name.parse()?,
+        _ => return Err("usage: embed_throughput [--accelerator <name>]".into()),
+    };
+    let embedder = OnnxEmbedder::load_on(&model_dir, 256, DEFAULT_MAX_TOKENS, accelerator)?;
+    println!(
+        "Accelerator: {:?}
+",
+        embedder.accelerator()
+    );
 
     println!("| Chunk | Batch | Chunks/s | p50 batch | p95 batch | 1M Chunks | 2M Chunks |");
     println!("|---|---|---|---|---|---|---|");
