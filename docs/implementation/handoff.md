@@ -2,9 +2,9 @@
 
 Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md).
 
-## State (2026-10-12)
-- M1 technical validation in progress. Embedding (`crates/embed-onnx`) and vector store (`crates/store-usearch`) are done; all tests green, one deliberately ignored (i8 recall).
-- Nothing in progress. Next: Public Corpus + first Benchmark labels (needs user input, see below).
+## State (2026-10-13)
+- M1 technical validation in progress. Embedding, vector store, Benchmark tooling and Public Corpus are done; all tests green, one deliberately ignored (i8 recall).
+- Nothing in progress. Next: a Benchmark runner scoring the semantic-only baseline, and the unfinished CPU throughput benchmark.
 
 ## Workspace
 | Path | Purpose |
@@ -12,14 +12,16 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 | `crates/core` | Domain types and provider traits (`Embedding`, `EmbeddingProvider`, `VectorStore`). |
 | `crates/embed-onnx` | EmbeddingGemma 2 via ONNX Runtime (`OnnxEmbedder`). |
 | `crates/store-usearch` | USearch `VectorStore` (`UsearchStore`, f16/i8, save + mmap view). |
-| `crates/bench` | Benchmark math + `embed_throughput` runner. |
-| `tools/` | Python dev tooling (uv): PyTorch parity fixture generator. Never shipped. |
+| `crates/bench` | Throughput math + `embed_throughput` runner; Benchmark parser (`Benchmark`, `Target`) and File-view metrics (`Scores`). |
+| `benchmark/public/` | Public Corpus `manifest.toml` (URL, sha256, license) and labelled `queries.toml`. |
+| `tools/` | Python dev tooling (uv): parity fixtures, `fetch_public_corpus.py`. Never shipped. |
 
 ## Run
 - Tests: `cargo test --workspace` (Rust via rustup at `~/.cargo/bin`).
 - Ignored tests: `cargo test -p sbm-store-usearch -- --ignored`.
 - Benchmark: `cargo run --release -p sbm-bench --bin embed_throughput` (do not run tests at the same time).
 - Parity fixtures: `cd tools && uv run make_parity_fixtures.py`.
+- Public Corpus: `cd tools && uv run fetch_public_corpus.py` → `~/.cache/search-by-memory/public-corpus` (override: `SBM_PUBLIC_CORPUS`). Corpus-dependent test prints `SKIPPED` when absent.
 
 ## Model
 - `onnx-community/embeddinggemma-2-ONNX` (Apache-2.0, not gated), stored outside the repo at `~/.cache/search-by-memory/models/embeddinggemma-2-onnx` (override: `SBM_MODEL_DIR`).
@@ -37,8 +39,12 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 - USearch needs search depth 128 for f16 recall@10 ≥ 0.95; i8 ≈ 0.88 (quantization loss).
 - ONNX Runtime silently accepts input beyond 8,192 tokens; the embedder truncates at `DEFAULT_MAX_TOKENS` (2,048).
 - EmbeddingGemma 2 is multimodal (text, image, video, audio in one space); may simplify P1/P2.
+- Benchmark is for development only; the user's own files come in as a Personal Corpus later (labels outside git).
+- Public Corpus label caveats: most arXiv Targets are page 1 (abstract) — too easy; media time ranges verified from subtitles/frames; UU 36/2009 and UU 13/2003 are superseded/amended texts.
+- Wikimedia rate-limits bursts (429); the fetcher honours Retry-After.
 
 ## Open questions for the user
-1. Public Corpus contents and who drafts the first 20–30 labelled Queries.
-2. f16 vs i8 vector precision (decide on real Benchmark data).
-3. When to resume the benchmark (CPU int8/q4 now, GPU on Windows later).
+1. Review the 40 drafted Queries in `benchmark/public/queries.toml`.
+2. License spot-checks flagged by gathering: Tom Lehrer recordings (PD claim), arXiv CC BY verified on abs pages only.
+3. f16 vs i8 vector precision (decide on real Benchmark data).
+4. When to resume the benchmark (CPU int8/q4 now, GPU on Windows later).
