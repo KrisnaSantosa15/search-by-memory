@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use quick_xml::events::Event;
 use sbm_core::{ContentExtractor, Location, Result, Section};
 
 /// Plain text, Markdown, and source code: the whole file as one line range.
@@ -38,5 +39,41 @@ impl ContentExtractor for PdfExtractor {
                 text,
             })
             .collect())
+    }
+}
+
+/// Word documents: one line per paragraph of the main document body.
+pub struct DocxExtractor;
+
+impl ContentExtractor for DocxExtractor {
+    fn extract(&self, path: &Path) -> Result<Vec<Section>> {
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(path)?)?;
+        let document = std::io::BufReader::new(archive.by_name("word/document.xml")?);
+        let mut reader = quick_xml::Reader::from_reader(document);
+        let mut buffer = Vec::new();
+        let mut text = String::new();
+        let mut lines = 0;
+        let mut in_text = false;
+        loop {
+            match reader.read_event_into(&mut buffer)? {
+                Event::Start(tag) if tag.name().as_ref() == "w:t" => in_text = true,
+                Event::End(tag) if tag.name().as_ref() == "w:t" => in_text = false,
+                Event::Text(content) if in_text => text.push_str(&content),
+                Event::End(tag) if tag.name().as_ref() == "w:p" => {
+                    text.push('\n');
+                    lines += 1;
+                }
+                Event::Eof => break,
+                _ => {}
+            }
+            buffer.clear();
+        }
+        Ok(vec![Section {
+            location: Location::Lines {
+                start: 1,
+                end: lines,
+            },
+            text,
+        }])
     }
 }
