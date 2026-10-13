@@ -73,9 +73,9 @@
 
 ## In progress
 - Clean GPU benchmark (background apps closed).
+- M2: volume-aware file catalog (volume ID + relative path; Disconnected Drives flagged).
 
 ## Next
-- M2: volume-aware file catalog (volume ID per file).
 - M2: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only), with the M1 benchmark work.
 
 ## Next (M1)
