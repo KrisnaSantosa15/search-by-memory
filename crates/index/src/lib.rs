@@ -82,7 +82,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 6] = [
+const MIGRATIONS: [&str; 7] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -144,6 +144,13 @@ const MIGRATIONS: [&str; 6] = [
          retry_count INTEGER NOT NULL DEFAULT 0,
          error_message TEXT,
          created_at INTEGER NOT NULL
+     );",
+    // The user's Exclusions: a name pattern, or a folder by volume (FR-03).
+    "CREATE TABLE exclusions (
+         id INTEGER PRIMARY KEY,
+         pattern TEXT,
+         volume_id TEXT,
+         relative_path TEXT
      );",
 ];
 
@@ -388,6 +395,51 @@ impl Index {
         self.remove_unreferenced_content(store)
     }
 
+    /// Remembers an Exclusion; the next scan drops the files it matches.
+    pub fn add_exclusion(&mut self, exclusion: Exclusion) -> Result<()> {
+        match exclusion {
+            Exclusion::Name(pattern) => {
+                self.db.execute(
+                    "INSERT INTO exclusions (pattern) VALUES (?1)",
+                    params![pattern],
+                )?;
+            }
+            Exclusion::Folder(folder) => {
+                let folder = normalized(&folder);
+                let volume = self.volumes.volume_of(&folder)?;
+                let path = relative_path(&folder, &volume)?;
+                let tx = self.db.transaction()?;
+                remember_volume(&tx, &volume)?;
+                tx.execute(
+                    "INSERT INTO exclusions (volume_id, relative_path) VALUES (?1, ?2)",
+                    params![volume.id, path],
+                )?;
+                tx.commit()?;
+            }
+        }
+        Ok(())
+    }
+
+    /// The Default Exclusions followed by the user's.
+    pub fn exclusions(&self) -> Result<Vec<Exclusion>> {
+        let saved: Vec<(Option<String>, Option<String>, Option<String>)> = self
+            .db
+            .prepare("SELECT pattern, volume_id, relative_path FROM exclusions ORDER BY id")?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut exclusions = Exclusion::defaults();
+        for row in saved {
+            exclusions.push(match row {
+                (Some(pattern), _, _) => Exclusion::Name(pattern),
+                (None, Some(volume_id), Some(path)) => {
+                    Exclusion::Folder(self.path_of(&volume_id, &path)?.0)
+                }
+                _ => return Err("malformed Exclusion in the index database".into()),
+            });
+        }
+        Ok(exclusions)
+    }
+
     /// The Indexed Folders, in the order they were added.
     pub fn indexed_folders(&self) -> Result<Vec<IndexedFolder>> {
         let folders: Vec<(String, String)> = self
@@ -407,12 +459,13 @@ impl Index {
     /// Scans every connected Indexed Folder, queueing a content job for each added
     /// or changed file. Folders on a Disconnected Drive keep their files.
     pub fn scan_all(&mut self) -> Result<ScanChanges> {
+        let exclusions = self.exclusions()?;
         let mut changes = ScanChanges::default();
         for folder in self.indexed_folders()? {
             if !folder.connected {
                 continue;
             }
-            let found = self.scan(&folder.path, &Exclusion::defaults())?;
+            let found = self.scan(&folder.path, &exclusions)?;
             changes.added.extend(found.added);
             changes.changed.extend(found.changed);
             changes.removed.extend(found.removed);

@@ -3,7 +3,7 @@
 mod common;
 
 use common::{BagOfWords, FakeVolumes, store, write};
-use sbm_index::{Index, View};
+use sbm_index::{Exclusion, Index, View};
 use tempfile::TempDir;
 
 #[test]
@@ -309,4 +309,30 @@ fn removing_a_folder_inside_another_indexed_folder_keeps_its_files() {
         )
         .unwrap();
     assert_eq!(results.len(), 1);
+}
+
+#[test]
+fn saved_exclusions_drop_matching_files_on_the_next_scan() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "work/report.txt", "quarterly report\n");
+    write(folder.path(), "private/diary.txt", "dear diary\n");
+    write(folder.path(), "work/backup.bak", "old copy\n");
+    let database = data.path().join("index.sqlite");
+    let mut index = Index::open(&database).unwrap();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+
+    index
+        .add_exclusion(Exclusion::Folder(folder.path().join("private")))
+        .unwrap();
+    index
+        .add_exclusion(Exclusion::Name("*.bak".to_string()))
+        .unwrap();
+    let mut index = Index::open(&database).unwrap();
+    let changes = index.scan_all().unwrap();
+
+    assert_eq!(changes.removed.len(), 2, "{changes:?}");
+    assert_eq!(index.search_names("diary", 20).unwrap(), []);
+    assert_eq!(index.search_names("backup", 20).unwrap(), []);
+    assert_eq!(index.search_names("report", 20).unwrap().len(), 1);
 }
