@@ -42,7 +42,8 @@ fn run(args: &[String]) -> Result<()> {
             let embedder = OnnxEmbedder::load(&model_dir, DIMENSIONS, DEFAULT_MAX_TOKENS)?;
             for folder in folders {
                 let folder = std::fs::canonicalize(folder)?;
-                let changes = sbm_cli::index_folder(&data_dir, &folder, &embedder)?;
+                let report = sbm_cli::index_folder(&data_dir, &folder, &embedder)?;
+                let changes = &report.changes;
                 println!(
                     "{}: {} added, {} changed, {} removed",
                     folder.display(),
@@ -50,6 +51,9 @@ fn run(args: &[String]) -> Result<()> {
                     changes.changed.len(),
                     changes.removed.len()
                 );
+                for (path, error) in &report.failed {
+                    eprintln!("    skipped {}: {error}", path.display());
+                }
             }
             Ok(())
         }

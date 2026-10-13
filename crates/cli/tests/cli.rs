@@ -77,3 +77,29 @@ fn search_before_anything_is_indexed_has_no_results() {
 
     assert!(results.is_empty());
 }
+
+#[test]
+fn unreadable_file_is_reported_and_the_rest_still_indexed() {
+    let folder = TempDir::new().unwrap();
+    let data = TempDir::new().unwrap();
+    let broken = write(folder.path(), "scans/broken.pdf", "%PDF-1.4 truncated");
+    let recipe = write(
+        folder.path(),
+        "kitchen/a.txt",
+        "slow cooked beef in coconut milk and chili\n",
+    );
+
+    let report = index_folder(data.path(), folder.path(), &BagOfWords).unwrap();
+    let results = search(
+        data.path(),
+        "beef with coconut milk",
+        &BagOfWords,
+        View::File,
+        20,
+    )
+    .unwrap();
+
+    assert_eq!(report.failed.len(), 1);
+    assert_eq!(report.failed[0].0, broken);
+    assert_eq!(results[0].path, recipe);
+}
