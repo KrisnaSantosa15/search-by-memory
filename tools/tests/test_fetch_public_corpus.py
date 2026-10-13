@@ -61,3 +61,18 @@ def test_hash_mismatch_fails_and_leaves_no_file_behind(tmp_path, server):
         fetch_corpus(manifest, corpus)
 
     assert not (corpus / "paper.pdf").exists()
+
+
+def test_file_already_in_the_corpus_is_not_downloaded_again(tmp_path, server):
+    _, base_url = server  # serves nothing: any download attempt fails with 404
+    manifest = write_manifest(
+        tmp_path / "manifest.toml",
+        [{"path": "paper.pdf", "url": f"{base_url}/paper.pdf", "sha256": sha256(b"cached"), "license": "CC-BY-4.0"}],
+    )
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    (corpus / "paper.pdf").write_bytes(b"cached")
+
+    fetch_corpus(manifest, corpus)
+
+    assert (corpus / "paper.pdf").read_bytes() == b"cached"

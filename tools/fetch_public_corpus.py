@@ -16,6 +16,8 @@ def fetch_corpus(manifest: Path, corpus: Path) -> None:
     entries = tomllib.loads(manifest.read_text())["file"]
     for entry in entries:
         target = corpus / entry["path"]
+        if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == entry["sha256"]:
+            continue
         with urllib.request.urlopen(entry["url"]) as response:
             data = response.read()
         actual = hashlib.sha256(data).hexdigest()
