@@ -39,6 +39,11 @@ language = "en"
 file = "papers/enceladus-fermentation.pdf"
 page = 1
 
+# The abstract continues on page 2, including "under limited serpentinization".
+[[query.target]]
+file = "papers/enceladus-fermentation.pdf"
+page = 2
+
 [[query]]
 id = "en-005"
 text = "why shoppers budget a fixed amount of money per category, and why that habit leaves a seller with no reason to limit how much it sells"
