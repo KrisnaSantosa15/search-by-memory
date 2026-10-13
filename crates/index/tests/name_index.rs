@@ -51,3 +51,14 @@ fn partially_typed_filename_finds_the_file() {
     let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
     assert_eq!(paths, [folder.path().join("app/docker-compose.yml")]);
 }
+
+#[test]
+fn query_without_words_has_no_name_matches() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "notes/shopping.txt");
+    let mut index = Index::open_in_memory().unwrap();
+
+    index.scan(folder.path(), &[]).unwrap();
+
+    assert!(index.search_names("  -_. ", 20).unwrap().is_empty());
+}

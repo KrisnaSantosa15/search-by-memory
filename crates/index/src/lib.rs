@@ -50,12 +50,15 @@ impl Index {
 
     /// Name Matches for a Query, best first.
     pub fn search_names(&self, query: &str, limit: usize) -> Result<Vec<NameMatch>> {
+        let Some(query) = fts_query(query) else {
+            return Ok(Vec::new());
+        };
         let mut statement = self.db.prepare(
             "SELECT files.path FROM names JOIN files ON files.id = names.rowid
              WHERE names MATCH ?1 ORDER BY rank LIMIT ?2",
         )?;
         let matches = statement
-            .query_map(params![fts_query(query), limit as i64], |row| {
+            .query_map(params![query, limit as i64], |row| {
                 Ok(NameMatch {
                     path: PathBuf::from(row.get::<_, String>(0)?),
                 })
@@ -67,14 +70,12 @@ impl Index {
 
 /// The Query as FTS5 syntax: each word quoted, so user text is never parsed as
 /// operators, and the last word matched as a prefix because the user may still be typing it.
-fn fts_query(query: &str) -> String {
+fn fts_query(query: &str) -> Option<String> {
     let words: Vec<&str> = query
         .split(|c: char| !c.is_alphanumeric())
         .filter(|word| !word.is_empty())
         .collect();
     let mut terms: Vec<String> = words.iter().map(|word| format!("\"{word}\"")).collect();
-    if let Some(last) = terms.last_mut() {
-        last.push('*');
-    }
-    terms.join(" ")
+    terms.last_mut()?.push('*');
+    Some(terms.join(" "))
 }
