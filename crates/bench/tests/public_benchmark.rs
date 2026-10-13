@@ -2,11 +2,12 @@
 //!
 //! The Target-file check needs the Public Corpus on disk: fetch it with
 //! `cd tools && uv run fetch_public_corpus.py`, or point `SBM_PUBLIC_CORPUS` at it
-//! (default: ~/.cache/search-by-memory/public-corpus). When absent, that check is skipped.
+//! (default: `public-corpus` in the cache directory, see `AppDirs`). When absent, that check is skipped.
 
 use std::path::{Path, PathBuf};
 
 use sbm_bench::Benchmark;
+use sbm_core::AppDirs;
 
 fn public_benchmark() -> Benchmark {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../benchmark/public/queries.toml");
@@ -16,10 +17,7 @@ fn public_benchmark() -> Benchmark {
 fn public_corpus() -> Option<PathBuf> {
     let dir = std::env::var_os("SBM_PUBLIC_CORPUS")
         .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME")
-                .map(|home| PathBuf::from(home).join(".cache/search-by-memory/public-corpus"))
-        })?;
+        .unwrap_or_else(|| AppDirs::current().cache.join("public-corpus"));
     if dir.is_dir() {
         Some(dir)
     } else {

@@ -3,7 +3,7 @@
 //! Usage: cargo run --release -p sbm-bench --bin retrieval_benchmark
 //! Needs the Public Corpus (`cd tools && uv run fetch_public_corpus.py`; `SBM_PUBLIC_CORPUS`),
 //! the model (`SBM_MODEL_DIR`), and `pdftotext` (poppler) as a dev-only PDF stand-in until M2.
-//! Chunk Embeddings are cached in ~/.cache/search-by-memory/bench-embeddings.
+//! Chunk Embeddings are cached in `bench-embeddings` in the cache directory (see `AppDirs`).
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -36,8 +36,7 @@ struct ManifestFile {
 }
 
 fn main() -> Result<()> {
-    let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
-    let cache_root = home.join(".cache/search-by-memory");
+    let cache_root = sbm_core::AppDirs::current().cache;
     let model_dir = env_path(
         "SBM_MODEL_DIR",
         cache_root.join("models/embeddinggemma-2-onnx"),

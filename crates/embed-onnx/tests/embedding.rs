@@ -2,22 +2,22 @@
 //!
 //! These tests need the EmbeddingGemma 2 ONNX model on disk. Point
 //! `SBM_MODEL_DIR` at a directory containing `tokenizer.json` and
-//! `onnx/model.onnx` (default: ~/.cache/search-by-memory/models/embeddinggemma-2-onnx).
+//! `onnx/model.onnx` (default: `models/embeddinggemma-2-onnx` in the cache directory, see `AppDirs`).
 //! When the model is absent the tests are skipped with a message.
 
 use std::path::PathBuf;
 
-use sbm_core::EmbeddingProvider;
+use sbm_core::{AppDirs, EmbeddingProvider};
 use sbm_embed_onnx::{DEFAULT_MAX_TOKENS, OnnxEmbedder};
 
 fn model_dir() -> Option<PathBuf> {
     let dir = std::env::var_os("SBM_MODEL_DIR")
         .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME").map(|home| {
-                PathBuf::from(home).join(".cache/search-by-memory/models/embeddinggemma-2-onnx")
-            })
-        })?;
+        .unwrap_or_else(|| {
+            AppDirs::current()
+                .cache
+                .join("models/embeddinggemma-2-onnx")
+        });
     if dir.join("onnx/model.onnx").exists() {
         Some(dir)
     } else {

@@ -1,7 +1,7 @@
 //! Measures Chunk embedding throughput on this machine.
 //!
 //! Usage: cargo run --release -p sbm-bench --bin embed_throughput
-//! Model directory: `SBM_MODEL_DIR` (default ~/.cache/search-by-memory/models/embeddinggemma-2-onnx).
+//! Model directory: `SBM_MODEL_DIR` (default `models/embeddinggemma-2-onnx` in the cache directory, see `AppDirs`).
 
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -20,8 +20,9 @@ fn main() -> sbm_core::Result<()> {
     let model_dir = std::env::var_os("SBM_MODEL_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
-                .join(".cache/search-by-memory/models/embeddinggemma-2-onnx")
+            sbm_core::AppDirs::current()
+                .cache
+                .join("models/embeddinggemma-2-onnx")
         });
     let embedder = OnnxEmbedder::load(&model_dir, 256, DEFAULT_MAX_TOKENS)?;
 
