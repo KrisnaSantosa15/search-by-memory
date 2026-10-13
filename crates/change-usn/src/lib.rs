@@ -19,7 +19,10 @@ mod platform {
     use std::os::windows::ffi::OsStrExt;
 
     use sbm_core::{ChangeCursor, Changes, Result};
-    use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::Foundation::{
+        CloseHandle, ERROR_INVALID_FUNCTION, ERROR_JOURNAL_DELETE_IN_PROGRESS,
+        ERROR_JOURNAL_NOT_ACTIVE, ERROR_NOT_SUPPORTED, HANDLE, INVALID_HANDLE_VALUE,
+    };
     use windows_sys::Win32::Storage::FileSystem::{
         CreateFileW, FILE_FLAG_BACKUP_SEMANTICS, FILE_ID_DESCRIPTOR, FILE_ID_DESCRIPTOR_0,
         FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FileIdType,
@@ -50,7 +53,11 @@ mod platform {
     pub fn changes_since(volume_id: &str, since: Option<&ChangeCursor>) -> Result<Changes> {
         // Opening the root folder, not the volume, needs no administrator rights.
         let root = open_root(volume_id)?;
-        let journal = query_journal(&root)?;
+        let Some(journal) = query_journal(&root)? else {
+            return Ok(Changes::Lost {
+                next: ChangeCursor(String::new()),
+            });
+        };
         let cursor = |usn: i64| ChangeCursor(format!("{:x}:{usn}", journal.UsnJournalID));
         let Some(start) = since.and_then(|since| {
             let (id, usn) = since.0.split_once(':')?;
@@ -155,7 +162,8 @@ mod platform {
         Ok(Handle(handle))
     }
 
-    fn query_journal(root: &Handle) -> Result<USN_JOURNAL_DATA_V0> {
+    /// The volume's journal, or `None` if it keeps none (e.g. FAT, exFAT, network shares).
+    fn query_journal(root: &Handle) -> Result<Option<USN_JOURNAL_DATA_V0>> {
         // SAFETY: plain old data; zero is a valid value.
         let mut journal: USN_JOURNAL_DATA_V0 = unsafe { std::mem::zeroed() };
         let mut returned = 0u32;
@@ -173,9 +181,19 @@ mod platform {
             )
         };
         if queried == 0 {
-            return Err(std::io::Error::last_os_error().into());
+            let error = std::io::Error::last_os_error();
+            let no_journal = [
+                ERROR_INVALID_FUNCTION,
+                ERROR_NOT_SUPPORTED,
+                ERROR_JOURNAL_NOT_ACTIVE,
+                ERROR_JOURNAL_DELETE_IN_PROGRESS,
+            ];
+            return match error.raw_os_error() {
+                Some(code) if no_journal.contains(&(code as u32)) => Ok(None),
+                _ => Err(error.into()),
+            };
         }
-        Ok(journal)
+        Ok(Some(journal))
     }
 
     /// The forward-slash path, relative to the volume root, of the existing file

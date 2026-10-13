@@ -101,3 +101,22 @@ fn cursor_from_another_journal_means_the_history_is_lost() {
         );
     }
 }
+
+#[test]
+fn volume_without_a_journal_always_asks_for_a_rescan() {
+    // A network share has no USN Journal; the loopback administrative share stands in.
+    let share = std::path::Path::new(r"\\localhost\C$\");
+    if !share.exists() {
+        println!("SKIPPED: {} is not reachable", share.display());
+        return;
+    }
+    let volume = SystemVolumes.volume_of(share).unwrap();
+
+    let first = UsnJournal.changes_since(&volume.id, None).unwrap();
+    let Changes::Lost { next } = first else {
+        panic!("expected Lost, got {first:?}");
+    };
+    let again = UsnJournal.changes_since(&volume.id, Some(&next)).unwrap();
+
+    assert!(matches!(again, Changes::Lost { .. }), "{again:?}");
+}
