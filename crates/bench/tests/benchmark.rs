@@ -116,3 +116,9 @@ fn with_target(target: &str) -> String {
 fn page_zero_is_rejected_because_pages_start_at_one() {
     assert!(Benchmark::parse(&with_target("page = 0")).is_err());
 }
+
+#[test]
+fn ranges_ending_before_they_start_are_rejected() {
+    assert!(Benchmark::parse(&with_target("lines = [24, 10]")).is_err());
+    assert!(Benchmark::parse(&with_target(r#"time = ["02:10", "01:30"]"#)).is_err());
+}

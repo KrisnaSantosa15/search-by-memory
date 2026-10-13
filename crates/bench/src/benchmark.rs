@@ -85,16 +85,27 @@ struct TargetEntry {
 impl TargetEntry {
     fn location(&self) -> Result<Location> {
         Ok(match (self.page, self.lines, &self.time) {
-            (_, _, Some([start, end])) => Location::Time {
-                start: parse_timestamp(start)?,
-                end: parse_timestamp(end)?,
-            },
-            (_, Some([start, end]), _) => Location::Lines { start, end },
+            (_, _, Some([start, end])) => {
+                let (start, end) = (parse_timestamp(start)?, parse_timestamp(end)?);
+                ensure_ordered(start, end)?;
+                Location::Time { start, end }
+            }
+            (_, Some([start, end]), _) => {
+                ensure_ordered(start, end)?;
+                Location::Lines { start, end }
+            }
             (Some(0), _, _) => return Err("pages start at 1".into()),
             (Some(page), _, _) => Location::Page(page),
             (None, None, None) => Location::WholeFile,
         })
     }
+}
+
+fn ensure_ordered<T: PartialOrd + std::fmt::Debug>(start: T, end: T) -> Result<()> {
+    if end < start {
+        return Err(format!("range ends at {end:?} before it starts at {start:?}").into());
+    }
+    Ok(())
 }
 
 /// Parses `[h:]mm:ss` into the time from the start of the media.
