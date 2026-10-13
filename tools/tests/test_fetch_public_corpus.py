@@ -78,8 +78,16 @@ def test_file_already_in_the_corpus_is_not_downloaded_again(tmp_path, server):
     assert (corpus / "paper.pdf").read_bytes() == b"cached"
 
 
+def test_corpus_lives_in_local_app_data_on_windows(monkeypatch, tmp_path):
+    monkeypatch.delenv("SBM_PUBLIC_CORPUS", raising=False)
+    monkeypatch.setattr("sys.platform", "win32")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    assert default_corpus_dir() == tmp_path / "search-by-memory/cache/public-corpus"
+
+
 def test_corpus_lives_in_the_user_cache_unless_overridden(monkeypatch, tmp_path):
     monkeypatch.delenv("SBM_PUBLIC_CORPUS", raising=False)
+    monkeypatch.setattr("sys.platform", "linux")
     monkeypatch.setenv("HOME", str(tmp_path))
     assert default_corpus_dir() == tmp_path / ".cache/search-by-memory/public-corpus"
 

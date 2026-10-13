@@ -26,10 +26,12 @@ MANIFEST = Path(__file__).resolve().parent.parent / "benchmark/public/manifest.t
 
 
 def default_corpus_dir() -> Path:
-    """The Public Corpus directory: $SBM_PUBLIC_CORPUS, else the user cache."""
+    """The Public Corpus directory: $SBM_PUBLIC_CORPUS, else the app cache (as `AppDirs` in Rust)."""
     if override := os.environ.get("SBM_PUBLIC_CORPUS"):
         return Path(override)
-    return Path.home() / ".cache/search-by-memory/public-corpus"
+    if sys.platform == "win32":
+        return Path(os.environ["LOCALAPPDATA"]) / "search-by-memory/cache/public-corpus"
+    return Path(os.environ["HOME"]) / ".cache/search-by-memory/public-corpus"
 
 
 def fetch_corpus(manifest: Path, corpus: Path, sleep: Callable[[float], None] = time.sleep) -> None:
