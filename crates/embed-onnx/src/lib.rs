@@ -32,6 +32,18 @@ pub enum Accelerator {
     Cuda,
 }
 
+impl Accelerator {
+    /// The Accelerators to try, fastest first, when the user names none.
+    /// GPUs are only enabled in Windows builds.
+    pub fn default_order() -> &'static [Accelerator] {
+        if cfg!(windows) {
+            &[Accelerator::Cuda, Accelerator::DirectMl, Accelerator::Cpu]
+        } else {
+            &[Accelerator::Cpu]
+        }
+    }
+}
+
 impl std::str::FromStr for Accelerator {
     type Err = String;
 

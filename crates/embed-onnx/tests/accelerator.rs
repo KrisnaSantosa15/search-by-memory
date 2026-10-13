@@ -21,3 +21,18 @@ fn unknown_accelerator_name_is_an_error_listing_the_choices() {
     assert!(error.contains("directml"), "{error}");
     assert!(error.contains("cuda"), "{error}");
 }
+
+#[cfg(windows)]
+#[test]
+fn default_order_on_windows_prefers_cuda_then_directml_then_cpu() {
+    assert_eq!(
+        Accelerator::default_order(),
+        [Accelerator::Cuda, Accelerator::DirectMl, Accelerator::Cpu]
+    );
+}
+
+#[cfg(not(windows))]
+#[test]
+fn default_order_elsewhere_is_cpu_only() {
+    assert_eq!(Accelerator::default_order(), [Accelerator::Cpu]);
+}
