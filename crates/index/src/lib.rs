@@ -66,16 +66,23 @@ impl Index {
                  id INTEGER PRIMARY KEY,
                  path TEXT NOT NULL UNIQUE,
                  name_lower TEXT NOT NULL,
-                 stem_lower TEXT NOT NULL
+                 stem_lower TEXT NOT NULL,
+                 seen_in_scan INTEGER NOT NULL
              );
              CREATE VIRTUAL TABLE names USING fts5(name, folder);",
         )?;
         Ok(Self { db })
     }
 
-    /// Records every file beneath the Indexed Folder `folder`, minus Exclusions, in the Name Index.
+    /// Brings the Name Index in line with the files beneath the Indexed Folder `folder`,
+    /// minus Exclusions: new files are added and files no longer there are removed.
     pub fn scan(&mut self, folder: &Path, exclusions: &[Exclusion]) -> Result<()> {
         let tx = self.db.transaction()?;
+        let scan: i64 = tx.query_row(
+            "SELECT coalesce(max(seen_in_scan), 0) + 1 FROM files",
+            [],
+            |row| row.get(0),
+        )?;
         let entries = WalkDir::new(folder).into_iter().filter_entry(|entry| {
             entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry))
         });
@@ -85,6 +92,13 @@ impl Index {
                 continue;
             }
             let path = entry.path().to_string_lossy();
+            let known = tx.execute(
+                "UPDATE files SET seen_in_scan = ?1 WHERE path = ?2",
+                params![scan, path],
+            )?;
+            if known > 0 {
+                continue;
+            }
             let name_lower = entry.file_name().to_string_lossy().to_lowercase();
             let stem_lower = entry
                 .path()
@@ -92,8 +106,9 @@ impl Index {
                 .map(|stem| stem.to_string_lossy().to_lowercase())
                 .unwrap_or_default();
             tx.execute(
-                "INSERT INTO files (path, name_lower, stem_lower) VALUES (?1, ?2, ?3)",
-                params![path, name_lower, stem_lower],
+                "INSERT INTO files (path, name_lower, stem_lower, seen_in_scan)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![path, name_lower, stem_lower, scan],
             )?;
             let name = entry.file_name().to_string_lossy();
             let folder = entry.path().parent().unwrap_or(folder).to_string_lossy();
@@ -101,6 +116,16 @@ impl Index {
                 "INSERT INTO names (rowid, name, folder) VALUES (last_insert_rowid(), ?1, ?2)",
                 params![name, folder],
             )?;
+        }
+        let gone: Vec<(i64, String)> = tx
+            .prepare("SELECT id, path FROM files WHERE seen_in_scan != ?1")?
+            .query_map(params![scan], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        for (id, path) in gone {
+            if Path::new(&path).starts_with(folder) {
+                tx.execute("DELETE FROM names WHERE rowid = ?1", params![id])?;
+                tx.execute("DELETE FROM files WHERE id = ?1", params![id])?;
+            }
         }
         tx.commit()?;
         Ok(())

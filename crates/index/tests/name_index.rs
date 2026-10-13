@@ -137,3 +137,20 @@ fn files_matching_an_excluded_name_pattern_are_not_in_the_name_index() {
     let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
     assert_eq!(paths, [folder.path().join("thesis/draft.docx")]);
 }
+
+#[test]
+fn rescan_drops_deleted_files_and_adds_new_ones() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "photos/beach-trip.jpg");
+    touch(folder.path(), "photos/birthday.jpg");
+    let mut index = Index::open_in_memory().unwrap();
+    index.scan(folder.path(), &[]).unwrap();
+
+    fs::remove_file(folder.path().join("photos/beach-trip.jpg")).unwrap();
+    touch(folder.path(), "photos/beach-sunset.jpg");
+    index.scan(folder.path(), &[]).unwrap();
+    let matches = index.search_names("beach", 20).unwrap();
+
+    let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
+    assert_eq!(paths, [folder.path().join("photos/beach-sunset.jpg")]);
+}
