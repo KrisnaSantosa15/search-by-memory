@@ -60,3 +60,27 @@ fn downloaded_online_only_file_is_content_indexed_on_next_scan() {
         .unwrap();
     assert_eq!(results[0].path, report);
 }
+
+#[test]
+fn file_moved_to_the_cloud_before_its_content_is_indexed_is_not_opened() {
+    let folder = TempDir::new().unwrap();
+    let report = write(
+        folder.path(),
+        "tax-report.txt",
+        "annual income and deductions\n",
+    );
+    let availability = FakeFileAvailability::default();
+    let mut index = Index::open_in_memory()
+        .unwrap()
+        .with_file_availability(availability.clone());
+    let (embedder, mut store) = (BagOfWords::default(), store());
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+
+    availability.move_to_cloud(&report);
+    index.scan_all().unwrap();
+    index.run_jobs(&embedder, &mut store, usize::MAX).unwrap();
+
+    assert_eq!(embedder.embedded(), 0);
+    assert_eq!(index.pending_jobs().unwrap(), 0);
+}

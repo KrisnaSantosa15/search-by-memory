@@ -914,11 +914,15 @@ fn rescan(
         if let Some((id, previous_size, previous_mtime, was_online_only)) = known {
             // A download leaves size and mtime alone, but the content is new to the index.
             let downloaded = was_online_only && !online_only;
-            if (previous_size, previous_mtime) != (size, mtime_ns) || downloaded {
+            let changed = (previous_size, previous_mtime) != (size, mtime_ns) || downloaded;
+            if changed {
                 changes.changed.push(entry.path().to_path_buf());
-                if !online_only {
-                    queue_job(tx, id, mtime_ns, live)?;
-                }
+            }
+            if online_only {
+                // Opening it for queued content work would download it.
+                tx.execute("DELETE FROM index_jobs WHERE file_id = ?1", params![id])?;
+            } else if changed {
+                queue_job(tx, id, mtime_ns, live)?;
             }
             tx.execute(
                 "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3, is_online_only = ?4
