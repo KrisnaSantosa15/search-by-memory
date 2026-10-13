@@ -145,7 +145,11 @@ impl OnnxEmbedder {
             .iter()
             .map(|(accelerator, reason)| format!("{accelerator}: {reason}"))
             .collect();
-        Err(format!("no accelerator could run the model ({})", reasons.join("; ")).into())
+        Err(format!(
+            "no accelerator could run the model ({})",
+            reasons.join("; ")
+        )
+        .into())
     }
 
     /// The hardware the model runs on.
