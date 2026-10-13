@@ -3,6 +3,13 @@
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// A position inside a file the user can navigate to.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Location {
+    /// 1-based page of a paged document.
+    Page(u32),
+}
+
 /// A dense vector representing the meaning of a Query or a Chunk.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Embedding(Vec<f32>);
