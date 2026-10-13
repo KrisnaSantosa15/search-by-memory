@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use sbm_core::Result;
 use sha2::{Digest, Sha256};
@@ -39,6 +40,44 @@ pub enum Finished {
 pub trait Http {
     /// The body of `url` from byte `from` on.
     fn get(&self, url: &str, from: u64) -> Result<Box<dyn Read + Send>>;
+}
+
+/// The web over HTTPS.
+pub struct Web {
+    agent: ureq::Agent,
+}
+
+impl Web {
+    pub fn new() -> Self {
+        let agent = ureq::Agent::config_builder()
+            .timeout_connect(Some(Duration::from_secs(30)))
+            .build()
+            .into();
+        Self { agent }
+    }
+}
+
+impl Default for Web {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Http for Web {
+    fn get(&self, url: &str, from: u64) -> Result<Box<dyn Read + Send>> {
+        let mut request = self.agent.get(url);
+        if from > 0 {
+            request = request.header("Range", format!("bytes={from}-"));
+        }
+        let response = request.call()?;
+        let resumed = response.status() == 206;
+        let mut body = response.into_body().into_reader();
+        if from > 0 && !resumed {
+            // The server sent the whole file: skip what is already on disk.
+            std::io::copy(&mut (&mut body).take(from), &mut std::io::sink())?;
+        }
+        Ok(Box::new(body))
+    }
 }
 
 /// Downloads `files` into `dir`, reporting progress over all of them.
