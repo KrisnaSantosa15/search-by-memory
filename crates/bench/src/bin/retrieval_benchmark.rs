@@ -10,7 +10,8 @@ use std::process::Command;
 use std::time::Instant;
 
 use sbm_bench::{
-    Benchmark, Chunk, EmbeddingCache, ExactStore, RetrievalIndex, chunk_pages, chunk_text, evaluate,
+    Benchmark, Chunk, EmbeddingCache, ExactStore, RetrievalIndex, chunk_pages, chunk_text,
+    evaluate, location_misses,
 };
 use sbm_core::{Embedding, EmbeddingProvider, Result, VectorStore};
 use sbm_embed_onnx::{DEFAULT_MAX_TOKENS, OnnxEmbedder};
@@ -119,6 +120,26 @@ fn main() -> Result<()> {
             &benchmark,
             &embedder,
         )?;
+    }
+
+    let baseline = Truncating {
+        inner: &embedder,
+        dimensions: DIMENSIONS[0],
+    };
+    let truncated: Vec<Embedding> = embeddings
+        .iter()
+        .map(|e| e.truncated(DIMENSIONS[0]))
+        .collect();
+    let index = RetrievalIndex::build(chunks.clone(), &truncated, ExactStore::default())?;
+    println!("\nLocation misses ({} dims, exact):\n", DIMENSIONS[0]);
+    for miss in location_misses(&benchmark, &index, &baseline)? {
+        println!(
+            "- {} {}: shown {:?}, Target {:?}",
+            miss.query_id,
+            miss.file.display(),
+            miss.shown,
+            miss.targets
+        );
     }
     Ok(())
 }
