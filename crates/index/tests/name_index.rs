@@ -62,3 +62,18 @@ fn query_without_words_has_no_name_matches() {
 
     assert!(index.search_names("  -_. ", 20).unwrap().is_empty());
 }
+
+#[test]
+fn exact_filename_match_ranks_first() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "report/report-draft-report-notes.txt");
+    touch(folder.path(), "report/old/report-report.md");
+    touch(folder.path(), "archive/Report.pdf");
+    let mut index = Index::open_in_memory().unwrap();
+
+    index.scan(folder.path(), &[]).unwrap();
+    let matches = index.search_names("report", 20).unwrap();
+
+    assert_eq!(matches.len(), 3);
+    assert_eq!(matches[0].path, folder.path().join("archive/Report.pdf"));
+}

@@ -21,7 +21,12 @@ impl Index {
     pub fn open_in_memory() -> Result<Self> {
         let db = Connection::open_in_memory()?;
         db.execute_batch(
-            "CREATE TABLE files (id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE);
+            "CREATE TABLE files (
+                 id INTEGER PRIMARY KEY,
+                 path TEXT NOT NULL UNIQUE,
+                 name_lower TEXT NOT NULL,
+                 stem_lower TEXT NOT NULL
+             );
              CREATE VIRTUAL TABLE names USING fts5(name, folder);",
         )?;
         Ok(Self { db })
@@ -36,7 +41,16 @@ impl Index {
                 continue;
             }
             let path = entry.path().to_string_lossy();
-            tx.execute("INSERT INTO files (path) VALUES (?1)", params![path])?;
+            let name_lower = entry.file_name().to_string_lossy().to_lowercase();
+            let stem_lower = entry
+                .path()
+                .file_stem()
+                .map(|stem| stem.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+            tx.execute(
+                "INSERT INTO files (path, name_lower, stem_lower) VALUES (?1, ?2, ?3)",
+                params![path, name_lower, stem_lower],
+            )?;
             let name = entry.file_name().to_string_lossy();
             let folder = entry.path().parent().unwrap_or(folder).to_string_lossy();
             tx.execute(
@@ -50,15 +64,18 @@ impl Index {
 
     /// Name Matches for a Query, best first.
     pub fn search_names(&self, query: &str, limit: usize) -> Result<Vec<NameMatch>> {
+        let exact = query.trim().to_lowercase();
         let Some(query) = fts_query(query) else {
             return Ok(Vec::new());
         };
         let mut statement = self.db.prepare(
             "SELECT files.path FROM names JOIN files ON files.id = names.rowid
-             WHERE names MATCH ?1 ORDER BY rank LIMIT ?2",
+             WHERE names MATCH ?1
+             ORDER BY (files.name_lower = ?3 OR files.stem_lower = ?3) DESC, rank
+             LIMIT ?2",
         )?;
         let matches = statement
-            .query_map(params![query, limit as i64], |row| {
+            .query_map(params![query, limit as i64, exact], |row| {
                 Ok(NameMatch {
                     path: PathBuf::from(row.get::<_, String>(0)?),
                 })
