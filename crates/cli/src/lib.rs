@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use sbm_core::{EmbeddingProvider, Result};
+use sbm_core::{ChangeSource, EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
 use sbm_index::{Exclusion, Index, IndexedFolder, ScanChanges, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
@@ -22,13 +22,16 @@ pub struct IndexReport {
 /// loses little work.
 const FILES_PER_SAVE: usize = 100;
 
-/// Adds `new_folders` to the Indexed Folders in `data_dir`, rescans them all,
-/// and indexes the content of added and changed files, newest first. Work left
-/// by an interrupted run is resumed. Files that fail to index are reported, not fatal.
+/// Adds `new_folders` to the Indexed Folders in `data_dir`, applies what
+/// `changes` reports since the last run (a rescan where its history is lost),
+/// and indexes the content of added and changed files: Live Updates first, then
+/// newest first. Work left by an interrupted run is resumed. Files that fail to
+/// index are reported, not fatal.
 pub fn index(
     data_dir: &Path,
     new_folders: &[PathBuf],
     embedder: &dyn EmbeddingProvider,
+    changes: &dyn ChangeSource,
 ) -> Result<IndexReport> {
     std::fs::create_dir_all(data_dir)?;
     let mut index = Index::open(&data_dir.join(DATABASE))?;
@@ -37,7 +40,7 @@ pub fn index(
     for folder in new_folders {
         index.add_indexed_folder(folder)?;
     }
-    let changes = index.scan_all()?;
+    let changes = index.apply_changes(changes)?;
     loop {
         let done = index.run_jobs(embedder, &mut store, FILES_PER_SAVE)?;
         store.save(&data_dir.join(VECTORS))?;

@@ -19,6 +19,7 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use sbm_change_usn::UsnJournal;
 use sbm_core::{AppDirs, Location, Result};
 use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
 use sbm_index::{Exclusion, MatchReason, SearchResult, View};
@@ -60,7 +61,7 @@ fn run(args: &[String]) -> Result<()> {
                 .iter()
                 .map(std::fs::canonicalize)
                 .collect::<std::io::Result<Vec<_>>>()?;
-            let report = sbm_cli::index(&data_dir, &folders, &embedder)?;
+            let report = sbm_cli::index(&data_dir, &folders, &embedder, &UsnJournal)?;
             let changes = &report.changes;
             println!(
                 "{} added, {} changed, {} removed",

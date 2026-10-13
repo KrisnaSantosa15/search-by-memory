@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use sbm_change_usn::UsnJournal;
 use sbm_cli::{accelerator_option, exclude, folders, index, remove_folder, search};
 use sbm_core::{Embedding, EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
@@ -57,7 +58,13 @@ fn indexed_folder_is_searchable_from_a_later_run() {
         "change the engine oil every five thousand miles\n",
     );
 
-    index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
+    index(
+        data.path(),
+        &[folder.path().to_path_buf()],
+        &BagOfWords,
+        &UsnJournal,
+    )
+    .unwrap();
     let results = search(
         data.path(),
         "beef with coconut milk",
@@ -90,7 +97,13 @@ fn unreadable_file_is_reported_and_the_rest_still_indexed() {
         "slow cooked beef in coconut milk and chili\n",
     );
 
-    let report = index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
+    let report = index(
+        data.path(),
+        &[folder.path().to_path_buf()],
+        &BagOfWords,
+        &UsnJournal,
+    )
+    .unwrap();
     let results = search(
         data.path(),
         "beef with coconut milk",
@@ -171,10 +184,16 @@ fn indexed_folders_are_rescanned_by_later_runs_without_naming_them() {
         "kitchen/a.txt",
         "slow cooked beef in coconut milk\n",
     );
-    index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
+    index(
+        data.path(),
+        &[folder.path().to_path_buf()],
+        &BagOfWords,
+        &UsnJournal,
+    )
+    .unwrap();
     let later = write(folder.path(), "garage/b.txt", "change the engine oil\n");
 
-    let report = index(data.path(), &[], &BagOfWords).unwrap();
+    let report = index(data.path(), &[], &BagOfWords, &UsnJournal).unwrap();
     let results = search(data.path(), "engine oil", &BagOfWords, View::File, 20).unwrap();
 
     assert_eq!(report.changes.added, [later.clone()]);
@@ -189,7 +208,13 @@ fn removed_folder_is_no_longer_listed_or_searched() {
         "kitchen/a.txt",
         "slow cooked beef in coconut milk\n",
     );
-    index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
+    index(
+        data.path(),
+        &[folder.path().to_path_buf()],
+        &BagOfWords,
+        &UsnJournal,
+    )
+    .unwrap();
     assert_eq!(folders(data.path()).unwrap().len(), 1);
 
     remove_folder(data.path(), folder.path(), DIMENSIONS).unwrap();
@@ -207,14 +232,20 @@ fn excluded_files_leave_the_results_on_the_next_index_run() {
         "private/diary.txt",
         "dear diary, coconut milk again\n",
     );
-    index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
+    index(
+        data.path(),
+        &[folder.path().to_path_buf()],
+        &BagOfWords,
+        &UsnJournal,
+    )
+    .unwrap();
 
     exclude(
         data.path(),
         Exclusion::Folder(folder.path().join("private")),
     )
     .unwrap();
-    index(data.path(), &[], &BagOfWords).unwrap();
+    index(data.path(), &[], &BagOfWords, &UsnJournal).unwrap();
 
     let results = search(data.path(), "diary coconut", &BagOfWords, View::File, 20).unwrap();
     assert_eq!(results, []);
