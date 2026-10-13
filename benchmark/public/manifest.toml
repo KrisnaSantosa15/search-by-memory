@@ -265,6 +265,211 @@ sha256 = "ae41f2b953ee8a38f325edef94c5f0b132ac1995ea818a5574500611f5e5108b"
 license = "CC-BY-SA-4.0"
 source = "Wayang @ id.wikipedia revid 30014635"
 
+
+# --- distractors: near neighbours of Target files ---
+[[file]]
+path = "code/tenacity/wait.py"
+url = "https://raw.githubusercontent.com/jd/tenacity/32ac68f0941319c0d2f4fb927f96e4ee29bb46c6/tenacity/wait.py"
+sha256 = "fab8c53ae00dda64008a70c03654f22e059f3d697c3c8a6029513910fa7179fc"
+license = "Apache-2.0"
+source = "jd/tenacity tenacity/wait.py @ 32ac68f0941319c0d2f4fb927f96e4ee29bb46c6"
+
+[[file]]
+path = "code/backoff/exponential.go"
+url = "https://raw.githubusercontent.com/cenkalti/backoff/b1a30d947ca896d37518610255281904b439c619/exponential.go"
+sha256 = "ec857c1701f07b5d5c03fd7249e8e0931c2f5104eacb128eb96843c73a0cd644"
+license = "MIT"
+source = "cenkalti/backoff exponential.go @ b1a30d947ca896d37518610255281904b439c619"
+
+[[file]]
+path = "code/golang-lru/lru.go"
+url = "https://raw.githubusercontent.com/hashicorp/golang-lru/235099c106fc8952defd2ce8bdec865be526eb45/simplelru/lru.go"
+sha256 = "24745738bd3e7fe49d30be912468cd1feaba5a0536e92ee75b7ce4c87ef82692"
+license = "MPL-2.0"
+source = "hashicorp/golang-lru simplelru/lru.go @ 235099c106fc8952defd2ce8bdec865be526eb45"
+
+[[file]]
+path = "code/thiserror/README.md"
+url = "https://raw.githubusercontent.com/dtolnay/thiserror/e7e9f4acbd12d8ee697f2cd60df8413f8563e617/README.md"
+sha256 = "96da8e4001dbd51bdc135de6deb4c954889624beb9f0c177ed0fdcd7e9ff41a2"
+license = "MIT OR Apache-2.0"
+source = "dtolnay/thiserror README.md @ e7e9f4acbd12d8ee697f2cd60df8413f8563e617"
+
+[[file]]
+path = "code/p-throttle/index.js"
+url = "https://raw.githubusercontent.com/sindresorhus/p-throttle/a0d20bf8c1a5f0067b1dce529b1ff013878591d3/index.js"
+sha256 = "5567e2731fa0393079ac096c10ebbedbec5a1cd7e687a8ba2021e96c44ef3fcf"
+license = "MIT"
+source = "sindresorhus/p-throttle index.js @ a0d20bf8c1a5f0067b1dce529b1ff013878591d3"
+
+[[file]]
+path = "code/requests/adapters.py"
+url = "https://raw.githubusercontent.com/psf/requests/611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60/src/requests/adapters.py"
+sha256 = "cc9b1b02694fee0353481fbad84fe3ddbedec4441dba54df7914c63f2aa85937"
+license = "Apache-2.0"
+source = "psf/requests src/requests/adapters.py @ 611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60"
+
+[[file]]
+path = "books/fall-of-the-house-of-usher.txt"
+url = "https://www.gutenberg.org/cache/epub/932/pg932.txt"
+sha256 = "f1093719bbbc8115a95fd0ed8e51ee9ed5c67ad94abf3229a2a96f8ed0762bf9"
+license = "PD"
+source = "Edgar Allan Poe, 'The Fall of the House of Usher', Project Gutenberg #932"
+
+[[file]]
+path = "books/mosses-from-an-old-manse.txt"
+url = "https://www.gutenberg.org/cache/epub/512/pg512.txt"
+sha256 = "d9a0cc1df0c41f87ffe61076e23383a4223369105223318542dca83914b156d4"
+license = "PD"
+source = "Nathaniel Hawthorne, 'Mosses from an Old Manse', Project Gutenberg #512"
+
+[[file]]
+path = "id/wiki/Gulai.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29318567&action=raw"
+source_sha256 = "c0968116657bbb31d4dad71e2318d24b5f0cf0f710cab1e7a3ef3957f420dd8e"
+convert = "wikitext"
+sha256 = "f44f631ace3bcc163f1f80cf616aead28d32d4ad38917149dd97d07f90b78fa2"
+license = "CC-BY-SA-4.0"
+source = "Gulai @ id.wikipedia revid 29318567"
+
+[[file]]
+path = "id/wiki/Sate.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29985054&action=raw"
+source_sha256 = "4a5b92a6f579ea15c699a201bd0d01fb140a40675ebad32efb419c65d3dc0db6"
+convert = "wikitext"
+sha256 = "771d4042cd554cc3d24d5cab1924f92e69b9f326b250c747b5b28eb4c64d297e"
+license = "CC-BY-SA-4.0"
+source = "Sate @ id.wikipedia revid 29985054"
+
+[[file]]
+path = "id/wiki/Nasi_padang.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29858166&action=raw"
+source_sha256 = "5bb930b567a0737d287c9bda6bfd5fffacbe26fefc6e4aad5f00a5853a237e51"
+convert = "wikitext"
+sha256 = "7cf6c303385f0648c75eb9214e2c740aba4e35811471465ddc398b8b7811a390"
+license = "CC-BY-SA-4.0"
+source = "Nasi padang @ id.wikipedia revid 29858166"
+
+[[file]]
+path = "id/wiki/Soto.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=30047051&action=raw"
+source_sha256 = "b70c0428c4bfa067cc96d7d2179517d2e521ff1322a2510c95db2bf2d3acde4f"
+convert = "wikitext"
+sha256 = "2fe872ab2af623dbd3520efdb21ff679665be3b096b04e137f90c4e033485c6a"
+license = "CC-BY-SA-4.0"
+source = "Soto @ id.wikipedia revid 30047051"
+
+[[file]]
+path = "id/wiki/Rawon.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=30047734&action=raw"
+source_sha256 = "a22f6722a0c2bb8e70783f140c3f98bc2fd2d7aacb56918674efc29802624f35"
+convert = "wikitext"
+sha256 = "63c81b15c40e9072c448bd73ae314edf220f027b51960b871a65eb2435ba5809"
+license = "CC-BY-SA-4.0"
+source = "Rawon @ id.wikipedia revid 30047734"
+
+[[file]]
+path = "id/wiki/Candi_Prambanan.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29918638&action=raw"
+source_sha256 = "d6344061b27f28ce3a9efdaa2c06096362dc47da77af6b21ea3776c8b9fe4e98"
+convert = "wikitext"
+sha256 = "005cb6d8a34419d8aacefd2f4c86eb27fb951fa9459f76f9af1977926f3d271b"
+license = "CC-BY-SA-4.0"
+source = "Candi Prambanan @ id.wikipedia revid 29918638"
+
+[[file]]
+path = "id/wiki/Candi_Mendut.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29095869&action=raw"
+source_sha256 = "150a586be193d8818c277dd15d0d4936a124e64d62fe3b3c4cb9043a82bfec4d"
+convert = "wikitext"
+sha256 = "90131204cef35b7e779872c19bd8b584c8b40ef6a2c04e7517c0f3273cb96959"
+license = "CC-BY-SA-4.0"
+source = "Candi Mendut @ id.wikipedia revid 29095869"
+
+[[file]]
+path = "id/wiki/Songket.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29909671&action=raw"
+source_sha256 = "d53ff2b6018a883f3c79942bfcb081069e94cf0098b4c97968601c6c2d7d0cfe"
+convert = "wikitext"
+sha256 = "d1299d5183a0480a5ec74db0eb63cc4e224d16b5ac03fbfe092f18cde2f465ca"
+license = "CC-BY-SA-4.0"
+source = "Songket @ id.wikipedia revid 29909671"
+
+[[file]]
+path = "id/wiki/Gunung_Tambora.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29963404&action=raw"
+source_sha256 = "ebb69409d1792c3269af1d89cacfaad15243b45858662c29b03a1a53b8e66266"
+convert = "wikitext"
+sha256 = "59ad7a5980a33d46766711e76b6f279444a6ffccb5a089d6b6bcb4cef4e52bad"
+license = "CC-BY-SA-4.0"
+source = "Gunung Tambora @ id.wikipedia revid 29963404"
+
+[[file]]
+path = "id/wiki/Gunung_Merapi.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29854050&action=raw"
+source_sha256 = "0835e650429fa17e754b1a1b5b22d503ae364dce2d0008653e37470d6a0306fa"
+convert = "wikitext"
+sha256 = "9931d647ead8cf17ead2583de5cd85fd345e0d5d23252cd12dbf624a1d8159dd"
+license = "CC-BY-SA-4.0"
+source = "Gunung Merapi @ id.wikipedia revid 29854050"
+
+[[file]]
+path = "id/wiki/Biawak.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29095093&action=raw"
+source_sha256 = "6efee8baa76311bb3c114909c48098f3c9a8db610d91bb612090b11f6ae5af58"
+convert = "wikitext"
+sha256 = "c09b255a5da64ce6f58bd5d075375acd83515aab625794d65d151e5eaa5359ab"
+license = "CC-BY-SA-4.0"
+source = "Biawak @ id.wikipedia revid 29095093"
+
+[[file]]
+path = "id/wiki/Gamelan.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=30014637&action=raw"
+source_sha256 = "013871ccd614e4aa3c3af5585e7a6187a8d82a31e86e56388e60e092afde723f"
+convert = "wikitext"
+sha256 = "a584f921de1aab4c34e3a1f19e5fb76bbc8cebad3e94e6f3df48d551647ec87e"
+license = "CC-BY-SA-4.0"
+source = "Gamelan @ id.wikipedia revid 30014637"
+
+[[file]]
+path = "id/wiki/Boedi_Oetomo.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=30008426&action=raw"
+source_sha256 = "1dc43cd9ff25ddfc5a8c2041d81ea0d8e9689b356f57054d8ea36fa3ffea3e93"
+convert = "wikitext"
+sha256 = "5b15ae4fae06c4c31e94dd73f4933e1bec343a5a79b07e3db6ba1e2d66c81828"
+license = "CC-BY-SA-4.0"
+source = "Boedi Oetomo @ id.wikipedia revid 30008426"
+
+[[file]]
+path = "id/wiki/Proklamasi_Kemerdekaan_Indonesia.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29869828&action=raw"
+source_sha256 = "de117060a35e44d2d467665fed1706d8f16e56c04ac2dbd6936ce35327b42d8a"
+convert = "wikitext"
+sha256 = "563918256eb772a0344f0cf6b58956898f2e1dc4290d2b136522dc22a96bc4f6"
+license = "CC-BY-SA-4.0"
+source = "Proklamasi Kemerdekaan Indonesia @ id.wikipedia revid 29869828"
+
+[[file]]
+path = "id/regulasi/guru-dosen-14-2005.pdf"
+url = "https://peraturan.go.id/files/uu14-2005.pdf"
+sha256 = "130e2f15b4dfe97cd5551cbce1580e9654bcf420b11c7adf4edbc0d5b382879e"
+license = "PD-ID-Pasal42"
+source = "UU No. 14 Tahun 2005 tentang Guru dan Dosen, peraturan.go.id"
+
+[[file]]
+path = "id/regulasi/perlindungan-anak-23-2002.pdf"
+url = "https://peraturan.go.id/files/uu23-2002.pdf"
+sha256 = "18d763363788ee89878d257950be92069d86451e3b0b32a07913189ec5364fd2"
+license = "PD-ID-Pasal42"
+source = "UU No. 23 Tahun 2002 tentang Perlindungan Anak, peraturan.go.id"
+
+[[file]]
+path = "id/regulasi/perlindungan-konsumen-8-1999.pdf"
+url = "https://peraturan.go.id/files/uu8-1999.pdf"
+sha256 = "df253c489e78e66d9da5337c85bebe1384c68763af2001335b4880b0f225d816"
+license = "PD-ID-Pasal42"
+source = "UU No. 8 Tahun 1999 tentang Perlindungan Konsumen, peraturan.go.id"
+
 # --- media ---
 [[file]]
 path = "media/images/borobudur.jpg"
