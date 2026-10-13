@@ -67,7 +67,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 2] = [
+const MIGRATIONS: [&str; 3] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -91,6 +91,8 @@ const MIGRATIONS: [&str; 2] = [
      );
      CREATE INDEX chunks_by_content ON chunks (content_hash);
      CREATE INDEX files_by_content ON files (content_hash);",
+    // Keyword search over Chunk text; rowid is the Chunk id.
+    "CREATE VIRTUAL TABLE chunk_words USING fts5(text);",
 ];
 
 /// Chunk size in characters: about 256 tokens of prose.
@@ -271,7 +273,12 @@ impl Index {
                     embedding_bytes(embedding)
                 ],
             )?;
-            store.add(tx.last_insert_rowid() as u64, embedding)?;
+            let id = tx.last_insert_rowid();
+            tx.execute(
+                "INSERT INTO chunk_words (rowid, text) VALUES (?1, ?2)",
+                params![id, chunk.text],
+            )?;
+            store.add(id as u64, embedding)?;
         }
         tx.execute(
             "UPDATE files SET content_hash = ?1 WHERE path = ?2",
@@ -290,8 +297,20 @@ impl Index {
         _view: View,
         limit: usize,
     ) -> Result<Vec<SearchResult>> {
-        let neighbors =
-            store.search(&embedder.embed_query(query)?, limit * CANDIDATES_PER_RESULT)?;
+        let candidates = limit * CANDIDATES_PER_RESULT;
+        let semantic: Vec<i64> = store
+            .search(&embedder.embed_query(query)?, candidates)?
+            .into_iter()
+            .map(|neighbor| neighbor.id as i64)
+            .collect();
+        let keyword: Vec<i64> = match fts_query(query) {
+            Some(words) => self
+                .db
+                .prepare("SELECT rowid FROM chunk_words WHERE chunk_words MATCH ?1 ORDER BY rank LIMIT ?2")?
+                .query_map(params![words, candidates as i64], |row| row.get(0))?
+                .collect::<rusqlite::Result<_>>()?,
+            None => Vec::new(),
+        };
         let mut chunk = self.db.prepare(
             "SELECT content_hash, page, line_start, line_end, text FROM chunks WHERE id = ?1",
         )?;
@@ -299,14 +318,14 @@ impl Index {
             .db
             .prepare("SELECT path FROM files WHERE content_hash = ?1")?;
         let mut results: Vec<SearchResult> = Vec::new();
-        for neighbor in neighbors {
+        for chunk_id in reciprocal_rank_fusion(&[&semantic, &keyword]) {
             let (hash, page, line_start, line_end, text): (
                 String,
                 Option<u32>,
                 Option<u32>,
                 Option<u32>,
                 String,
-            ) = chunk.query_row(params![neighbor.id as i64], |row| {
+            ) = chunk.query_row(params![chunk_id], |row| {
                 Ok((
                     row.get(0)?,
                     row.get(1)?,
@@ -418,4 +437,24 @@ fn embedding_bytes(embedding: &Embedding) -> Vec<u8> {
         .iter()
         .flat_map(|value| value.to_le_bytes())
         .collect()
+}
+
+/// Rank constant of Reciprocal Rank Fusion: damps the weight of top ranks.
+const FUSION_K: f64 = 60.0;
+
+/// Merges ranked lists of ids: an id ranked well in several lists rises above
+/// ids ranked well in only one.
+fn reciprocal_rank_fusion(lists: &[&[i64]]) -> Vec<i64> {
+    let mut scores: Vec<(i64, f64)> = Vec::new();
+    for list in lists {
+        for (rank, id) in list.iter().enumerate() {
+            let score = 1.0 / (FUSION_K + rank as f64 + 1.0);
+            match scores.iter_mut().find(|(seen, _)| seen == id) {
+                Some((_, total)) => *total += score,
+                None => scores.push((*id, score)),
+            }
+        }
+    }
+    scores.sort_by(|a, b| b.1.total_cmp(&a.1));
+    scores.into_iter().map(|(id, _)| id).collect()
 }

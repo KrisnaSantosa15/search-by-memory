@@ -87,3 +87,44 @@ fn file_content_is_found_by_meaning() {
     assert_eq!(results[0].path, recipe);
     assert_eq!(results[0].match_reason, MatchReason::Content);
 }
+
+/// Knows no meaning at all: every text gets the same Embedding.
+struct Blind;
+
+impl EmbeddingProvider for Blind {
+    fn dimensions(&self) -> usize {
+        DIMENSIONS
+    }
+    fn embed_query(&self, _query: &str) -> Result<Embedding> {
+        Ok(Embedding::new(vec![1.0; DIMENSIONS]).truncated(DIMENSIONS))
+    }
+    fn embed_chunks(&self, chunks: &[&str]) -> Result<Vec<Embedding>> {
+        chunks.iter().map(|chunk| self.embed_query(chunk)).collect()
+    }
+}
+
+#[test]
+fn file_content_is_found_by_an_exact_keyword() {
+    let folder = TempDir::new().unwrap();
+    for n in 0..30 {
+        let text = if n == 17 {
+            "payment reference INV-2024-0371 received\n".to_string()
+        } else {
+            format!("unrelated note number {n}\n")
+        };
+        write(folder.path(), &format!("docs/{n}.txt"), &text);
+    }
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    for n in 0..30 {
+        let path = folder.path().join(format!("docs/{n}.txt"));
+        index.index_content(&path, &Blind, &mut store).unwrap();
+    }
+
+    let results = index
+        .search("INV-2024-0371", &Blind, &store, View::File, 5)
+        .unwrap();
+
+    assert_eq!(results[0].path, folder.path().join("docs/17.txt"));
+}
