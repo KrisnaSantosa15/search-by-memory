@@ -37,3 +37,17 @@ fn file_is_found_by_a_folder_name_in_its_path() {
     let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
     assert_eq!(paths, [folder.path().join("invoices/2024/march.pdf")]);
 }
+
+#[test]
+fn partially_typed_filename_finds_the_file() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "app/docker-compose.yml");
+    touch(folder.path(), "app/Dockerfile");
+    let mut index = Index::open_in_memory().unwrap();
+
+    index.scan(folder.path(), &[]).unwrap();
+    let matches = index.search_names("docker-comp", 20).unwrap();
+
+    let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
+    assert_eq!(paths, [folder.path().join("app/docker-compose.yml")]);
+}

@@ -65,11 +65,16 @@ impl Index {
     }
 }
 
-/// The Query as FTS5 syntax: each word quoted, so user text is never parsed as operators.
+/// The Query as FTS5 syntax: each word quoted, so user text is never parsed as
+/// operators, and the last word matched as a prefix because the user may still be typing it.
 fn fts_query(query: &str) -> String {
-    query
-        .split_whitespace()
-        .map(|word| format!("\"{}\"", word.replace('"', "\"\"")))
-        .collect::<Vec<_>>()
-        .join(" ")
+    let words: Vec<&str> = query
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .collect();
+    let mut terms: Vec<String> = words.iter().map(|word| format!("\"{word}\"")).collect();
+    if let Some(last) = terms.last_mut() {
+        last.push('*');
+    }
+    terms.join(" ")
 }
