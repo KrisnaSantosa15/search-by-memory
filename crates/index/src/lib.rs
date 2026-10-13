@@ -310,6 +310,19 @@ impl Index {
         Ok(())
     }
 
+    /// Fills an empty `store` with every Chunk's stored Embedding, so a lost or
+    /// corrupt vector index is rebuilt without re-reading or re-embedding files.
+    pub fn rebuild_vectors(&self, store: &mut impl VectorStore) -> Result<()> {
+        let mut statement = self.db.prepare("SELECT id, embedding FROM chunks")?;
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let id: i64 = row.get(0)?;
+            let bytes: Vec<u8> = row.get(1)?;
+            store.add(id as u64, &embedding_from_bytes(&bytes))?;
+        }
+        Ok(())
+    }
+
     /// Removes Chunks, and their vectors in `store`, whose content no file
     /// references any longer. Run it after indexing a scan's added and changed
     /// files, so that moved files reuse their content first (ADR 0004).
@@ -557,4 +570,13 @@ fn fuse_name_matches(content: Vec<SearchResult>, names: &[NameMatch]) -> Vec<Sea
 
 fn fusion_score(rank: usize) -> f64 {
     1.0 / (FUSION_K + rank as f64 + 1.0)
+}
+
+fn embedding_from_bytes(bytes: &[u8]) -> Embedding {
+    Embedding::new(
+        bytes
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .collect(),
+    )
 }

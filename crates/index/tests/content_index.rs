@@ -378,3 +378,39 @@ fn passage_view_shows_each_content_match_and_no_name_only_files() {
             .all(|result| result.match_reason == MatchReason::Content)
     );
 }
+
+#[test]
+fn vector_index_is_rebuilt_from_stored_embeddings_without_reembedding() {
+    let folder = TempDir::new().unwrap();
+    let recipe = write(
+        folder.path(),
+        "kitchen/a.txt",
+        "slow cooked beef in coconut milk and chili\n",
+    );
+    write(
+        folder.path(),
+        "garage/b.txt",
+        "change the engine oil every five thousand miles\n",
+    );
+    let mut index = Index::open_in_memory().unwrap();
+    index.scan(folder.path(), &[]).unwrap();
+    let mut lost = store();
+    for path in [recipe.clone(), folder.path().join("garage/b.txt")] {
+        index.index_content(&path, &BagOfWords, &mut lost).unwrap();
+    }
+
+    let mut rebuilt = store();
+    index.rebuild_vectors(&mut rebuilt).unwrap();
+    let results = index
+        .search(
+            "beef with coconut milk",
+            &BagOfWords,
+            &rebuilt,
+            View::Passage,
+            1,
+        )
+        .unwrap();
+
+    assert_eq!(rebuilt.len(), lost.len());
+    assert_eq!(results[0].path, recipe);
+}
