@@ -138,3 +138,12 @@ fn named_accelerator_is_tried_before_falling_back_to_cpu() {
     assert_eq!(accelerators, [Accelerator::Cuda, Accelerator::Cpu]);
     assert_eq!(rest, args(&["search", "tax", "letter"]));
 }
+
+#[test]
+fn without_accelerator_option_the_default_order_is_tried() {
+    let (accelerators, rest) =
+        accelerator_option(&args(&["index", "Documents"])).expect("option parses");
+
+    assert_eq!(accelerators, Accelerator::default_order());
+    assert_eq!(rest, args(&["index", "Documents"]));
+}

@@ -61,10 +61,11 @@ pub fn search(
 }
 
 /// Takes `--accelerator <name>` out of `args`. Returns the Accelerators to try,
-/// in order, and the remaining arguments. A named GPU falls back to CPU.
+/// in order, and the remaining arguments. A named GPU falls back to CPU;
+/// without the option, [`Accelerator::default_order`] is tried.
 pub fn accelerator_option(args: &[String]) -> Result<(Vec<Accelerator>, Vec<String>)> {
     let mut rest = Vec::new();
-    let mut accelerators = Vec::new();
+    let mut accelerators = Accelerator::default_order().to_vec();
     let mut args = args.iter();
     while let Some(arg) = args.next() {
         if arg == "--accelerator" {
