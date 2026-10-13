@@ -1,6 +1,6 @@
 # Handoff
 
-Snapshot for the next session or agent (2026-10-13, after commit `4692004`). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
+Snapshot for the next session or agent (2026-10-13, after commit `f0e3492`). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
 
 ## State
 - **Development moved to Windows** (RTX 4060 8 GB). The workspace builds and all tests pass on Windows; Linux paths are unchanged.
@@ -9,15 +9,14 @@ Snapshot for the next session or agent (2026-10-13, after commit `4692004`). Pro
 - **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` tries CUDA → DirectML → CPU (`--accelerator <name>` overrides; a named GPU falls back to CPU) and prints the one in use plus why others were skipped.
 - **Volume-aware file catalog**: done (volume ID + relative path; Disconnected Drives flagged).
 - **M4 indexing core**: done (saved Indexed Folders and Exclusions, `index_jobs` queue: newest first, retries, resume).
-- **Engine** (`crates/engine`): in progress. Background worker + `search`, `status` (files, pending, last error), `pause`/`resume`, Live Updates polled every 2 s. The desktop app will run on it.
+- **Engine** (`crates/engine`): in progress. Background worker + `search`, `status` (files, pending, last error), `pause`/`resume`, Live Updates polled every 2 s. The desktop app will run on it. Still to do: content progress ("files since … are ready"), failed files, remove folder/Exclusions, accelerator/model status; move the CLI onto it.
 - **Setup** (`crates/setup`): done. Verified, resumable downloads (`download`, `Web`), pinned `embedding_model()` and `cuda_runtime()` manifests, `install_runtime`, `system_gpus` (DXGI), `speed_options` (recommendation).
 - **M4 Online-only Files**: done. `FileAvailability` adapter (`SystemFileAvailability`: Windows recall/offline attributes, never opens the file); Online-only Files are name-indexed only, and content-indexed once downloaded.
 - **M4 Live Updates**: done. `ChangeSource` trait, `Index::apply_changes`, `UsnJournal` adapter (`crates/change-usn`, no admin rights; ADR 0005); `sbm index` uses it.
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
   - M4: throttling (full-screen, battery, busy; Live Updates exempt).
-  - M4 later: a background process that applies changes continuously (today `sbm index` runs on demand).
-  - M3: Tauri 2 app (React + TypeScript + Tailwind + shadcn/Radix): onboarding wizard first (system check, speed, model download, folders, hotkey, done), then the launcher. VoiceStudio (AGPL-3.0) is the UX reference: ideas only, no code.
+  - M3 (agreed with the user, next): Tauri 2 app (React + TypeScript + Tailwind + shadcn/Radix): onboarding wizard first (system check, speed, model download, folders, hotkey, done), then the launcher. Goal: easy for non-developers; every step has a working default, plain language (no "CUDA"/"DirectML" jargon), one progress bar with time left, name search usable as soon as onboarding ends. VoiceStudio (AGPL-3.0) is the UX reference: ideas only, no code.
   - The app must put the CUDA runtime folder (`<cache>/runtimes/cuda13`) on `PATH` before loading the CUDA provider.
 - Tests: `cargo test --workspace` 175 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
 
@@ -91,6 +90,8 @@ Snapshot for the next session or agent (2026-10-13, after commit `4692004`). Pro
 - Retrieval Benchmark (semantic only, 43 of 58 Queries scorable): Recall@5 = 1.0; MRR 0.93–0.95; Location Accuracy 0.67 @256, 0.56 @512, 0.60 @768. f16 matches exact; i8 loses 0.02–0.07.
 
 ## Known gaps and caveats
+- Online-only detection is tested with `FILE_ATTRIBUTE_OFFLINE` only; the cloud recall attributes need a real OneDrive folder (not yet tried).
+- `Engine` search shares the ONNX session with indexing: a Query waits for the current batch of 8 Chunks.
 - pdf-extract (and lopdf beneath it) returns no text for the scanned UU 27/2022 PDF with an invisible OCR layer; pdftotext reads it. Two Benchmark Queries (id-001, id-002) depend on it.
 - pdf-extract panics on many corrupt PDFs; `PdfExtractor` catches the panic (the panic message still prints to stderr).
 - Text and DOCX extraction stop at 50 MB decompressed; PDFs have no size cap yet.
@@ -114,7 +115,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `4692004`). Pro
 - Multi-line Python heredocs (`python - <<'EOF'`) sometimes fail to parse in the Bash tool; write the script to the scratchpad and run it instead.
 
 ## Open questions for the user
-1. Shipping CUDA: bundle the ~1.4 GB runtime DLLs, download on first run, or require a user install.
+1. NVIDIA licence: show cuDNN's NVIDIA SLA and ask for consent in onboarding before the CUDA runtime download? (Decided: the CUDA runtime is downloaded during onboarding only when the user picks the NVIDIA option.)
 2. Review the 58 drafted Queries in `benchmark/public/queries.toml`; license spot-checks above.
 3. f16 vs i8 and 256 vs 512 dims: confirm with the deferred Benchmark runs.
 4. PDF backend: keep pdf-extract, or move to pdfium/poppler for scanned PDFs.
