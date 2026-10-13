@@ -72,7 +72,7 @@ def wikitext_to_text(wikitext: str) -> str:
     code = mwparserfromhell.parse(wikitext)
     for ref in code.filter_tags(matches=lambda tag: tag.tag.lower() == "ref"):
         code.remove(ref)
-    for link in code.filter_wikilinks(recursive=False):
+    for link in code.filter_wikilinks():
         if str(link.title).strip().lower().startswith(NON_PROSE_LINKS):
             code.remove(link)
     text = code.strip_code()

@@ -30,3 +30,9 @@ def test_wikitext_drops_images_and_categories():
     )
 
     assert wikitext_to_text(wikitext) == "Rendang berasal dari Minangkabau.\n"
+
+
+def test_wikitext_drops_images_nested_in_other_markup():
+    wikitext = "''Sate [[Berkas:Sate Buntel.jpg|jmpl|lurus|Sate buntel dari [[Surakarta]]]] kambing''\n"
+
+    assert wikitext_to_text(wikitext) == "Sate  kambing\n"
