@@ -17,12 +17,20 @@
 - `VectorStore` trait; USearch backend: add, remove, search, save + mmap view (ADR 0002).
 - Recall@10 on synthetic vectors (search depth 128): f16 ≥ 0.95; i8 ≈ 0.88 (test ignored until real Benchmark).
 
+### M1 — Benchmark and Public Corpus (`crates/bench`, `tools/`, `benchmark/public/`)
+- `Location` (page, lines, time, whole file) with overlap; Benchmark TOML parser rejects malformed labels.
+- File-view metrics: Recall@k, MRR, nDCG@k, Location Accuracy.
+- `fetch_public_corpus.py`: sha256-verified, skips present files, retries 429.
+- Public Corpus: 49 files, 66 MB (EN/ID PDFs, text, DOCX, code, images, audio, video).
+- First 40 labelled Queries (24 en, 16 id); guard test checks Targets exist.
+
 ## In progress
-- Public Corpus (docs, code, images, audio, video) and first Benchmark labels.
+- —
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
-- Public Corpus and first Benchmark labels.
+- Benchmark runner: embed Public Corpus, score semantic-only baseline (needs extractors or a text-only subset).
+- Grow Benchmark to 50–100 Queries; more non-abstract PDF Targets.
 
 ## Deferred until development moves to Windows (RTX 4060 8 GB)
 - GPU throughput: CUDA and DirectML execution providers.
