@@ -15,6 +15,8 @@ pub struct NameMatch {
     pub path: PathBuf,
     /// The Query is the whole filename, with or without its extension.
     pub exact: bool,
+    /// False while the file's drive is a Disconnected Drive.
+    pub connected: bool,
 }
 
 /// Folder names excluded anywhere on any drive (FR-03).
@@ -71,7 +73,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 4] = [
+const MIGRATIONS: [&str; 5] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -115,6 +117,8 @@ const MIGRATIONS: [&str; 4] = [
          UNIQUE (volume_id, relative_path)
      );
      CREATE INDEX files_by_content ON files (content_hash);",
+    // Where each volume was last mounted, to show files on a Disconnected Drive.
+    "CREATE TABLE volumes (id TEXT PRIMARY KEY, last_root TEXT NOT NULL);",
 ];
 
 /// Chunk size in characters: about 256 tokens of prose.
@@ -209,6 +213,11 @@ impl Index {
         let folder_path = relative_path(folder, &volume)?;
         let mut changes = ScanChanges::default();
         let tx = self.db.transaction()?;
+        tx.execute(
+            "INSERT INTO volumes (id, last_root) VALUES (?1, ?2)
+             ON CONFLICT (id) DO UPDATE SET last_root = excluded.last_root",
+            params![volume.id, volume.root.to_string_lossy()],
+        )?;
         let scan: i64 = tx.query_row(
             "SELECT coalesce(max(seen_in_scan), 0) + 1 FROM files",
             [],
@@ -442,7 +451,9 @@ impl Index {
             }
             let mut paths: Vec<PathBuf> = files
                 .query_map(params![hash], |row| {
-                    Ok(self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?))
+                    let (path, _connected) =
+                        self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?)?;
+                    Ok(path)
                 })?
                 .collect::<rusqlite::Result<_>>()?;
             paths.sort();
@@ -468,11 +479,18 @@ impl Index {
     }
 
     /// Where the file at the relative `path` on volume `volume_id` is now.
-    fn path_of(&self, volume_id: &str, path: &str) -> PathBuf {
-        self.volumes
-            .mount_point(volume_id)
-            .unwrap_or_default()
-            .join(path)
+    /// For a Disconnected Drive, where the file was when the drive was last scanned;
+    /// the flag says whether the drive is connected.
+    fn path_of(&self, volume_id: &str, path: &str) -> rusqlite::Result<(PathBuf, bool)> {
+        if let Some(root) = self.volumes.mount_point(volume_id) {
+            return Ok((root.join(path), true));
+        }
+        let last_root: String = self.db.query_row(
+            "SELECT last_root FROM volumes WHERE id = ?1",
+            params![volume_id],
+            |row| row.get(0),
+        )?;
+        Ok((Path::new(&last_root).join(path), false))
     }
 
     /// Name Matches for a Query, best first.
@@ -490,9 +508,12 @@ impl Index {
         )?;
         let matches = statement
             .query_map(params![query, limit as i64, exact], |row| {
+                let (path, connected) =
+                    self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?)?;
                 Ok(NameMatch {
-                    path: self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?),
+                    path,
                     exact: row.get(2)?,
+                    connected,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;

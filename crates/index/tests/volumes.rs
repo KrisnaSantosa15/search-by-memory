@@ -23,6 +23,10 @@ impl FakeVolumes {
             .unwrap()
             .insert(id.to_string(), root.to_path_buf());
     }
+
+    fn disconnect(&self, id: &str) {
+        self.0.lock().unwrap().remove(id);
+    }
 }
 
 impl Volumes for FakeVolumes {
@@ -123,4 +127,23 @@ fn content_match_on_a_remounted_drive_points_at_its_new_location() {
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].path, f_drive.path().join("letters/tax.txt"));
+}
+
+#[test]
+fn file_on_a_disconnected_drive_is_still_found_flagged_as_not_connected() {
+    let e_drive = TempDir::new().unwrap();
+    touch(e_drive.path(), "reports/budget.xlsx");
+    let volumes = FakeVolumes::default();
+    volumes.mount("usb-stick", e_drive.path());
+    let mut index = Index::open_in_memory()
+        .unwrap()
+        .with_volumes(volumes.clone());
+    index.scan(e_drive.path(), &[]).unwrap();
+
+    volumes.disconnect("usb-stick");
+    let matches = index.search_names("budget", 20).unwrap();
+
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].path, e_drive.path().join("reports/budget.xlsx"));
+    assert!(!matches[0].connected);
 }
