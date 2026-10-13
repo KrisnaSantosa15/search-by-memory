@@ -28,6 +28,34 @@ pub struct Progress {
     pub total: u64,
 }
 
+/// Where the embedding model lives, relative to the cache directory (`AppDirs`).
+pub const EMBEDDING_MODEL_DIR: &str = "models/embeddinggemma-2-onnx";
+
+/// Hugging Face revision of `onnx-community/embeddinggemma-2-ONNX` (Apache-2.0)
+/// that passed the parity gate (ADR 0001).
+const EMBEDDING_MODEL_REVISION: &str = "daa72c51243991dfcaf9f9137d2c573d8f7790c0";
+
+/// The EmbeddingGemma 2 ONNX model files the embedder loads (about 1.1 GB).
+pub fn embedding_model() -> Vec<RemoteFile> {
+    [
+        ("config.json", 5_031, "8d011bfe08b5e345bbe0b81e5c6fd02c381920b345b986047bc2a33ce7b90d1d"),
+        ("tokenizer_config.json", 1_599, "17bd5d6e9364ca49a534e1502076593317c298d4a663623091ed45388f004874"),
+        ("tokenizer.json", 32_170_510, "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4"),
+        ("onnx/model.onnx", 421_421, "bc47de15f81208a5c99e5ab10f746d5e33b51ea228b7dc0bef9c133a94f1c1c3"),
+        ("onnx/model.onnx_data", 1_084_170_240, "9fd452bfc6916e5a92f080f8dada35598ca4512b21c65897d4c5974d5f9630a2"),
+    ]
+    .into_iter()
+    .map(|(path, size, sha256)| RemoteFile {
+        url: format!(
+            "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX/resolve/{EMBEDDING_MODEL_REVISION}/{path}"
+        ),
+        path: path.to_string(),
+        size,
+        sha256: sha256.to_string(),
+    })
+    .collect()
+}
+
 /// How a download ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Finished {
