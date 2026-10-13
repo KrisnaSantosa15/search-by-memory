@@ -103,6 +103,7 @@
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
+- Setup (`crates/setup`): resumable, verified downloads (model, CUDA runtime) and GPU detection for onboarding.
 - Engine (`crates/engine`): long-running indexing + search for the desktop app.
   - Done: background worker, `add_indexed_folder`, `search`, `status` (files, pending, last error), `pause`/`resume`, Live Updates polled every 2 s, `wait_until_idle`.
   - Done: `Index::open` waits instead of failing while another connection writes.
