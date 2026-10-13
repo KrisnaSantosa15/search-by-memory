@@ -65,3 +65,23 @@ fn deleted_file_is_reported_by_its_folder() {
         relative(&volume, &notes)
     );
 }
+
+#[test]
+fn renamed_folder_is_reported_with_the_folder_it_left() {
+    let folder = TempDir::new().unwrap();
+    let photos = folder.path().join("photos");
+    fs::create_dir(&photos).unwrap();
+    fs::write(photos.join("beach.txt"), "sunset").unwrap();
+    let (volume, cursor) = volume_and_cursor(&folder);
+
+    let pictures = folder.path().join("pictures");
+    fs::rename(&photos, &pictures).unwrap();
+
+    let paths = changed_paths(&volume, &cursor);
+    assert!(paths.contains(&relative(&volume, &pictures)), "{paths:?}");
+    // The old name no longer exists; its parent covers the files that left.
+    assert!(
+        paths.contains(&relative(&volume, folder.path())),
+        "{paths:?}"
+    );
+}
