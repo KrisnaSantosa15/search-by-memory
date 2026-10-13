@@ -115,7 +115,12 @@ fn print_result(rank: usize, result: &SearchResult) {
         _ => String::new(),
     };
     let path = sbm_cli::printable(&result.path.to_string_lossy());
-    println!("{rank:>2}. {path}{location}  [{reason}]");
+    let connected = if result.connected {
+        ""
+    } else {
+        "  (drive not connected)"
+    };
+    println!("{rank:>2}. {path}{location}  [{reason}]{connected}");
     for copy in &result.copies {
         println!(
             "    also at {}",
