@@ -1,6 +1,6 @@
 //! SQLite-backed Name Index and file catalog (ADR 0003).
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf, Prefix};
 use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OptionalExtension, params};
@@ -456,9 +456,17 @@ impl Index {
 /// The Query as FTS5 syntax: each word quoted, so user text is never parsed as
 /// operators, and the last word matched as a prefix because the user may still be typing it.
 /// One spelling per path, so the catalog has one row per file: on Windows,
-/// `C:/a/b.txt` becomes `C:\a\b.txt`.
+/// `C:/a/b.txt` and `\\?\C:\a\b.txt` both become `C:\a\b.txt`.
 fn normalized(path: &Path) -> PathBuf {
-    path.components().collect()
+    path.components()
+        .map(|component| match component {
+            Component::Prefix(prefix) => match prefix.kind() {
+                Prefix::VerbatimDisk(drive) => PathBuf::from(format!("{}:", drive as char)),
+                _ => PathBuf::from(component.as_os_str()),
+            },
+            _ => PathBuf::from(component.as_os_str()),
+        })
+        .collect()
 }
 
 fn fts_query(query: &str) -> Option<String> {

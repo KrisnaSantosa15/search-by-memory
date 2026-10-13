@@ -200,6 +200,22 @@ fn indexed_folder_spelled_with_forward_slashes_is_the_same_folder() {
     assert!(rescan.removed.is_empty(), "removed: {:?}", rescan.removed);
 }
 
+#[cfg(windows)]
+#[test]
+fn indexed_folder_given_as_a_canonical_windows_path_is_the_same_folder() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "notes/todo.md");
+    let mut index = Index::open_in_memory().unwrap();
+    index.scan(folder.path(), &[]).unwrap();
+
+    // `std::fs::canonicalize` returns verbatim `\\?\C:\...` paths on Windows.
+    let canonical = fs::canonicalize(folder.path()).unwrap();
+    let rescan = index.scan(&canonical, &[]).unwrap();
+
+    assert!(rescan.added.is_empty(), "added: {:?}", rescan.added);
+    assert!(rescan.removed.is_empty(), "removed: {:?}", rescan.removed);
+}
+
 #[test]
 fn name_index_persists_across_reopening_the_database() {
     let folder = TempDir::new().unwrap();
