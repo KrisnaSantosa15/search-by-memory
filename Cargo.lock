@@ -904,6 +904,7 @@ dependencies = [
  "sbm-core",
  "sbm-embed-onnx",
  "serde",
+ "tempfile",
  "toml",
 ]
 

@@ -155,3 +155,31 @@ fn duplicate_query_ids_are_rejected() {
 
     assert!(Benchmark::parse(&format!("{query}{query}")).is_err());
 }
+
+#[test]
+fn targets_whose_file_is_missing_from_the_corpus_are_reported() {
+    let corpus = tempfile::tempdir().unwrap();
+    std::fs::create_dir(corpus.path().join("papers")).unwrap();
+    std::fs::write(corpus.path().join("papers/present.pdf"), b"%PDF").unwrap();
+    let benchmark = Benchmark::parse(
+        r#"
+        [[query]]
+        id = "en-003"
+        text = "a remembered passage"
+        language = "en"
+
+        [[query.target]]
+        file = "papers/present.pdf"
+        page = 1
+
+        [[query.target]]
+        file = "papers/missing.pdf"
+        page = 1
+        "#,
+    )
+    .unwrap();
+
+    let missing = benchmark.missing_targets(corpus.path());
+
+    assert_eq!(missing, vec![PathBuf::from("papers/missing.pdf")]);
+}

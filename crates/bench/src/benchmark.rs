@@ -1,7 +1,7 @@
 //! Labelled Benchmark Queries and their Targets.
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use sbm_core::{Location, Result};
@@ -66,6 +66,16 @@ impl Benchmark {
 
     pub fn queries(&self) -> &[Query] {
         &self.queries
+    }
+
+    /// Target files, relative to `corpus_root`, that do not exist there.
+    pub fn missing_targets(&self, corpus_root: &Path) -> Vec<PathBuf> {
+        self.queries
+            .iter()
+            .flat_map(|query| &query.targets)
+            .filter(|target| !corpus_root.join(&target.file).is_file())
+            .map(|target| target.file.clone())
+            .collect()
     }
 }
 
