@@ -212,3 +212,52 @@ impl EmbeddingCache {
         Ok(embeddings)
     }
 }
+
+/// A Query whose Target file was found, but whose shown Snippet misses every Target Location in it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LocationMiss {
+    pub query_id: String,
+    pub file: PathBuf,
+    pub shown: Location,
+    pub targets: Vec<Location>,
+}
+
+/// The Location misses behind Location Accuracy, one per affected Query.
+pub fn location_misses<S: VectorStore>(
+    benchmark: &Benchmark,
+    index: &RetrievalIndex<S>,
+    embedder: &dyn EmbeddingProvider,
+) -> Result<Vec<LocationMiss>> {
+    let mut misses = Vec::new();
+    for query in benchmark.queries() {
+        let results = index.search(&embedder.embed_query(&query.text)?, RESULTS_PER_QUERY)?;
+        let found = results.into_iter().find(|result| {
+            query
+                .targets
+                .iter()
+                .any(|target| target.file == result.file)
+        });
+        let Some(FileResult {
+            file,
+            snippet: Some(shown),
+        }) = found
+        else {
+            continue;
+        };
+        let targets: Vec<Location> = query
+            .targets
+            .iter()
+            .filter(|target| target.file == file)
+            .map(|target| target.location.clone())
+            .collect();
+        if !targets.iter().any(|target| shown.overlaps(target)) {
+            misses.push(LocationMiss {
+                query_id: query.id.clone(),
+                file,
+                shown,
+                targets,
+            });
+        }
+    }
+    Ok(misses)
+}

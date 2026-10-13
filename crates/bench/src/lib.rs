@@ -7,7 +7,8 @@ mod retrieval;
 pub use benchmark::{Benchmark, Query, Target};
 pub use metrics::{FileRanking, FileResult, Scores};
 pub use retrieval::{
-    Chunk, EmbeddingCache, ExactStore, RetrievalIndex, chunk_pages, chunk_text, evaluate,
+    Chunk, EmbeddingCache, ExactStore, LocationMiss, RetrievalIndex, chunk_pages, chunk_text,
+    evaluate, location_misses,
 };
 
 use std::time::Duration;

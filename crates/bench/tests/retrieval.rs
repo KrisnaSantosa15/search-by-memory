@@ -3,8 +3,10 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 
-use sbm_bench::{Benchmark, ExactStore, RetrievalIndex, chunk_text, evaluate};
-use sbm_core::{Embedding, EmbeddingProvider, Result};
+use sbm_bench::{
+    Benchmark, ExactStore, LocationMiss, RetrievalIndex, chunk_text, evaluate, location_misses,
+};
+use sbm_core::{Embedding, EmbeddingProvider, Location, Result};
 
 const DIMENSIONS: usize = 64;
 
@@ -111,4 +113,50 @@ fn queries_whose_target_files_are_not_indexed_are_left_out_of_the_scores() {
 
     assert_eq!(scores.len(), 1);
     assert_eq!(scores.recall_at(1), 1.0);
+}
+
+#[test]
+fn found_file_whose_snippet_misses_the_target_location_is_reported() {
+    let chunks = chunk_text(
+        Path::new("notes/garage.txt"),
+        "fast engines and racing tires\nwinter coats and wool scarves\n",
+        35,
+    );
+    let texts: Vec<&str> = chunks.iter().map(|chunk| chunk.text.as_str()).collect();
+    let embeddings = BagOfWords.embed_chunks(&texts).unwrap();
+    let index = RetrievalIndex::build(chunks, &embeddings, ExactStore::default()).unwrap();
+    let benchmark = Benchmark::parse(
+        r#"
+        [[query]]
+        id = "en-001"
+        text = "racing engines"
+        language = "en"
+
+        [[query.target]]
+        file = "notes/garage.txt"
+        lines = [2, 2]
+
+        [[query]]
+        id = "en-002"
+        text = "wool scarves"
+        language = "en"
+
+        [[query.target]]
+        file = "notes/garage.txt"
+        lines = [2, 2]
+        "#,
+    )
+    .unwrap();
+
+    let misses = location_misses(&benchmark, &index, &BagOfWords).unwrap();
+
+    assert_eq!(
+        misses,
+        vec![LocationMiss {
+            query_id: "en-001".into(),
+            file: "notes/garage.txt".into(),
+            shown: Location::Lines { start: 1, end: 1 },
+            targets: vec![Location::Lines { start: 2, end: 2 }],
+        }]
+    );
 }
