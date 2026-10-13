@@ -143,3 +143,56 @@ pub fn extractor_for(path: &Path) -> Option<&'static dyn ContentExtractor> {
         _ => None,
     }
 }
+
+/// A contiguous slice of a file's extracted content, with its Location.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Chunk {
+    pub location: Location,
+    pub text: String,
+}
+
+/// Splits Sections into Chunks of whole lines, each at most `max_chars` long
+/// (unless a single line is longer), where each Chunk repeats at least
+/// `overlap_chars` of trailing lines from the one before.
+pub fn chunk_sections(sections: &[Section], max_chars: usize, overlap_chars: usize) -> Vec<Chunk> {
+    let mut chunks = Vec::new();
+    for section in sections {
+        let lines: Vec<&str> = section.text.split_inclusive('\n').collect();
+        let mut start = 0;
+        while start < lines.len() {
+            let mut end = start;
+            let mut length = 0;
+            while end < lines.len() && (end == start || length + lines[end].len() <= max_chars) {
+                length += lines[end].len();
+                end += 1;
+            }
+            chunks.push(Chunk {
+                location: lines_location(&section.location, start, end),
+                text: lines[start..end].concat(),
+            });
+            if end == lines.len() {
+                break;
+            }
+            let mut next = end;
+            let mut overlap = 0;
+            while next > start + 1 && overlap < overlap_chars {
+                next -= 1;
+                overlap += lines[next].len();
+            }
+            start = next;
+        }
+    }
+    chunks
+}
+
+/// Location of lines `start..end` (0-based) of a Section; Locations without
+/// lines, such as pages, apply to every Chunk of the Section.
+fn lines_location(section: &Location, start: usize, end: usize) -> Location {
+    match section {
+        Location::Lines { start: first, .. } => Location::Lines {
+            start: first + start as u32,
+            end: first + end as u32 - 1,
+        },
+        other => other.clone(),
+    }
+}
