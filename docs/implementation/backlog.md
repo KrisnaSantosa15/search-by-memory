@@ -18,7 +18,7 @@
 - Recall@10 on synthetic vectors (search depth 128): f16 ≥ 0.95; i8 ≈ 0.88 (test ignored until real Benchmark).
 
 ## In progress
-- —
+- Public Corpus (docs, code, images, audio, video) and first Benchmark labels.
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
