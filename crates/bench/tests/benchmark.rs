@@ -79,3 +79,20 @@ fn time_range_target_parses_for_audio_and_video() {
         }
     );
 }
+
+#[test]
+fn target_without_location_means_the_whole_file_for_images() {
+    let target = only_target(
+        r#"
+        [[query]]
+        id = "id-001"
+        text = "foto candi dengan stupa berlubang saat matahari terbit"
+        language = "id"
+
+        [[query.target]]
+        file = "images/borobudur.jpg"
+        "#,
+    );
+
+    assert_eq!(target.location, Location::WholeFile);
+}

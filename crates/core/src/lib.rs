@@ -14,6 +14,8 @@ pub enum Location {
     Lines { start: u32, end: u32 },
     /// Time range of audio or video, from the start of the media.
     Time { start: Duration, end: Duration },
+    /// The whole file, for content without inner positions such as images.
+    WholeFile,
 }
 
 /// A dense vector representing the meaning of a Query or a Chunk.

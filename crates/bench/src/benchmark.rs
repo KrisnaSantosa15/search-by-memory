@@ -91,7 +91,7 @@ impl TargetEntry {
             },
             (_, Some([start, end]), _) => Location::Lines { start, end },
             (Some(page), _, _) => Location::Page(page),
-            (None, None, None) => unimplemented!("whole-file Targets"),
+            (None, None, None) => Location::WholeFile,
         })
     }
 }
