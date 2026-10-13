@@ -274,3 +274,40 @@ fn saved_cursor_survives_reopening_the_index() {
 
     assert_eq!(changes.added, vec![reported]);
 }
+
+#[test]
+fn changes_on_a_disconnected_drive_are_applied_when_it_returns() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let kept = write(
+        drive.path(),
+        "notes/kept.txt",
+        "kept while away
+",
+    );
+    let volumes = FakeVolumes::default();
+    volumes.mount("usb-stick", drive.path());
+    let journal = FakeChangeSource::default();
+    let mut index = Index::open(&data.path().join("index.sqlite"))
+        .unwrap()
+        .with_volumes(volumes.clone());
+    index.add_indexed_folder(drive.path()).unwrap();
+    index.apply_changes(&journal).unwrap();
+
+    volumes.disconnect("usb-stick");
+    // Changed on another computer, which records it in the drive's own journal.
+    let added = write(
+        drive.path(),
+        "notes/added.txt",
+        "added elsewhere
+",
+    );
+    journal.record("usb-stick", "notes/added.txt");
+    let while_away = index.apply_changes(&journal).unwrap();
+    volumes.mount("usb-stick", drive.path());
+    let on_return = index.apply_changes(&journal).unwrap();
+
+    assert!(while_away.added.is_empty() && while_away.removed.is_empty());
+    assert_eq!(on_return.added, vec![added]);
+    assert!(on_return.removed.is_empty());
+    assert_eq!(index.search_names("kept", 20).unwrap()[0].path, kept);
+}
