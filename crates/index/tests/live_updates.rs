@@ -3,20 +3,28 @@
 mod common;
 
 use common::{BagOfWords, FakeChangeSource, FakeVolumes, store, write};
+use sbm_core::VectorStore;
 use sbm_index::{Index, View};
 use tempfile::TempDir;
 
-#[test]
-fn file_created_after_the_cursor_becomes_content_searchable() {
-    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+/// An index whose Indexed Folder is the whole of volume "d-drive", with its
+/// change cursor saved.
+fn indexed_drive(data: &TempDir, drive: &TempDir, journal: &FakeChangeSource) -> Index {
     let volumes = FakeVolumes::default();
     volumes.mount("d-drive", drive.path());
-    let journal = FakeChangeSource::default();
     let mut index = Index::open(&data.path().join("index.sqlite"))
         .unwrap()
         .with_volumes(volumes);
     index.add_indexed_folder(drive.path()).unwrap();
-    index.apply_changes(&journal).unwrap();
+    index.apply_changes(journal).unwrap();
+    index
+}
+
+#[test]
+fn file_created_after_the_cursor_becomes_content_searchable() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let journal = FakeChangeSource::default();
+    let mut index = indexed_drive(&data, &drive, &journal);
 
     let recipe = write(
         drive.path(),
@@ -45,14 +53,8 @@ fn file_created_after_the_cursor_becomes_content_searchable() {
 #[test]
 fn intact_change_history_rechecks_only_the_reported_paths() {
     let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
-    let volumes = FakeVolumes::default();
-    volumes.mount("d-drive", drive.path());
     let journal = FakeChangeSource::default();
-    let mut index = Index::open(&data.path().join("index.sqlite"))
-        .unwrap()
-        .with_volumes(volumes);
-    index.add_indexed_folder(drive.path()).unwrap();
-    index.apply_changes(&journal).unwrap();
+    let mut index = indexed_drive(&data, &drive, &journal);
 
     let reported = write(drive.path(), "notes/reported.txt", "reported\n");
     write(drive.path(), "notes/unreported.txt", "unreported\n");
@@ -60,4 +62,42 @@ fn intact_change_history_rechecks_only_the_reported_paths() {
     let changes = index.apply_changes(&journal).unwrap();
 
     assert_eq!(changes.added, vec![reported]);
+}
+
+#[test]
+fn deleted_file_leaves_the_name_index_and_the_content_index() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let recipe = write(
+        drive.path(),
+        "kitchen/rendang.txt",
+        "slow cooked beef in coconut milk
+",
+    );
+    let journal = FakeChangeSource::default();
+    let mut index = indexed_drive(&data, &drive, &journal);
+    let mut store = store();
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+
+    std::fs::remove_file(&recipe).unwrap();
+    journal.record("d-drive", "kitchen/rendang.txt");
+    let changes = index.apply_changes(&journal).unwrap();
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+
+    assert_eq!(changes.removed, vec![recipe]);
+    assert!(index.search_names("rendang", 20).unwrap().is_empty());
+    let results = index
+        .search(
+            "beef coconut",
+            &BagOfWords::default(),
+            &store,
+            View::Passage,
+            20,
+        )
+        .unwrap();
+    assert!(results.is_empty(), "{results:?}");
+    assert_eq!(store.len(), 0);
 }
