@@ -117,6 +117,11 @@ impl<S: VectorStore> RetrievalIndex<S> {
         Ok(Self { chunks, store })
     }
 
+    /// Whether any Chunk of `file` is in the index.
+    pub fn contains(&self, file: &Path) -> bool {
+        self.chunks.iter().any(|chunk| chunk.file == file)
+    }
+
     /// File-view Results for a Query Embedding: one per file, ranked by its best Chunk.
     pub fn search(&self, query: &Embedding, files: usize) -> Result<Vec<FileResult>> {
         let mut results: Vec<FileResult> = Vec::new();
@@ -134,7 +139,7 @@ impl<S: VectorStore> RetrievalIndex<S> {
     }
 }
 
-/// Scores semantic-only retrieval of `index` over every Benchmark Query.
+/// Scores semantic-only retrieval of `index` over the Benchmark Queries with a Target file in it.
 pub fn evaluate<S: VectorStore>(
     benchmark: &Benchmark,
     index: &RetrievalIndex<S>,
@@ -143,6 +148,12 @@ pub fn evaluate<S: VectorStore>(
     let rankings = benchmark
         .queries()
         .iter()
+        .filter(|query| {
+            query
+                .targets
+                .iter()
+                .any(|target| index.contains(&target.file))
+        })
         .map(|query| {
             let results = index.search(&embedder.embed_query(&query.text)?, RESULTS_PER_QUERY)?;
             Ok(FileRanking::new(query, &results))

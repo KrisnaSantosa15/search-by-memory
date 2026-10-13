@@ -74,3 +74,41 @@ fn query_finds_the_file_whose_chunks_share_its_meaning() {
 
     assert_eq!(scores.recall_at(1), 1.0);
 }
+
+#[test]
+fn queries_whose_target_files_are_not_indexed_are_left_out_of_the_scores() {
+    // Media Targets stay unscored until the index can embed images, audio, and video.
+    let chunks = chunk_text(
+        Path::new("notes/cars.txt"),
+        "fast engines and racing tires\n",
+        1000,
+    );
+    let texts: Vec<&str> = chunks.iter().map(|chunk| chunk.text.as_str()).collect();
+    let embeddings = BagOfWords.embed_chunks(&texts).unwrap();
+    let index = RetrievalIndex::build(chunks, &embeddings, ExactStore::default()).unwrap();
+    let benchmark = Benchmark::parse(
+        r#"
+        [[query]]
+        id = "en-001"
+        text = "racing engines"
+        language = "en"
+
+        [[query.target]]
+        file = "notes/cars.txt"
+
+        [[query]]
+        id = "en-002"
+        text = "photo of a lizard"
+        language = "en"
+
+        [[query.target]]
+        file = "media/images/komodo.jpg"
+        "#,
+    )
+    .unwrap();
+
+    let scores = evaluate(&benchmark, &index, &BagOfWords).unwrap();
+
+    assert_eq!(scores.len(), 1);
+    assert_eq!(scores.recall_at(1), 1.0);
+}

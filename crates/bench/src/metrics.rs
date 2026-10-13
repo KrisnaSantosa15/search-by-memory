@@ -86,6 +86,15 @@ impl Scores {
         Self { rankings }
     }
 
+    /// Number of Queries scored.
+    pub fn len(&self) -> usize {
+        self.rankings.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.rankings.is_empty()
+    }
+
     /// Share of Queries whose Target file is among the top `k` Results.
     pub fn recall_at(&self, k: usize) -> f64 {
         let found = self
