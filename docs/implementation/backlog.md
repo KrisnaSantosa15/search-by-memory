@@ -60,6 +60,14 @@
 - Disconnected Drive: files stay findable at their last-known path, `connected: false`; `sbm` prints "drive not connected".
 - Scanning one drive never removes another drive's files.
 
+### M4 — Indexing core (`crates/index`, `crates/cli`)
+- Saved Indexed Folders (by volume) and Exclusions; `scan_all` skips folders on a Disconnected Drive.
+- `index_jobs` queue: newest mtime first, one commit per file (resume), 3 tries then failed with error.
+- Jobs on a Disconnected Drive wait; content cleanup only once the queue is empty (moves reuse Chunks).
+- Removing an Indexed Folder drops its files unless another Indexed Folder covers them.
+- `sbm index [<folder>...]` (vectors saved every 100 files), `sbm folders`, `sbm remove`, `sbm exclude <folder> | --name <pattern>`.
+- Smoke-tested on Windows: kill -9 mid-run, rerun finishes the 16 pending files.
+
 ### Windows port
 - Builds with MSVC: usearch's NumKong linked statically (`.cargo/config.toml`); binary fixtures exempt from CRLF (`.gitattributes`).
 - `AppDirs`: data in `%LOCALAPPDATA%\search-by-memory`, cache (models, Public Corpus) in its `cache` folder; Unix unchanged. CLI, benches, tests, and `tools/` use it.
@@ -80,7 +88,6 @@
 
 ## In progress
 - Clean GPU benchmark (background apps closed).
-- M4: saved Indexed Folders and Exclusions, `index_jobs` queue (newest first, retries, resume).
 
 ## Next
 - M2: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only), with the M1 benchmark work.
