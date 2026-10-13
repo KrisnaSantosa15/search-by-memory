@@ -99,7 +99,8 @@ pub fn speed_options(gpus: &[Gpu]) -> Vec<SpeedOption> {
         options.push(option(Accelerator::Cuda, Some(nvidia), true));
     }
     if let Some(strongest) = gpus.iter().max_by_key(|gpu| gpu.dedicated_memory) {
-        options.push(option(Accelerator::DirectMl, Some(strongest), false));
+        let recommended = options.is_empty();
+        options.push(option(Accelerator::DirectMl, Some(strongest), recommended));
     }
     options.push(option(Accelerator::Cpu, None, false));
     options

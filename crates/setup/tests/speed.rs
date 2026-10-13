@@ -35,3 +35,15 @@ fn nvidia_gpu_is_recommended_through_cuda_with_directml_and_cpu_as_alternatives(
     assert!(options[0].needs_cuda_runtime);
     assert_eq!(options[0].gpu.as_ref(), Some(&gpus[0]));
 }
+
+#[test]
+fn other_graphics_card_is_recommended_through_directml() {
+    let gpus = [gpu("AMD Radeon RX 7600", GpuVendor::Amd, 8)];
+
+    let options = speed_options(&gpus);
+
+    assert_eq!(
+        accelerators(&options),
+        [(Accelerator::DirectMl, true), (Accelerator::Cpu, false)]
+    );
+}
