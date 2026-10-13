@@ -1,8 +1,12 @@
 //! Domain types and provider interfaces for Search by Memory.
 
 use std::ffi::OsString;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+mod system_volumes;
+
+pub use system_volumes::SystemVolumes;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T> = std::result::Result<T, Error>;
@@ -116,27 +120,6 @@ pub trait Volumes {
     fn volume_of(&self, path: &Path) -> Result<Volume>;
     /// Where the volume `id` is mounted now, or `None` while it is not connected.
     fn mount_point(&self, id: &str) -> Option<PathBuf>;
-}
-
-/// The running operating system's volumes.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct SystemVolumes;
-
-impl Volumes for SystemVolumes {
-    fn volume_of(&self, path: &Path) -> Result<Volume> {
-        let root: PathBuf = path
-            .components()
-            .take_while(|c| matches!(c, Component::Prefix(_) | Component::RootDir))
-            .collect();
-        Ok(Volume {
-            id: root.to_string_lossy().into_owned(),
-            root,
-        })
-    }
-
-    fn mount_point(&self, id: &str) -> Option<PathBuf> {
-        Some(PathBuf::from(id))
-    }
 }
 
 /// The operating system convention that decides where the app keeps its files.
