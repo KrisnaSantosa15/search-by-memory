@@ -19,6 +19,8 @@ from pathlib import Path
 import mwparserfromhell
 
 
+# English and Indonesian namespaces of images and categories, which are not article prose.
+NON_PROSE_LINKS = ("file:", "image:", "berkas:", "gambar:", "category:", "kategori:")
 USER_AGENT = "search-by-memory-bench/0.1 (offline Benchmark corpus fetcher)"
 MANIFEST = Path(__file__).resolve().parent.parent / "benchmark/public/manifest.toml"
 
@@ -63,6 +65,9 @@ def wikitext_to_text(wikitext: str) -> str:
     code = mwparserfromhell.parse(wikitext)
     for ref in code.filter_tags(matches=lambda tag: tag.tag.lower() == "ref"):
         code.remove(ref)
+    for link in code.filter_wikilinks(recursive=False):
+        if str(link.title).strip().lower().startswith(NON_PROSE_LINKS):
+            code.remove(link)
     text = code.strip_code()
     return text.strip() + "\n"
 

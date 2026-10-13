@@ -19,3 +19,14 @@ def test_wikitext_drops_references():
     assert wikitext_to_text(wikitext) == (
         "Rendang dinobatkan sebagai hidangan terlezat. Pada 2018 rendang menjadi hidangan nasional.\n"
     )
+
+
+def test_wikitext_drops_images_and_categories():
+    wikitext = (
+        "[[Berkas:Rendang.jpg|jmpl|ka|250px|Memasak rendang.]]\n"
+        "[[File:Padang.jpg|thumb|Rumah makan Padang]]\n"
+        "Rendang berasal dari [[Minangkabau]].\n"
+        "[[Kategori:Masakan Minangkabau]]\n"
+    )
+
+    assert wikitext_to_text(wikitext) == "Rendang berasal dari Minangkabau.\n"
