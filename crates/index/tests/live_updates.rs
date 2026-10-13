@@ -335,3 +335,18 @@ fn indexed_folder_added_after_the_cursor_is_scanned() {
 
     assert_eq!(changes.added, vec![photo_notes]);
 }
+
+#[test]
+fn exclusion_added_after_the_cursor_drops_matching_files() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let draft = write(drive.path(), "documents/draft.tmp", "scratch\n");
+    let journal = FakeChangeSource::default();
+    let mut index = indexed_drive(&data, &drive, &journal);
+
+    index
+        .add_exclusion(Exclusion::Name("*.tmp".to_string()))
+        .unwrap();
+    let changes = index.apply_changes(&journal).unwrap();
+
+    assert_eq!(changes.removed, vec![draft]);
+}

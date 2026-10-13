@@ -425,14 +425,18 @@ impl Index {
         self.remove_unreferenced_content(store)
     }
 
-    /// Remembers an Exclusion; the next scan drops the files it matches.
+    /// Remembers an Exclusion; the next scan, or apply_changes, drops the files it
+    /// matches by rescanning the volumes it applies to.
     pub fn add_exclusion(&mut self, exclusion: Exclusion) -> Result<()> {
         match exclusion {
             Exclusion::Name(pattern) => {
-                self.db.execute(
+                let tx = self.db.transaction()?;
+                tx.execute(
                     "INSERT INTO exclusions (pattern) VALUES (?1)",
                     params![pattern],
                 )?;
+                tx.execute("DELETE FROM change_cursors", [])?;
+                tx.commit()?;
             }
             Exclusion::Folder(folder) => {
                 let folder = normalized(&folder);
@@ -443,6 +447,10 @@ impl Index {
                 tx.execute(
                     "INSERT INTO exclusions (volume_id, relative_path) VALUES (?1, ?2)",
                     params![volume.id, path],
+                )?;
+                tx.execute(
+                    "DELETE FROM change_cursors WHERE volume_id = ?1",
+                    params![volume.id],
                 )?;
                 tx.commit()?;
             }
