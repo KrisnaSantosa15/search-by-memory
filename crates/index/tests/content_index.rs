@@ -415,6 +415,33 @@ fn vector_index_is_rebuilt_from_stored_embeddings_without_reembedding() {
     assert_eq!(results[0].path, recipe);
 }
 
+#[test]
+fn vector_whose_chunk_is_gone_is_skipped_by_search() {
+    let folder = TempDir::new().unwrap();
+    let recipe = write(
+        folder.path(),
+        "kitchen/a.txt",
+        "slow cooked beef in coconut milk and chili\n",
+    );
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    index
+        .index_content(&recipe, &BagOfWords, &mut store)
+        .unwrap();
+    // A vector file saved before a crash can hold Chunks the database no longer has.
+    store
+        .add(999_999, &BagOfWords::embed("beef coconut milk"))
+        .unwrap();
+
+    let results = index
+        .search("beef coconut milk", &BagOfWords, &store, View::Passage, 20)
+        .unwrap();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].path, recipe);
+}
+
 /// Records the size of every embedding call.
 struct BatchRecorder(std::cell::RefCell<Vec<usize>>);
 
