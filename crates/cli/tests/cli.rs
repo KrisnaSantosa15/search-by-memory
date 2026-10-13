@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use sbm_cli::{accelerator_option, folders, index, remove_folder, search};
+use sbm_cli::{accelerator_option, exclude, folders, index, remove_folder, search};
 use sbm_core::{Embedding, EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
-use sbm_index::View;
+use sbm_index::{Exclusion, View};
 use tempfile::TempDir;
 
 const DIMENSIONS: usize = 64;
@@ -196,5 +196,26 @@ fn removed_folder_is_no_longer_listed_or_searched() {
 
     assert_eq!(folders(data.path()).unwrap(), []);
     let results = search(data.path(), "beef coconut", &BagOfWords, View::File, 20).unwrap();
+    assert_eq!(results, []);
+}
+
+#[test]
+fn excluded_files_leave_the_results_on_the_next_index_run() {
+    let (folder, data) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "private/diary.txt",
+        "dear diary, coconut milk again\n",
+    );
+    index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
+
+    exclude(
+        data.path(),
+        Exclusion::Folder(folder.path().join("private")),
+    )
+    .unwrap();
+    index(data.path(), &[], &BagOfWords).unwrap();
+
+    let results = search(data.path(), "diary coconut", &BagOfWords, View::File, 20).unwrap();
     assert_eq!(results, []);
 }

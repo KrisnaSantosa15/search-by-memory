@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use sbm_core::{EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
-use sbm_index::{Index, IndexedFolder, ScanChanges, SearchResult, View};
+use sbm_index::{Exclusion, Index, IndexedFolder, ScanChanges, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 const DATABASE: &str = "index.sqlite";
@@ -64,6 +64,12 @@ pub fn remove_folder(data_dir: &Path, folder: &Path, dimensions: usize) -> Resul
     index.rebuild_vectors(&mut store)?;
     index.remove_indexed_folder(folder, &mut store)?;
     store.save(&data_dir.join(VECTORS))
+}
+
+/// Saves an Exclusion in `data_dir`; the next index run drops the files it matches.
+pub fn exclude(data_dir: &Path, exclusion: Exclusion) -> Result<()> {
+    std::fs::create_dir_all(data_dir)?;
+    Index::open(&data_dir.join(DATABASE))?.add_exclusion(exclusion)
 }
 
 /// Results for a Query against the indexes in `data_dir`.
