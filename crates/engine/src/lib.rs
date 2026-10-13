@@ -51,6 +51,8 @@ struct Work {
     requested: u64,
     completed: u64,
     stop: bool,
+    /// No content is indexed while paused.
+    paused: bool,
     /// Why the last pass stopped early, if it did.
     error: Option<String>,
 }
@@ -106,6 +108,16 @@ impl Engine {
             .changed
             .wait_while(work, |work| work.completed < target && !work.stop)
             .unwrap();
+    }
+
+    /// Stops indexing content until [`Engine::resume`]; the Name Index stays current.
+    pub fn pause(&self) {
+        self.shared.work.lock().unwrap().paused = true;
+    }
+
+    pub fn resume(&self) {
+        self.shared.work.lock().unwrap().paused = false;
+        self.request_pass();
     }
 
     pub fn status(&self) -> Result<Status> {
@@ -175,7 +187,8 @@ fn run_worker(
     }
 }
 
-/// Applies changes since the last pass and indexes all queued content.
+/// Applies changes since the last pass and indexes queued content until the
+/// queue is empty or the Engine is paused.
 fn index_pass(
     index: &mut Index,
     shared: &Shared,
@@ -185,13 +198,23 @@ fn index_pass(
 ) -> Result<()> {
     index.apply_changes(changes)?;
     let mut store = SharedStore(&shared.store);
-    loop {
-        let done = index.run_jobs(embedder, &mut store, FILES_PER_SAVE)?;
-        shared.store.read().unwrap().save(&data_dir.join(VECTORS))?;
-        if done < FILES_PER_SAVE {
-            return Ok(());
+    let mut unsaved = 0;
+    let result = loop {
+        if shared.work.lock().unwrap().paused {
+            break Ok(());
         }
-    }
+        match index.run_jobs(embedder, &mut store, 1) {
+            Ok(0) => break Ok(()),
+            Ok(_) => unsaved += 1,
+            Err(error) => break Err(error),
+        }
+        if unsaved == FILES_PER_SAVE {
+            shared.store.read().unwrap().save(&data_dir.join(VECTORS))?;
+            unsaved = 0;
+        }
+    };
+    shared.store.read().unwrap().save(&data_dir.join(VECTORS))?;
+    result
 }
 
 /// The vector store shared by indexing and search, locked per operation.
