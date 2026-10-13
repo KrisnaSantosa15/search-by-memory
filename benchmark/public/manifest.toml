@@ -196,56 +196,72 @@ source = "UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi, JDIH Kemenkeu"
 [[file]]
 path = "id/wiki/Rendang.txt"
 url = "https://id.wikipedia.org/w/index.php?oldid=29872701&action=raw"
-sha256 = "9c5e07e6d15a41ed42e380ae85b02fb9fbe81f899639168f1efc4171f73d0629"
+source_sha256 = "9c5e07e6d15a41ed42e380ae85b02fb9fbe81f899639168f1efc4171f73d0629"
+convert = "wikitext"
+sha256 = "ca977f90a5527c58cab76fa64d1b498bdd329cf652f24f78b76fa207c0af7743"
 license = "CC-BY-SA-4.0"
 source = "Rendang @ id.wikipedia revid 29872701"
 
 [[file]]
 path = "id/wiki/Borobudur.txt"
 url = "https://id.wikipedia.org/w/index.php?oldid=30009241&action=raw"
-sha256 = "7494d1a7e29e8a29e6ed0735371bcfdeacf46caebd84f4cc78d4c7e9f6eb22f6"
+source_sha256 = "7494d1a7e29e8a29e6ed0735371bcfdeacf46caebd84f4cc78d4c7e9f6eb22f6"
+convert = "wikitext"
+sha256 = "70b93c18e6076bd8dbc573302df8f5e62696e08859f9d5b17d83c30f1cdc4bda"
 license = "CC-BY-SA-4.0"
 source = "Borobudur @ id.wikipedia revid 30009241"
 
 [[file]]
 path = "id/wiki/Krakatau.txt"
 url = "https://id.wikipedia.org/w/index.php?oldid=29964577&action=raw"
-sha256 = "298142b7d43e3fd864a210be65bbb9ddb1d970cbb272b943a4783d01c350ad1e"
+source_sha256 = "298142b7d43e3fd864a210be65bbb9ddb1d970cbb272b943a4783d01c350ad1e"
+convert = "wikitext"
+sha256 = "8f764c388e8283e46f31a381bdb960c532ff9c3b5d1cb51b38f0fbef208e2363"
 license = "CC-BY-SA-4.0"
 source = "Krakatau @ id.wikipedia revid 29964577"
 
 [[file]]
 path = "id/wiki/Sumpah_Pemuda.txt"
 url = "https://id.wikipedia.org/w/index.php?oldid=29757963&action=raw"
-sha256 = "11884fae95268f403d6d4441c8df162341bafee0094c8e5faa2c39d559280b28"
+source_sha256 = "11884fae95268f403d6d4441c8df162341bafee0094c8e5faa2c39d559280b28"
+convert = "wikitext"
+sha256 = "948faf01dab7384f29f7fd7b5edb4bffa1c3900563cf86d404c56a4a9dfd8e0a"
 license = "CC-BY-SA-4.0"
 source = "Sumpah Pemuda @ id.wikipedia revid 29757963"
 
 [[file]]
 path = "id/wiki/Batik.txt"
 url = "https://id.wikipedia.org/w/index.php?oldid=30014705&action=raw"
-sha256 = "aec954b98ad4a1d04650122ed6efddbb4dda7d1a673447310f2d88fd70e05798"
+source_sha256 = "aec954b98ad4a1d04650122ed6efddbb4dda7d1a673447310f2d88fd70e05798"
+convert = "wikitext"
+sha256 = "63c1a02b6697453ff6517f456d2879fd39e42f2e97294985fbb25d85b399d0fe"
 license = "CC-BY-SA-4.0"
 source = "Batik @ id.wikipedia revid 30014705"
 
 [[file]]
 path = "id/wiki/Komodo.txt"
 url = "https://id.wikipedia.org/w/index.php?oldid=30022125&action=raw"
-sha256 = "978737b8c290ed65ffb675014d557cb954964005c5bdeb07854625f92a25b729"
+source_sha256 = "978737b8c290ed65ffb675014d557cb954964005c5bdeb07854625f92a25b729"
+convert = "wikitext"
+sha256 = "5158849e592128e4d1ae718cd96b8ea185a15122548eacd8afcd96be7f34bc1c"
 license = "CC-BY-SA-4.0"
 source = "Komodo @ id.wikipedia revid 30022125"
 
 [[file]]
 path = "id/wiki/Gudeg.txt"
 url = "https://id.wikipedia.org/w/index.php?oldid=29929046&action=raw"
-sha256 = "e4da715133cacde297f88adf55107ebe751521a2696b971ad4976448ecc1c3af"
+source_sha256 = "e4da715133cacde297f88adf55107ebe751521a2696b971ad4976448ecc1c3af"
+convert = "wikitext"
+sha256 = "7aa5c66482ee05bebcd325d0d59b0fad72ece5386b91a22327bd7ccf14179e9c"
 license = "CC-BY-SA-4.0"
 source = "Gudeg @ id.wikipedia revid 29929046"
 
 [[file]]
 path = "id/wiki/Wayang.txt"
 url = "https://id.wikipedia.org/w/index.php?oldid=30014635&action=raw"
-sha256 = "ca594f11d7f8dec17655f32c3d743a62999328c13d1b6ca96b46e9faf87be046"
+source_sha256 = "ca594f11d7f8dec17655f32c3d743a62999328c13d1b6ca96b46e9faf87be046"
+convert = "wikitext"
+sha256 = "ae41f2b953ee8a38f325edef94c5f0b132ac1995ea818a5574500611f5e5108b"
 license = "CC-BY-SA-4.0"
 source = "Wayang @ id.wikipedia revid 30014635"
 
