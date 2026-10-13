@@ -4,7 +4,7 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 
 ## State (2026-10-13)
 - M1 technical validation in progress. Embedding, vector store, Benchmark tooling and Public Corpus are done; all tests green, one deliberately ignored (i8 recall).
-- Nothing in progress. Next: the unfinished CPU throughput benchmark, or a much larger corpus so file-level Recall stops saturating.
+- M2 Name Index, extractors, Content Index, hybrid search and `sbm` CLI done (see backlog). Next: volume-aware catalog; benchmark work (CPU throughput, `sbm` end-to-end on the Benchmark) deferred by the user.
 
 ## Workspace
 | Path | Purpose |
@@ -36,6 +36,9 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 - New dependencies are pinned to releases at least two weeks old (`ort =2.0.0-rc.13`, `usearch =2.26.2`, `tempfile =3.27.0`).
 
 ## Findings to carry forward
+- Workspace adds `crates/index` (SQLite catalog, Name Index, Content Index, hybrid search), `crates/extract` (ContentExtractors, chunker), `crates/cli` (`sbm` binary; data in $SBM_DATA_DIR).
+- pdf-extract/lopdf return no text for the OCR layer of UU 27/2022; pdftotext reads it. Revisit when benchmarking.
+- Search cold start is ~2.7 s, mostly ONNX model load; the app must keep the model loaded.
 - CPU fp32 embedding ≈ 2 Chunks/s (256 tok); batching barely helps on CPU. Benchmark unfinished: 512 tok, batch 32, int8/q4 models.
 - USearch needs search depth 128 for f16 recall@10 ≥ 0.95; i8 ≈ 0.88 (quantization loss).
 - ONNX Runtime silently accepts input beyond 8,192 tokens; the embedder truncates at `DEFAULT_MAX_TOKENS` (2,048).
