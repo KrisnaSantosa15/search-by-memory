@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use sbm_cli::{accelerator_option, index, search};
+use sbm_cli::{accelerator_option, folders, index, remove_folder, search};
 use sbm_core::{Embedding, EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
 use sbm_index::View;
@@ -179,4 +179,22 @@ fn indexed_folders_are_rescanned_by_later_runs_without_naming_them() {
 
     assert_eq!(report.changes.added, [later.clone()]);
     assert_eq!(results[0].path, later);
+}
+
+#[test]
+fn removed_folder_is_no_longer_listed_or_searched() {
+    let (folder, data) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "kitchen/a.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
+    assert_eq!(folders(data.path()).unwrap().len(), 1);
+
+    remove_folder(data.path(), folder.path(), DIMENSIONS).unwrap();
+
+    assert_eq!(folders(data.path()).unwrap(), []);
+    let results = search(data.path(), "beef coconut", &BagOfWords, View::File, 20).unwrap();
+    assert_eq!(results, []);
 }

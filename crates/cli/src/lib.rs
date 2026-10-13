@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use sbm_core::{EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
-use sbm_index::{Index, ScanChanges, SearchResult, View};
+use sbm_index::{Index, IndexedFolder, ScanChanges, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 const DATABASE: &str = "index.sqlite";
@@ -49,6 +49,21 @@ pub fn index(
         changes,
         failed: index.failed_files()?,
     })
+}
+
+/// The Indexed Folders in `data_dir`.
+pub fn folders(data_dir: &Path) -> Result<Vec<IndexedFolder>> {
+    Index::open(&data_dir.join(DATABASE))?.indexed_folders()
+}
+
+/// Forgets the Indexed Folder `folder` and removes its files from the indexes in
+/// `data_dir`, whose vectors have `dimensions` dimensions.
+pub fn remove_folder(data_dir: &Path, folder: &Path, dimensions: usize) -> Result<()> {
+    let mut index = Index::open(&data_dir.join(DATABASE))?;
+    let mut store = UsearchStore::new(dimensions, Precision::F16)?;
+    index.rebuild_vectors(&mut store)?;
+    index.remove_indexed_folder(folder, &mut store)?;
+    store.save(&data_dir.join(VECTORS))
 }
 
 /// Results for a Query against the indexes in `data_dir`.
