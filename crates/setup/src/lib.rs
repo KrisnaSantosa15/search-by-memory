@@ -7,6 +7,10 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+mod system_gpus;
+
+pub use system_gpus::system_gpus;
+
 use sbm_core::Result;
 use sbm_embed_onnx::Accelerator;
 use sha2::{Digest, Sha256};
