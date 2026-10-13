@@ -45,13 +45,37 @@ impl ContentExtractor for PdfExtractor {
     }
 }
 
+/// Largest content an extractor reads from one file (FR-03), guarding against
+/// archives that decompress to far more than their size on disk.
+const MAX_EXTRACTED_BYTES: u64 = 50 * 1024 * 1024;
+
+/// A reader that fails once more than `remaining` bytes have been read.
+struct Limited<R> {
+    inner: R,
+    remaining: u64,
+}
+
+impl<R: std::io::Read> std::io::Read for Limited<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.inner.read(buf)?;
+        self.remaining = self
+            .remaining
+            .checked_sub(read as u64)
+            .ok_or_else(|| std::io::Error::other("content too large to index"))?;
+        Ok(read)
+    }
+}
+
 /// Word documents: one line per paragraph of the main document body.
 pub struct DocxExtractor;
 
 impl ContentExtractor for DocxExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
         let mut archive = zip::ZipArchive::new(std::fs::File::open(path)?)?;
-        let document = std::io::BufReader::new(archive.by_name("word/document.xml")?);
+        let document = std::io::BufReader::new(Limited {
+            inner: archive.by_name("word/document.xml")?,
+            remaining: MAX_EXTRACTED_BYTES,
+        });
         let mut reader = quick_xml::Reader::from_reader(document);
         let mut buffer = Vec::new();
         let mut text = String::new();

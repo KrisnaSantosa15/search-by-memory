@@ -55,3 +55,26 @@ fn docx_text_keeps_escaped_characters() {
 
     assert_eq!(sections[0].text, "Smith & Sons <draft> \u{a9} 2024\n");
 }
+
+#[test]
+fn docx_that_decompresses_beyond_the_size_limit_is_refused() {
+    // A zip bomb: a few hundred kilobytes on disk, 60 MB of XML once decompressed.
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("bomb.docx");
+    let mut docx = zip::ZipWriter::new(File::create(&path).unwrap());
+    docx.start_file("word/document.xml", SimpleFileOptions::default())
+        .unwrap();
+    docx.write_all(b"<w:document><w:body><w:p><w:r><w:t>")
+        .unwrap();
+    let padding = vec![b'a'; 1 << 20];
+    for _ in 0..60 {
+        docx.write_all(&padding).unwrap();
+    }
+    docx.write_all(b"</w:t></w:r></w:p></w:body></w:document>")
+        .unwrap();
+    docx.finish().unwrap();
+
+    let error = DocxExtractor.extract(&path).unwrap_err();
+
+    assert!(error.to_string().contains("too large"), "{error}");
+}
