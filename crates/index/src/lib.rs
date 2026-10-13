@@ -362,10 +362,17 @@ impl Index {
         let path = relative_path(folder, &volume)?;
         let tx = self.db.transaction()?;
         remember_volume(&tx, &volume)?;
-        tx.execute(
+        let added = tx.execute(
             "INSERT OR IGNORE INTO indexed_folders (volume_id, relative_path) VALUES (?1, ?2)",
             params![volume.id, path],
         )?;
+        if added > 0 {
+            // A new folder needs a first scan: the next apply_changes rescans its volume.
+            tx.execute(
+                "DELETE FROM change_cursors WHERE volume_id = ?1",
+                params![volume.id],
+            )?;
+        }
         tx.commit()?;
         Ok(())
     }

@@ -311,3 +311,27 @@ fn changes_on_a_disconnected_drive_are_applied_when_it_returns() {
     assert!(on_return.removed.is_empty());
     assert_eq!(index.search_names("kept", 20).unwrap()[0].path, kept);
 }
+
+#[test]
+fn indexed_folder_added_after_the_cursor_is_scanned() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(drive.path(), "documents/letter.txt", "dear sir\n");
+    let photo_notes = write(drive.path(), "photos/notes.txt", "beach trip\n");
+    let volumes = FakeVolumes::default();
+    volumes.mount("d-drive", drive.path());
+    let journal = FakeChangeSource::default();
+    let mut index = Index::open(&data.path().join("index.sqlite"))
+        .unwrap()
+        .with_volumes(volumes);
+    index
+        .add_indexed_folder(&drive.path().join("documents"))
+        .unwrap();
+    index.apply_changes(&journal).unwrap();
+
+    index
+        .add_indexed_folder(&drive.path().join("photos"))
+        .unwrap();
+    let changes = index.apply_changes(&journal).unwrap();
+
+    assert_eq!(changes.added, vec![photo_notes]);
+}
