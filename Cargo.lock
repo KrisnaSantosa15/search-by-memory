@@ -1374,6 +1374,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sbm-cli"
+version = "0.1.0"
+dependencies = [
+ "sbm-core",
+ "sbm-embed-onnx",
+ "sbm-index",
+ "sbm-store-usearch",
+ "tempfile",
+]
+
+[[package]]
 name = "sbm-core"
 version = "0.1.0"
 
