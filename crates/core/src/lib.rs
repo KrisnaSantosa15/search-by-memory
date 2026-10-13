@@ -1,5 +1,7 @@
 //! Domain types and provider interfaces for Search by Memory.
 
+use std::ffi::OsString;
+use std::path::PathBuf;
 use std::time::Duration;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -98,3 +100,43 @@ pub trait VectorStore {
     fn search(&self, query: &Embedding, limit: usize) -> Result<Vec<Neighbor>>;
     fn len(&self) -> usize;
 }
+
+/// The operating system convention that decides where the app keeps its files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Platform {
+    Windows,
+    Unix,
+}
+
+/// Where the app keeps its index (`data`) and re-creatable files such as
+/// models (`cache`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct AppDirs {
+    pub data: PathBuf,
+    pub cache: PathBuf,
+}
+
+impl AppDirs {
+    /// Resolves the directories from environment variables, looked up by `var`.
+    pub fn from_env(platform: Platform, var: impl Fn(&str) -> Option<OsString>) -> Self {
+        let dir = |name| PathBuf::from(var(name).unwrap_or_default());
+        match platform {
+            Platform::Windows => {
+                let root = dir("LOCALAPPDATA").join(APP_DIR);
+                AppDirs {
+                    cache: root.join("cache"),
+                    data: root,
+                }
+            }
+            Platform::Unix => {
+                let home = dir("HOME");
+                AppDirs {
+                    data: home.join(".local/share").join(APP_DIR),
+                    cache: home.join(".cache").join(APP_DIR),
+                }
+            }
+        }
+    }
+}
+
+const APP_DIR: &str = "search-by-memory";
