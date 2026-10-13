@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{BagOfWords, FakeVolumes, store, write};
+use common::{BagOfWords, FakeVolumes, modified_days_ago, store, write};
 use sbm_index::{Exclusion, Index, View};
 use tempfile::TempDir;
 
@@ -37,17 +37,6 @@ fn indexed_folder_is_remembered_and_its_files_become_content_searchable() {
         )
         .unwrap();
     assert_eq!(results[0].path, recipe);
-}
-
-/// Sets the modification time of `path` to `days` days ago.
-fn modified_days_ago(path: &std::path::Path, days: u64) {
-    let time = std::time::SystemTime::now() - std::time::Duration::from_secs(days * 86_400);
-    std::fs::File::options()
-        .write(true)
-        .open(path)
-        .unwrap()
-        .set_modified(time)
-        .unwrap();
 }
 
 #[test]

@@ -64,6 +64,17 @@ pub fn write(root: &Path, relative: &str, content: &str) -> PathBuf {
     path
 }
 
+/// Sets the modification time of `path` to `days` days ago.
+pub fn modified_days_ago(path: &Path, days: u64) {
+    let time = std::time::SystemTime::now() - std::time::Duration::from_secs(days * 86_400);
+    fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(time)
+        .unwrap();
+}
+
 pub fn store() -> UsearchStore {
     UsearchStore::new(DIMENSIONS, Precision::F16).unwrap()
 }
