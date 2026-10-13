@@ -3,7 +3,7 @@ name = "sbm-tools"
 version = "0.1.0"
 description = "Offline developer tooling for Search by Memory (never shipped; see ADR 0001)"
 requires-python = ">=3.12"
-dependencies = ["sentence-transformers[image]>=5", "torch", "torchvision"]
+dependencies = ["mwparserfromhell==0.7.2", "sentence-transformers[image]>=5", "torch", "torchvision"]
 
 [dependency-groups]
 dev = ["pytest"]
