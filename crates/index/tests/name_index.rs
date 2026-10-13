@@ -93,3 +93,15 @@ fn files_beneath_default_exclusions_are_not_in_the_name_index() {
     let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
     assert_eq!(paths, [folder.path().join("app/src/index.js")]);
 }
+
+#[test]
+fn indexed_folder_is_scanned_even_when_its_own_name_is_excluded() {
+    let parent = TempDir::new().unwrap();
+    let folder = parent.path().join("target");
+    touch(&folder, "release-notes.txt");
+    let mut index = Index::open_in_memory().unwrap();
+
+    index.scan(&folder, &Exclusion::defaults()).unwrap();
+
+    assert_eq!(index.search_names("release-notes", 20).unwrap().len(), 1);
+}

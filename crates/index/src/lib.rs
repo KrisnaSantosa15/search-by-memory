@@ -70,9 +70,9 @@ impl Index {
     /// Records every file beneath the Indexed Folder `folder`, minus Exclusions, in the Name Index.
     pub fn scan(&mut self, folder: &Path, exclusions: &[Exclusion]) -> Result<()> {
         let tx = self.db.transaction()?;
-        let entries = WalkDir::new(folder)
-            .into_iter()
-            .filter_entry(|entry| !exclusions.iter().any(|e| e.excludes(entry)));
+        let entries = WalkDir::new(folder).into_iter().filter_entry(|entry| {
+            entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry))
+        });
         for entry in entries {
             let entry = entry?;
             if !entry.file_type().is_file() {
