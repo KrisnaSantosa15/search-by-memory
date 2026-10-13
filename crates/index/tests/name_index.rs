@@ -154,3 +154,17 @@ fn rescan_drops_deleted_files_and_adds_new_ones() {
     let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
     assert_eq!(paths, [folder.path().join("photos/beach-sunset.jpg")]);
 }
+
+#[test]
+fn rescan_reports_files_whose_size_changed_for_a_content_check() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "notes/todo.md");
+    touch(folder.path(), "notes/ideas.md");
+    let mut index = Index::open_in_memory().unwrap();
+    index.scan(folder.path(), &[]).unwrap();
+
+    fs::write(folder.path().join("notes/todo.md"), b"content, now longer").unwrap();
+    let changes = index.scan(folder.path(), &[]).unwrap();
+
+    assert_eq!(changes.changed, [folder.path().join("notes/todo.md")]);
+}

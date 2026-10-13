@@ -1,8 +1,9 @@
 //! SQLite-backed Name Index and file catalog (ADR 0003).
 
 use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use sbm_core::Result;
 use walkdir::{DirEntry, WalkDir};
 
@@ -53,6 +54,13 @@ impl Exclusion {
     }
 }
 
+/// What a scan found different from the previous one.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ScanChanges {
+    /// Known files whose size or modification time differ, so their content needs a check.
+    pub changed: Vec<PathBuf>,
+}
+
 /// The file catalog and Name Index, stored in SQLite.
 pub struct Index {
     db: Connection,
@@ -67,6 +75,8 @@ impl Index {
                  path TEXT NOT NULL UNIQUE,
                  name_lower TEXT NOT NULL,
                  stem_lower TEXT NOT NULL,
+                 size INTEGER NOT NULL,
+                 mtime_ns INTEGER NOT NULL,
                  seen_in_scan INTEGER NOT NULL
              );
              CREATE VIRTUAL TABLE names USING fts5(name, folder);",
@@ -75,8 +85,10 @@ impl Index {
     }
 
     /// Brings the Name Index in line with the files beneath the Indexed Folder `folder`,
-    /// minus Exclusions: new files are added and files no longer there are removed.
-    pub fn scan(&mut self, folder: &Path, exclusions: &[Exclusion]) -> Result<()> {
+    /// minus Exclusions: new files are added, files no longer there are removed, and
+    /// changed files are reported.
+    pub fn scan(&mut self, folder: &Path, exclusions: &[Exclusion]) -> Result<ScanChanges> {
+        let mut changes = ScanChanges::default();
         let tx = self.db.transaction()?;
         let scan: i64 = tx.query_row(
             "SELECT coalesce(max(seen_in_scan), 0) + 1 FROM files",
@@ -92,11 +104,27 @@ impl Index {
                 continue;
             }
             let path = entry.path().to_string_lossy();
-            let known = tx.execute(
-                "UPDATE files SET seen_in_scan = ?1 WHERE path = ?2",
-                params![scan, path],
-            )?;
-            if known > 0 {
+            let metadata = entry.metadata()?;
+            let size = metadata.len() as i64;
+            let mtime_ns = metadata
+                .modified()?
+                .duration_since(UNIX_EPOCH)
+                .map_or(0, |since| since.as_nanos() as i64);
+            let known: Option<(i64, i64)> = tx
+                .query_row(
+                    "SELECT size, mtime_ns FROM files WHERE path = ?1",
+                    params![path],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
+            if let Some(previous) = known {
+                if previous != (size, mtime_ns) {
+                    changes.changed.push(entry.path().to_path_buf());
+                }
+                tx.execute(
+                    "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3 WHERE path = ?4",
+                    params![scan, size, mtime_ns, path],
+                )?;
                 continue;
             }
             let name_lower = entry.file_name().to_string_lossy().to_lowercase();
@@ -106,9 +134,9 @@ impl Index {
                 .map(|stem| stem.to_string_lossy().to_lowercase())
                 .unwrap_or_default();
             tx.execute(
-                "INSERT INTO files (path, name_lower, stem_lower, seen_in_scan)
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![path, name_lower, stem_lower, scan],
+                "INSERT INTO files (path, name_lower, stem_lower, size, mtime_ns, seen_in_scan)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![path, name_lower, stem_lower, size, mtime_ns, scan],
             )?;
             let name = entry.file_name().to_string_lossy();
             let folder = entry.path().parent().unwrap_or(folder).to_string_lossy();
@@ -128,7 +156,7 @@ impl Index {
             }
         }
         tx.commit()?;
-        Ok(())
+        Ok(changes)
     }
 
     /// Name Matches for a Query, best first.
