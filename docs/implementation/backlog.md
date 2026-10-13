@@ -53,6 +53,13 @@
 - `sbm index <folder>` / `sbm search [--passages]`: bad files reported and skipped; terminal control characters escaped.
 - Smoke test (Public Corpus `code/`, 15 files, real model, CPU): index 194 s, 2.0 GB peak (6.1 GB before batching); search 2.7 s cold incl. model load.
 
+### M2 — Volume-aware file catalog (`crates/core`, `crates/index`)
+- `Volumes` adapter trait; `SystemVolumes`: Windows volume GUID (network shares: their root), Unix mount point.
+- Files keyed by volume ID + forward-slash relative path (schema 4 clears the catalog; rescan reuses Chunks by content hash).
+- Drive back under another letter: no changes reported, paths follow the new mount point.
+- Disconnected Drive: files stay findable at their last-known path, `connected: false`; `sbm` prints "drive not connected".
+- Scanning one drive never removes another drive's files.
+
 ### Windows port
 - Builds with MSVC: usearch's NumKong linked statically (`.cargo/config.toml`); binary fixtures exempt from CRLF (`.gitattributes`).
 - `AppDirs`: data in `%LOCALAPPDATA%\search-by-memory`, cache (models, Public Corpus) in its `cache` folder; Unix unchanged. CLI, benches, tests, and `tools/` use it.
@@ -73,7 +80,6 @@
 
 ## In progress
 - Clean GPU benchmark (background apps closed).
-- M2: volume-aware file catalog (volume ID + relative path; Disconnected Drives flagged).
 
 ## Next
 - M2: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only), with the M1 benchmark work.
