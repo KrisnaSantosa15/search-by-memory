@@ -68,3 +68,12 @@ fn indexed_folder_is_searchable_from_a_later_run() {
 
     assert_eq!(results[0].path, recipe);
 }
+
+#[test]
+fn search_before_anything_is_indexed_has_no_results() {
+    let data = TempDir::new().unwrap();
+
+    let results = search(data.path(), "anything", &BagOfWords, View::File, 20).unwrap();
+
+    assert!(results.is_empty());
+}

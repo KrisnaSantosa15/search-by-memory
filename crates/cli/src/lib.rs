@@ -37,7 +37,11 @@ pub fn search(
     view: View,
     limit: usize,
 ) -> Result<Vec<SearchResult>> {
+    let vectors = data_dir.join(VECTORS);
+    if !vectors.exists() {
+        return Ok(Vec::new());
+    }
     let index = Index::open(&data_dir.join(DATABASE))?;
-    let store = UsearchStore::open_view(&data_dir.join(VECTORS))?;
+    let store = UsearchStore::open_view(&vectors)?;
     index.search(query, embedder, &store, view, limit)
 }
