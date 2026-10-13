@@ -9,14 +9,17 @@ Snapshot for the next session or agent (2026-10-13, after commit `4692004`). Pro
 - **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` tries CUDA → DirectML → CPU (`--accelerator <name>` overrides; a named GPU falls back to CPU) and prints the one in use plus why others were skipped.
 - **Volume-aware file catalog**: done (volume ID + relative path; Disconnected Drives flagged).
 - **M4 indexing core**: done (saved Indexed Folders and Exclusions, `index_jobs` queue: newest first, retries, resume).
+- **Engine** (`crates/engine`): in progress. Background worker + `search`, `status` (files, pending, last error), `pause`/`resume`, Live Updates polled every 2 s. The desktop app will run on it.
+- **Setup** (`crates/setup`): done. Verified, resumable downloads (`download`, `Web`), pinned `embedding_model()` and `cuda_runtime()` manifests, `install_runtime`, `system_gpus` (DXGI), `speed_options` (recommendation).
 - **M4 Online-only Files**: done. `FileAvailability` adapter (`SystemFileAvailability`: Windows recall/offline attributes, never opens the file); Online-only Files are name-indexed only, and content-indexed once downloaded.
 - **M4 Live Updates**: done. `ChangeSource` trait, `Index::apply_changes`, `UsnJournal` adapter (`crates/change-usn`, no admin rights; ADR 0005); `sbm index` uses it.
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
   - M4: throttling (full-screen, battery, busy; Live Updates exempt).
   - M4 later: a background process that applies changes continuously (today `sbm index` runs on demand).
-  - M3: Tauri 2 desktop launcher.
-- Tests: `cargo test --workspace` 149 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
+  - M3: Tauri 2 app (React + TypeScript + Tailwind + shadcn/Radix): onboarding wizard first (system check, speed, model download, folders, hotkey, done), then the launcher. VoiceStudio (AGPL-3.0) is the UX reference: ideas only, no code.
+  - The app must put the CUDA runtime folder (`<cache>/runtimes/cuda13`) on `PATH` before loading the CUDA provider.
+- Tests: `cargo test --workspace` 175 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
 
 ## Workspace
 | Path | Purpose |
@@ -27,6 +30,8 @@ Snapshot for the next session or agent (2026-10-13, after commit `4692004`). Pro
 | `crates/extract` | `TextExtractor`, `PdfExtractor` (pdf-extract), `DocxExtractor` (zip + quick-xml); `extractor_for(path)`; `chunk_sections` (sliding window, overlap). |
 | `crates/index` | SQLite (rusqlite, bundled FTS5): file catalog + Name Index (`scan`, `search_names`, `Exclusion`), Content Index (`index_content`, `remove_unreferenced_content`, `rebuild_vectors`), hybrid `search` (File/Passage view, `MatchReason`, `connected`); saved Indexed Folders and Exclusions, `scan_all`, `index_jobs` queue (`run_jobs`, `pending_jobs`, `failed_files`). Paths are normalized (`C:/a`, `C:\a`, `\\?\C:\a` are one file), then stored as volume ID + relative path. `Index::with_volumes` swaps the adapter (tests use a fake). |
 | `crates/change-usn` | `UsnJournal`: the NTFS USN Journal as a `ChangeSource` (unprivileged read, paths by file ID); elsewhere always Lost. |
+| `crates/engine` | `Engine`: owns the indexes and embedder, indexes in a background thread (own SQLite connection, vector store shared through an `RwLock`), answers `search` meanwhile. |
+| `crates/setup` | First-run setup: `download` (resume, SHA-256, cancel), `Web` (ureq), model and CUDA manifests, `install_runtime`, `system_gpus`, `speed_options`. |
 | `crates/cli` | `sbm` binary and the tested `index` / `search` / `folders` / `remove_folder` / `exclude` / `accelerator_option` / `printable` functions; `main.rs` is thin, untested glue. |
 | `crates/bench` | Dev-only measurements: `embed_throughput [--accelerator <name>]`, `retrieval_benchmark`, Benchmark parser, File-view metrics, Location-miss report. |
 | `benchmark/public/` | Public Corpus `manifest.toml` (74 files: URL, sha256, license) and `queries.toml` (58 labelled Queries). |
