@@ -156,3 +156,9 @@ fn cpu_named_as_accelerator_is_tried_once() {
 
     assert_eq!(accelerators, [Accelerator::Cpu]);
 }
+
+#[test]
+fn unknown_or_missing_accelerator_name_is_an_error() {
+    assert!(accelerator_option(&args(&["index", "--accelerator", "tpu", "Documents"])).is_err());
+    assert!(accelerator_option(&args(&["index", "--accelerator"])).is_err());
+}
