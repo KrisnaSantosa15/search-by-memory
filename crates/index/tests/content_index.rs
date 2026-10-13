@@ -174,3 +174,29 @@ fn copies_are_one_result_in_file_view() {
     expected.sort();
     assert_eq!(paths, expected);
 }
+
+#[test]
+fn moved_file_reuses_existing_chunks_without_reembedding() {
+    let folder = TempDir::new().unwrap();
+    let before = write(folder.path(), "inbox/rendang.txt", "slow cooked beef in coconut milk and chili\n");
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    index.index_content(&before, &BagOfWords, &mut store).unwrap();
+    let vectors = store.len();
+
+    let after = folder.path().join("recipes/rendang.txt");
+    fs::create_dir_all(after.parent().unwrap()).unwrap();
+    fs::rename(&before, &after).unwrap();
+    let changes = index.scan(folder.path(), &[]).unwrap();
+    for added in &changes.added {
+        index.index_content(added, &Blind, &mut store).unwrap();
+    }
+    let results = index
+        .search("beef in coconut milk", &BagOfWords, &store, View::File, 20)
+        .unwrap();
+
+    assert_eq!(store.len(), vectors);
+    assert_eq!(results[0].path, after);
+    assert!(results[0].copies.is_empty());
+}
