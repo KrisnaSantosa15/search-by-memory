@@ -60,7 +60,10 @@ def download(url: str, sleep: Callable[[float], None], attempts: int = 5) -> byt
 
 def wikitext_to_text(wikitext: str) -> str:
     """Plain text of a Wikipedia article's wikitext, as a reader would save it."""
-    text = mwparserfromhell.parse(wikitext).strip_code()
+    code = mwparserfromhell.parse(wikitext)
+    for ref in code.filter_tags(matches=lambda tag: tag.tag.lower() == "ref"):
+        code.remove(ref)
+    text = code.strip_code()
     return text.strip() + "\n"
 
 
