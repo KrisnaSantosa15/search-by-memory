@@ -161,3 +161,48 @@ pub fn evaluate<S: VectorStore>(
         .collect::<Result<_>>()?;
     Ok(Scores::new(rankings))
 }
+
+/// Chunk Embeddings stored on disk by a key such as the file's content hash,
+/// so repeated Benchmark runs embed each file once.
+pub struct EmbeddingCache {
+    dir: PathBuf,
+}
+
+impl EmbeddingCache {
+    pub fn new(dir: &Path) -> Self {
+        Self {
+            dir: dir.to_path_buf(),
+        }
+    }
+
+    /// Embeddings of `chunks`, read from the cache under `key` or embedded and stored.
+    pub fn embed(
+        &self,
+        key: &str,
+        chunks: &[&str],
+        embedder: &dyn EmbeddingProvider,
+    ) -> Result<Vec<Embedding>> {
+        let dimensions = embedder.dimensions();
+        let path = self.dir.join(format!("{key}.f32"));
+        if let Ok(bytes) = std::fs::read(&path)
+            && bytes.len() == chunks.len() * dimensions * 4
+        {
+            let values: Vec<f32> = bytes
+                .chunks_exact(4)
+                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+                .collect();
+            return Ok(values
+                .chunks_exact(dimensions)
+                .map(|vector| Embedding::new(vector.to_vec()))
+                .collect());
+        }
+        let embeddings = embedder.embed_chunks(chunks)?;
+        let bytes: Vec<u8> = embeddings
+            .iter()
+            .flat_map(|embedding| embedding.as_slice().iter().flat_map(|v| v.to_le_bytes()))
+            .collect();
+        std::fs::create_dir_all(&self.dir)?;
+        std::fs::write(&path, bytes)?;
+        Ok(embeddings)
+    }
+}
