@@ -44,8 +44,20 @@
 - Sliding-window chunker: whole lines, overlap, line/page Locations kept, blank Chunks dropped.
 - Known gap: pdf-extract/lopdf return no text for the OCR layer of UU 27/2022 (pdftotext reads it).
 
+### M2 — Content Index, hybrid search, CLI (`crates/index`, `crates/cli`)
+- Chunks keyed by BLAKE3 content hash (ADR 0004); Copies and moved files reuse Chunks; edited files re-chunked; unreferenced content removed with its vectors.
+- Embeddings stored in SQLite; vector index rebuilt from them without re-embedding.
+- Hybrid search: semantic (USearch) + keyword (FTS5 over Chunks) + Name Index, merged by Reciprocal Rank Fusion (k = 60); exact filename on top; Match Reason name/content/both.
+- File view (one Result per file, Copies grouped) and Passage view (one per Content Match).
+- Embedding in batches of 8; hashing streamed.
+- `sbm index <folder>` / `sbm search [--passages]`: bad files reported and skipped; terminal control characters escaped.
+
 ## In progress
-- M2 Content Index + hybrid search (`crates/index`): content-hash Chunks, FTS5 keywords, Copies, reuse, rank fusion, views, rebuild, CLI.
+- —
+
+## Next
+- M2: volume-aware file catalog (volume ID per file).
+- M2: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only), with the M1 benchmark work.
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
