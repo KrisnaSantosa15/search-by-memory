@@ -53,6 +53,12 @@
 - `sbm index <folder>` / `sbm search [--passages]`: bad files reported and skipped; terminal control characters escaped.
 - Smoke test (Public Corpus `code/`, 15 files, real model, CPU): index 194 s, 2.0 GB peak (6.1 GB before batching); search 2.7 s cold incl. model load.
 
+### Windows port
+- Builds with MSVC: usearch's NumKong linked statically (`.cargo/config.toml`); binary fixtures exempt from CRLF (`.gitattributes`).
+- `AppDirs`: data in `%LOCALAPPDATA%\search-by-memory`, cache (models, Public Corpus) in its `cache` folder; Unix unchanged. CLI, benches, tests, and `tools/` use it.
+- Index paths normalized: `/` and `\?\` spellings are the same file.
+- Rust suite green on Windows (89 passed, 1 ignored); Python 13 passed.
+
 ## In progress
 - —
 
@@ -68,5 +74,4 @@
 
 ## Deferred until development moves to Windows (RTX 4060 8 GB)
 - GPU throughput: CUDA and DirectML execution providers.
-- Windows builds of `ort` and USearch.
 - Full-disk Initial Indexing time estimate.
