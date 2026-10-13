@@ -140,3 +140,18 @@ fn query_with_empty_target_list_is_rejected() {
 
     assert!(Benchmark::parse(source).is_err());
 }
+
+#[test]
+fn duplicate_query_ids_are_rejected() {
+    let query = r#"
+        [[query]]
+        id = "en-902"
+        text = "a remembered passage"
+        language = "en"
+
+        [[query.target]]
+        file = "papers/paper.pdf"
+        "#;
+
+    assert!(Benchmark::parse(&format!("{query}{query}")).is_err());
+}

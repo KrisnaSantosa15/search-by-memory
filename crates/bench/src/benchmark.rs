@@ -1,5 +1,6 @@
 //! Labelled Benchmark Queries and their Targets.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -55,7 +56,11 @@ impl Benchmark {
                     targets,
                 })
             })
-            .collect::<Result<_>>()?;
+            .collect::<Result<Vec<Query>>>()?;
+        let mut ids = HashSet::new();
+        if let Some(duplicate) = queries.iter().find(|query| !ids.insert(&query.id)) {
+            return Err(format!("Query id {:?} is used more than once", duplicate.id).into());
+        }
         Ok(Self { queries })
     }
 
