@@ -65,9 +65,11 @@
 - `embed_throughput --accelerator`. RTX 4060 + DirectML, fp32: 13–17 Chunks/s @256 tok, 2.5–6 @512 (CPU on this machine: 4.5–5.3 and 2.1–2.3).
 - Diagnosis: all 48 opset-20 `Gelu` nodes fall back to CPU; GPU↔CPU copies take 83% of DirectML time. Rewriting `Gelu` (tanh form) into DirectML-supported ops: 1.6–2.4× faster (Python ORT 1.23 prototype, not in repo).
 - GPU was 58–62% busy with other apps (e.g. NVIDIA Broadcast) during all measurements.
+- CUDA (`Accelerator::Cuda`): ort ships Windows binaries for CUDA 13 only; needs CUDA 13 runtime + cuDNN 9 DLLs on PATH. Passes parity and batch checks.
+- CUDA, preliminary (GPU ~65% busy with other apps): ~48 Chunks/s at both 256 and 512 tok (1M Chunks ≈ 6 h).
 
 ## In progress
-- Decide the Gelu fix (model rewrite vs CUDA) and the `sbm` default Accelerator.
+- Clean GPU benchmark (background apps closed); `sbm` default Accelerator and fallback order.
 
 ## Next
 - M2: volume-aware file catalog (volume ID per file).
@@ -80,5 +82,4 @@
 - Switch `retrieval_benchmark` from pdftotext to `PdfExtractor` and compare.
 
 ## Deferred until development moves to Windows (RTX 4060 8 GB)
-- GPU throughput: CUDA execution provider.
 - Full-disk Initial Indexing time estimate.
