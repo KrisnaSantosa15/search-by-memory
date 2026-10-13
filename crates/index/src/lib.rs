@@ -3,7 +3,7 @@
 use std::path::{Component, Path, PathBuf, Prefix};
 use std::time::UNIX_EPOCH;
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use sbm_core::{
     ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, FileAvailability, Location,
     Result, SystemFileAvailability, SystemVolumes, VectorStore, Volume, Volumes,
@@ -239,7 +239,9 @@ impl Index {
     }
 
     fn migrated(mut db: Connection) -> Result<Self> {
-        let tx = db.transaction()?;
+        // Immediate: it reads, then writes, the schema version; a deferred transaction
+        // would fail at once instead of waiting while another connection writes.
+        let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let version: i64 = tx.query_row("PRAGMA user_version", [], |row| row.get(0))?;
         if version as usize > MIGRATIONS.len() {
             return Err(format!(
