@@ -1,17 +1,19 @@
 # Handoff
 
-Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
+Snapshot for the next session or agent (2026-10-13, after commit `da3114d`). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
 
 ## State
 - **Development moved to Windows** (RTX 4060 8 GB). The workspace builds and all tests pass on Windows; Linux paths are unchanged.
 - **M1 Technical Validation**: done except deferred benchmarks: a clean GPU throughput run, and CPU int8/q4 models.
-- **M2 Name + Text Search MVP**: Name Index, extractors, chunking, Content Index, hybrid search, and the `sbm` CLI are done and smoke-tested with the real model (on Linux).
+- **M2 Name + Text Search MVP**: Name Index, extractors, chunking, Content Index, hybrid search, and the `sbm` CLI are done and smoke-tested with the real model (Linux, then Windows on CUDA). Only the end-to-end Benchmark run is left.
 - **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` tries CUDA → DirectML → CPU (`--accelerator <name>` overrides; a named GPU falls back to CPU) and prints the one in use plus why others were skipped.
-- **In progress**: clean GPU benchmark (user closes GPU-using apps first).
 - **Volume-aware file catalog**: done (volume ID + relative path; Disconnected Drives flagged).
 - **M4 indexing core**: done (saved Indexed Folders and Exclusions, `index_jobs` queue: newest first, retries, resume).
-- **Next M2 item**: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only); deferred by the user with the other benchmarks.
-- **Next M4 items**: USN Journal `ChangeSource` and Live Updates (ahead of Initial Indexing jobs), throttling, Online-only Files.
+- **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
+- **Next**: each needs its interface agreed with the user first (AGENTS.md):
+  - Small fix: `search` errors when the vector file holds a Chunk id SQLite no longer has (possible after a crash); skip such ids.
+  - M4: USN Journal `ChangeSource` and Live Updates (queued ahead of Initial Indexing jobs), throttling (full-screen, battery, busy), Online-only Files.
+  - M3: Tauri 2 desktop launcher.
 - Tests: `cargo test --workspace` 127 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
 
 ## Workspace
@@ -21,13 +23,13 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 | `crates/embed-onnx` | EmbeddingGemma 2 via ONNX Runtime (`OnnxEmbedder::load` / `load_on` / `load_first`, `skipped()`, `Accelerator::default_order`). |
 | `crates/store-usearch` | USearch `VectorStore` (`UsearchStore`: f16/i8, `save`, memory-mapped `open_view`). |
 | `crates/extract` | `TextExtractor`, `PdfExtractor` (pdf-extract), `DocxExtractor` (zip + quick-xml); `extractor_for(path)`; `chunk_sections` (sliding window, overlap). |
-| `crates/index` | SQLite (rusqlite, bundled FTS5): file catalog + Name Index (`scan`, `search_names`, `Exclusion`), Content Index (`index_content`, `remove_unreferenced_content`, `rebuild_vectors`), hybrid `search` (File/Passage view, `MatchReason`). Paths are normalized (`C:/a`, `C:\a`, `\\?\C:\a` are one file), then stored as volume ID + relative path. `Index::with_volumes` swaps the adapter (tests use a fake). |
-| `crates/cli` | `sbm` binary and the tested `index_folder` / `search` / `printable` functions. |
+| `crates/index` | SQLite (rusqlite, bundled FTS5): file catalog + Name Index (`scan`, `search_names`, `Exclusion`), Content Index (`index_content`, `remove_unreferenced_content`, `rebuild_vectors`), hybrid `search` (File/Passage view, `MatchReason`, `connected`); saved Indexed Folders and Exclusions, `scan_all`, `index_jobs` queue (`run_jobs`, `pending_jobs`, `failed_files`). Paths are normalized (`C:/a`, `C:\a`, `\\?\C:\a` are one file), then stored as volume ID + relative path. `Index::with_volumes` swaps the adapter (tests use a fake). |
+| `crates/cli` | `sbm` binary and the tested `index` / `search` / `folders` / `remove_folder` / `exclude` / `accelerator_option` / `printable` functions; `main.rs` is thin, untested glue. |
 | `crates/bench` | Dev-only measurements: `embed_throughput [--accelerator <name>]`, `retrieval_benchmark`, Benchmark parser, File-view metrics, Location-miss report. |
 | `benchmark/public/` | Public Corpus `manifest.toml` (74 files: URL, sha256, license) and `queries.toml` (58 labelled Queries). |
 | `tools/` | Python dev tooling (uv): parity fixtures, `fetch_public_corpus.py` (incl. wikitext → plain text). Never shipped. |
 
-## How search works (M2)
+## How indexing and search work
 - `scan` walks an Indexed Folder (Default Exclusions, user folder/`*` patterns), mark-and-sweep against SQLite, and reports added / changed (size or mtime) / removed files.
 - `index_content` hashes a file (BLAKE3, streamed); known content is reused (Copies, moves; ADR 0004). New content is extracted, chunked (1,000 chars, 150 overlap), embedded in batches of 8, stored in `chunks` (text + embedding BLOB) and `chunk_words` (FTS5), and added to USearch with the Chunk id as vector id.
 - `search` fuses semantic (USearch) and keyword (FTS5) Chunk lists by Reciprocal Rank Fusion (k = 60); File view groups by content hash (Copies) and fuses with Name Matches; an exact filename match goes on top.
@@ -35,7 +37,9 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - `run_jobs(embedder, store, limit)` takes the newest pending job on a connected drive, commits each file on its own, retries a failing file 3 times then marks it failed (`failed_files`). Once no runnable job is left it runs `remove_unreferenced_content`, so moved files reuse content before it is collected.
 - Schema: `MIGRATIONS` in `crates/index/src/lib.rs`, tracked by `PRAGMA user_version`; append only, never edit. A newer schema is refused.
 - Files are keyed by `(volume_id, relative_path)`; the `volumes` table keeps each volume's last root, so files on a Disconnected Drive show their last-known path with `connected: false`.
-- Not done yet: index_jobs / resume, Live Updates, throttling (M4); persisted Indexed Folders (the CLI passes them each run). Passage view intentionally omits name-only files.
+- `sbm index` saves the vector file every 100 files; on every run the vector index is rebuilt from SQLite, so a crash between the two loses nothing.
+- Tests for this live in `crates/index/tests/{indexing,volumes}.rs`; shared fakes (`BagOfWords` counting embedder, `FakeVolumes`) in `tests/common/mod.rs`.
+- Not done yet: Live Updates / `ChangeSource`, throttling (M4); the dashboard counts exist (`pending_jobs`, `failed_files`) but nothing shows them except `sbm index`. Passage view intentionally omits name-only files.
 
 ## Directories (`AppDirs`)
 | | Windows | Linux |
@@ -49,7 +53,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - Rust 1.99 (rustup, MSVC) with VS Build Tools: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - CUDA runtime DLLs: `export PATH="$(cygpath -u "$LOCALAPPDATA")/nvidia-cuda13/bin:$PATH"`. Use `cygpath`: a raw `C:\...` entry breaks at the colon. Without it, CUDA silently falls back to CPU and the CUDA tests fail.
 - Tests: `cargo test --workspace`; Python: `cd tools && uv run pytest`.
-- CLI: `cargo build --release -p sbm-cli`, then `target/release/sbm index [<folder>...]` (remembers folders, rescans all, resumes) and `target/release/sbm search [--passages] <query>...`, each with optional `--accelerator <name>`; also `sbm folders`, `sbm remove <folder>`, `sbm exclude <folder> | --name <pattern>`. 256 dims, f16 vectors. Smoke-tested on Windows (CUDA); indexed folders print as `\?\D:\…` (canonicalize), cosmetic.
+- CLI: `cargo build --release -p sbm-cli`, then `target/release/sbm index [<folder>...]` (remembers folders, rescans all, resumes) and `target/release/sbm search [--passages] <query>...`, each with optional `--accelerator <name>`; also `sbm folders`, `sbm remove <folder>`, `sbm exclude <folder> | --name <pattern>`. 256 dims, f16 vectors. Smoke-tested on Windows (CUDA), including kill -9 mid-run and resume.
 - Throughput: `target/release/embed_throughput --accelerator cpu|cuda|directml` (not while tests run; close GPU-using apps).
 - Retrieval Benchmark: `cargo run --release -p sbm-bench --bin retrieval_benchmark` (still uses pdftotext, which is not installed on Windows yet; a fresh run takes 40+ min on CPU).
 - Public Corpus: `cd tools && uv run fetch_public_corpus.py` (not yet fetched on Windows).
@@ -84,6 +88,8 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - Public Corpus labels: many arXiv Targets are page 1 (easy); UU 36/2009 and UU 13/2003 are superseded texts; licenses to spot-check: Tom Lehrer recordings (PD claim), arXiv CC BY (verified on abs pages only).
 - Wikipedia files are fetched at a pinned revid as wikitext and converted with mwparserfromhell; changing the converter changes `sha256`: recompute and relabel affected line Targets.
 - UNC (`\\server\share`) paths are not normalized; only drive-letter verbatim paths are. Network shares have no volume GUID: their root is their ID (untested; no share on this machine).
+- `sbm index` prints only added/changed/removed counts; work resumed from an interrupted run is not reported.
+- A corrupt PDF that panics pdf-extract prints the panic message once per try (3 times).
 - Unix `SystemVolumes` (mount point by device ID) compiles only on Unix and has not been run since the Windows move; an empty mount folder left behind by an unmounted drive counts as connected.
 
 ## Environment gotchas
@@ -94,6 +100,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - New dependencies are pinned (`=x.y.z`) to releases at least two weeks old (applies to downloaded runtimes too).
 - `gh` points to a different host; use `git ls-remote` for GitHub SHAs. Plain `curl` is blocked by a hook; use Python `urllib`.
 - Untracked `tools/**/__pycache__/*.pyc` files appear after pytest; do not commit them.
+- Multi-line Python heredocs (`python - <<'EOF'`) sometimes fail to parse in the Bash tool; write the script to the scratchpad and run it instead.
 
 ## Open questions for the user
 1. Shipping CUDA: bundle the ~1.4 GB runtime DLLs, download on first run, or require a user install.
