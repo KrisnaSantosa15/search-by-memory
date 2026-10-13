@@ -87,3 +87,47 @@ fn installed_runtime_is_not_downloaded_again() {
     assert_eq!(finished, Finished::Complete);
     assert!(http.requests.lock().unwrap().is_empty());
 }
+
+#[test]
+fn cuda_runtime_is_downloaded_from_nvidia_over_https() {
+    let archives = sbm_setup::cuda_runtime();
+
+    assert!(!archives.is_empty());
+    for archive in archives {
+        assert!(
+            archive
+                .url
+                .starts_with("https://developer.download.nvidia.com/compute/"),
+            "{}",
+            archive.url
+        );
+        assert!(archive.url.ends_with(&archive.path), "{}", archive.url);
+    }
+}
+
+/// The archives the CUDA runtime on this development machine was installed
+/// from, kept in `%LOCALAPPDATA%\nvidia-cuda13\zips`; the test is skipped without them.
+#[test]
+fn cuda_runtime_manifest_matches_the_archives_that_passed_the_parity_gate() {
+    let Some(zips) = std::env::var_os("LOCALAPPDATA")
+        .map(|local| std::path::PathBuf::from(local).join("nvidia-cuda13/zips"))
+        .filter(|zips| zips.exists())
+    else {
+        eprintln!("SKIPPED: CUDA runtime archives not found");
+        return;
+    };
+
+    for archive in sbm_setup::cuda_runtime() {
+        let path = zips.join(&archive.path);
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().len(),
+            archive.size,
+            "{}",
+            archive.path
+        );
+        if archive.size < 50 * 1024 * 1024 {
+            let content = std::fs::read(&path).unwrap();
+            assert_eq!(common::sha256(&content), archive.sha256, "{}", archive.path);
+        }
+    }
+}

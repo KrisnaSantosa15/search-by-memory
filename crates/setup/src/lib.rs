@@ -248,6 +248,49 @@ fn sha256_of(path: &Path) -> Result<String> {
         .collect())
 }
 
+/// Where the CUDA runtime lives, relative to the cache directory (`AppDirs`).
+pub const CUDA_RUNTIME_DIR: &str = "runtimes/cuda13";
+
+/// The NVIDIA archives holding the CUDA 13 and cuDNN 9 DLLs that ONNX Runtime's
+/// CUDA provider loads (about 1.9 GB to download, 1.4 GB unpacked).
+pub fn cuda_runtime() -> Vec<RemoteFile> {
+    // From NVIDIA's redistrib_13.4.3.json (CUDA) and redistrib_9.27.0.json (cuDNN).
+    [
+        (
+            "cuda/redist/cuda_cudart/windows-x86_64",
+            "cuda_cudart-windows-x86_64-13.4.92-archive.zip",
+            2_737_397,
+            "621a70c4778287b1abf8c27c61b841d797fda2aeff01033374dd19624bcfa249",
+        ),
+        (
+            "cuda/redist/libcublas/windows-x86_64",
+            "libcublas-windows-x86_64-13.8.0.4-archive.zip",
+            422_415_931,
+            "0974318e9861a61cb9091cf7de8d4c2880e9787fe311cb4bcbd08865663c5f43",
+        ),
+        (
+            "cuda/redist/libcufft/windows-x86_64",
+            "libcufft-windows-x86_64-12.4.0.43-archive.zip",
+            159_602_693,
+            "69d0ad8dc3a1be66f01a748a8206d0ceaafa56939474663fbe790dc3e91d2009",
+        ),
+        (
+            "cudnn/redist/cudnn/windows-x86_64",
+            "cudnn-windows-x86_64-9.27.0.42_cuda13-archive.zip",
+            1_330_803_635,
+            "15595c7b52896262a0e590f02b3b3851c6a2c9046a72047526deaf59a9cbf7d5",
+        ),
+    ]
+    .into_iter()
+    .map(|(folder, name, size, sha256)| RemoteFile {
+        url: format!("https://developer.download.nvidia.com/compute/{folder}/{name}"),
+        path: name.to_string(),
+        size,
+        sha256: sha256.to_string(),
+    })
+    .collect()
+}
+
 /// Installs a GPU runtime into `dir`: downloads the zip `archives` and unpacks
 /// the DLLs in their `bin` folders.
 pub fn install_runtime(
