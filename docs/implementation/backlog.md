@@ -59,8 +59,15 @@
 - Index paths normalized: `C:/…` and `\\?\C:\…` spellings are the same file.
 - Rust suite green on Windows (89 passed, 1 ignored); Python 13 passed.
 
+### GPU embedding (`crates/embed-onnx`, `crates/bench`)
+- `Accelerator` (`cpu`, `directml`, `directml:<n>`) and `OnnxEmbedder::load_on`; CPU fallback when the GPU cannot be used.
+- DirectML passes the PyTorch parity gate (cosine ≥ 0.99) and batch-vs-single check.
+- `embed_throughput --accelerator`. RTX 4060 + DirectML, fp32: 13–17 Chunks/s @256 tok, 2.5–6 @512 (CPU on this machine: 4.5–5.3 and 2.1–2.3).
+- Diagnosis: all 48 opset-20 `Gelu` nodes fall back to CPU; GPU↔CPU copies take 83% of DirectML time. Rewriting `Gelu` (tanh form) into DirectML-supported ops: 1.6–2.4× faster (Python ORT 1.23 prototype, not in repo).
+- GPU was 58–62% busy with other apps (e.g. NVIDIA Broadcast) during all measurements.
+
 ## In progress
-- —
+- Decide the Gelu fix (model rewrite vs CUDA) and the `sbm` default Accelerator.
 
 ## Next
 - M2: volume-aware file catalog (volume ID per file).
@@ -73,5 +80,5 @@
 - Switch `retrieval_benchmark` from pdftotext to `PdfExtractor` and compare.
 
 ## Deferred until development moves to Windows (RTX 4060 8 GB)
-- GPU throughput: CUDA and DirectML execution providers.
+- GPU throughput: CUDA execution provider.
 - Full-disk Initial Indexing time estimate.
