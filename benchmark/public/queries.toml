@@ -1,0 +1,359 @@
+# Benchmark Queries labelled against the Public Corpus (see CONTEXT.md: Target, Location).
+# Target Location: page (PDF), lines = [start, end] (text/code), time = [start, end] (audio/video), none = whole file.
+
+# --- en ---
+
+[[query]]
+id = "en-001"
+text = "a transformer change where each layer looks back over many earlier layers with several attention heads, each reading through a different short local window"
+language = "en"
+
+[[query.target]]
+file = "papers/msar-residuals.pdf"
+page = 1
+
+[[query]]
+id = "en-002"
+text = "a way to stop a language model from inventing made-up words when it suggests extra search terms, by checking which suggestions keep coming back under shuffled prompts"
+language = "en"
+
+[[query.target]]
+file = "papers/safe-qe-query-expansion.pdf"
+page = 1
+
+[[query]]
+id = "en-003"
+text = "a paper about a greenhouse gas leak from factories that make nylon precursors in China, with satellites checking whether the cleanup equipment is really running"
+language = "en"
+
+[[query.target]]
+file = "papers/n2o-adipic-acid.pdf"
+page = 1
+
+[[query]]
+id = "en-004"
+text = "could microbes living on fermentation byproducts explain the hydrogen and methane plumes from an icy moon of Saturn when there is little water-rock chemistry"
+language = "en"
+
+[[query.target]]
+file = "papers/enceladus-fermentation.pdf"
+page = 1
+
+[[query]]
+id = "en-005"
+text = "why shoppers budget a fixed amount of money per category, and why that habit leaves a seller with no reason to limit how much it sells"
+language = "en"
+
+[[query.target]]
+file = "papers/mental-accounting.pdf"
+page = 1
+
+[[query]]
+id = "en-006"
+text = "a story about a woman kept in a nursery room who becomes fixated on a wallpaper pattern and imagines someone creeping behind it"
+language = "en"
+
+[[query.target]]
+file = "books/yellow-wallpaper.txt"
+lines = [442, 446]
+
+[[query]]
+id = "en-007"
+text = "a ghost of a rider with no head haunting a valley, said to be a soldier whose head was taken by a cannonball in an old war"
+language = "en"
+
+[[query.target]]
+file = "books/sleepy-hollow.txt"
+lines = [97, 101]
+
+[[query]]
+id = "en-008"
+text = "a salesman who wakes up one morning and finds himself turned into a huge bug in bed"
+language = "en"
+
+[[query.target]]
+file = "books/metamorphosis.txt"
+lines = [39, 40]
+
+[[query]]
+id = "en-009"
+text = "a Python helper that calculates how long to wait before retrying a failed connection, doubling the pause after each consecutive error with optional random jitter and an upper cap"
+language = "en"
+
+[[query.target]]
+file = "code/urllib3/retry.py"
+lines = [323, 340]
+
+[[query]]
+id = "en-010"
+text = "the part of a requests library session that decides whether to drop the auth header when a redirect sends the call to a different host or scheme"
+language = "en"
+
+[[query.target]]
+file = "code/requests/sessions.py"
+lines = [154, 184]
+
+[[query]]
+id = "en-011"
+text = "Rust error type method that wraps a failure with a human-readable message and keeps the original cause nested beneath it"
+language = "en"
+
+[[query.target]]
+file = "code/anyhow/error.rs"
+lines = [301, 308]
+
+[[query]]
+id = "id-101"
+text = "cerita tentang seorang perempuan yang dikurung di kamar bekas kamar anak, terobsesi pada motif kertas dinding yang seolah ada orang merangkak di baliknya"
+language = "id"
+
+[[query.target]]
+file = "books/yellow-wallpaper.txt"
+lines = [442, 446]
+
+[[query]]
+id = "id-102"
+text = "makalah tentang cara mencegah model bahasa mengarang kata-kata palsu saat mengusulkan istilah tambahan untuk pencarian, dengan memeriksa istilah yang terus muncul di konteks acak"
+language = "id"
+
+[[query.target]]
+file = "papers/safe-qe-query-expansion.pdf"
+page = 1
+
+[[query]]
+id = "id-103"
+text = "kode Python untuk menghitung jeda tunggu sebelum mencoba ulang koneksi yang gagal, jedanya dilipatgandakan setiap kegagalan berturut-turut dengan jitter acak opsional"
+language = "id"
+
+[[query.target]]
+file = "code/urllib3/retry.py"
+lines = [323, 340]
+
+# --- id ---
+[[query]]
+id = "id-001"
+text = "aturan denda buat perusahaan kalau bocorin data pribadi pelanggan"
+language = "id"
+
+[[query.target]]
+file = "id/regulasi/pelindungan-data-pribadi-27-2022.pdf"
+page = 31
+
+[[query]]
+id = "id-002"
+text = "kalau sistem ketahuan dibobol dan data orang ikut bocor, pengelola data harus kasih tahu dalam berapa lama"
+language = "id"
+
+[[query.target]]
+file = "id/regulasi/pelindungan-data-pribadi-27-2022.pdf"
+page = 19
+
+[[query]]
+id = "id-003"
+text = "sekolah sampai SMP itu kewajiban negara, diatur di undang-undang pendidikan yang mana ya"
+language = "id"
+
+[[query.target]]
+file = "id/regulasi/sisdiknas-20-2003.pdf"
+page = 7
+
+[[query]]
+id = "id-004"
+text = "pegawai yang kena putus kontrak kerja berhak dapat uang pesangon berapa kali gaji"
+language = "id"
+
+[[query.target]]
+file = "id/regulasi/ketenagakerjaan-13-2003.pdf"
+page = 25
+
+[[query]]
+id = "id-005"
+text = "aturan kerja berapa jam sehari dan seminggu sebelum kena lembur"
+language = "id"
+
+[[query.target]]
+file = "id/regulasi/ketenagakerjaan-13-2003.pdf"
+page = 13
+
+[[query]]
+id = "id-006"
+text = "mau bawa motor atau mobil di jalan raya harus punya kartu atau surat apa dulu"
+language = "id"
+
+[[query.target]]
+file = "id/regulasi/lalu-lintas-22-2009.pdf"
+page = 42
+
+[[query]]
+id = "id-007"
+text = "bungkus rokok wajib dikasih tulisan atau gambar peringatan soal kesehatan"
+language = "id"
+
+[[query.target]]
+file = "id/regulasi/kesehatan-36-2009.pdf"
+page = 43
+
+[[query]]
+id = "id-008"
+text = "masakan Minang yang diaduk lama di atas api sampai santannya mengering"
+language = "id"
+
+[[query.target]]
+file = "id/wiki/Rendang.txt"
+lines = [75, 76]
+
+[[query]]
+id = "id-009"
+text = "janji anak muda zaman dulu buat bersatu, nggak peduli dari daerah mana asalnya"
+language = "id"
+
+[[query.target]]
+file = "id/wiki/Sumpah_Pemuda.txt"
+lines = [28, 33]
+
+[[query]]
+id = "en-101"
+text = "penalty for a driver whose carelessness on the road causes someone else to die in Indonesia"
+language = "en"
+
+[[query.target]]
+file = "id/regulasi/lalu-lintas-22-2009.pdf"
+page = 138
+
+[[query]]
+id = "en-102"
+text = "traditional Javanese cloth where hot wax blocks the dye to make patterns"
+language = "en"
+
+[[query.target]]
+file = "id/wiki/Batik.txt"
+lines = [78, 78]
+
+# --- media ---
+
+[[query]]
+id = "en-201"
+text = "photo of a huge stone temple with bell-shaped stupas"
+language = "en"
+
+[[query.target]]
+file = "media/images/borobudur.jpg"
+
+[[query]]
+id = "en-202"
+text = "giant lizard with a forked tongue sticking out over the dirt"
+language = "en"
+
+[[query.target]]
+file = "media/images/komodo-dragon.jpg"
+
+[[query]]
+id = "en-203"
+text = "aerial shot of women selling vegetables from wooden boats crowded on a brown river"
+language = "en"
+
+[[query.target]]
+file = "media/images/floating-market.jpg"
+
+[[query]]
+id = "en-204"
+text = "airplane tray with a foil-covered meal, a wine bottle and a KLM napkin"
+language = "en"
+
+[[query.target]]
+file = "media/images/rendang-klm.jpg"
+
+[[query]]
+id = "en-205"
+text = "the black chart with blue bars turning red, temperature change in Indonesia"
+language = "en"
+
+[[query.target]]
+file = "media/images/temperature-chart.png"
+
+[[query]]
+id = "en-206"
+text = "a blue sign with a cross above a black shape, next to a board reading Bahasa Indonesia"
+language = "en"
+
+[[query.target]]
+file = "media/images/church-sign.jpg"
+
+[[query]]
+id = "en-207"
+text = "clip where a woman plays a flute on the space station while two crewmates stand beside her"
+language = "en"
+
+[[query.target]]
+file = "media/video/flute-space-station.webm"
+time = ["01:40", "02:40"]
+
+[[query]]
+id = "en-208"
+text = "the astronaut who names the flute players from the Chieftains and Jethro Tull she brought to space"
+language = "en"
+
+[[query.target]]
+file = "media/video/flute-space-station.webm"
+time = ["00:22", "00:33"]
+
+[[query]]
+id = "en-209"
+text = "bald astronaut in a dark shirt pedaling an exercise bike inside the space station"
+language = "en"
+
+[[query.target]]
+file = "media/video/working-out-space-station.webm"
+time = ["03:00", "03:50"]
+
+[[query]]
+id = "en-210"
+text = "old song where a man says the secret of success in mathematics is to plagiarize"
+language = "en"
+
+[[query.target]]
+file = "media/audio/lehrer-lobachevsky.mp3"
+time = ["00:30", "00:40"]
+
+[[query]]
+id = "en-211"
+text = "piano song that rattles off chemical element names like holmium and helium"
+language = "en"
+
+[[query.target]]
+file = "media/audio/lehrer-the-elements.mp3"
+time = ["00:43", "00:51"]
+
+[[query]]
+id = "id-201"
+text = "foto kemacetan malam hari di Jakarta, deretan mobil dan motor dengan lampu rem merah"
+language = "id"
+
+[[query.target]]
+file = "media/images/jakarta-traffic.jpg"
+
+[[query]]
+id = "id-202"
+text = "peta Indonesia dengan pulau-pulau dan pegunungan berwarna hijau dan cokelat"
+language = "id"
+
+[[query.target]]
+file = "media/images/indonesia-map.jpg"
+
+[[query]]
+id = "id-203"
+text = "wanita Indonesia yang bercerita bahwa Jakarta penuh mobil dan gedung pencakar langit"
+language = "id"
+
+[[query.target]]
+file = "media/video/wikitongues-nila-indonesian.webm"
+time = ["00:26", "00:38"]
+
+[[query]]
+id = "id-204"
+text = "pembicara yang menjelaskan komunitas Wikimedia Indonesia dan komunitas Jakarta"
+language = "id"
+
+[[query.target]]
+file = "media/audio/wp345-wikimedia-futures-lab.mp3"
+time = ["01:04", "01:21"]
