@@ -1,6 +1,6 @@
 # Handoff
 
-Snapshot for the next session or agent (2026-10-13, after commit `da3114d`). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
+Snapshot for the next session or agent (2026-10-13, after commit `2078705`). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
 
 ## State
 - **Development moved to Windows** (RTX 4060 8 GB). The workspace builds and all tests pass on Windows; Linux paths are unchanged.
@@ -9,11 +9,13 @@ Snapshot for the next session or agent (2026-10-13, after commit `da3114d`). Pro
 - **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` tries CUDA → DirectML → CPU (`--accelerator <name>` overrides; a named GPU falls back to CPU) and prints the one in use plus why others were skipped.
 - **Volume-aware file catalog**: done (volume ID + relative path; Disconnected Drives flagged).
 - **M4 indexing core**: done (saved Indexed Folders and Exclusions, `index_jobs` queue: newest first, retries, resume).
+- **M4 Live Updates**: done. `ChangeSource` trait, `Index::apply_changes`, `UsnJournal` adapter (`crates/change-usn`, no admin rights; ADR 0005); `sbm index` uses it.
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
-  - M4: USN Journal `ChangeSource` and Live Updates (queued ahead of Initial Indexing jobs), throttling (full-screen, battery, busy), Online-only Files.
+  - M4: throttling (full-screen, battery, busy; Live Updates exempt), Online-only Files.
+  - M4 later: a background process that applies changes continuously (today `sbm index` runs on demand).
   - M3: Tauri 2 desktop launcher.
-- Tests: `cargo test --workspace` 128 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
+- Tests: `cargo test --workspace` 144 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
 
 ## Workspace
 | Path | Purpose |
@@ -23,6 +25,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `da3114d`). Pro
 | `crates/store-usearch` | USearch `VectorStore` (`UsearchStore`: f16/i8, `save`, memory-mapped `open_view`). |
 | `crates/extract` | `TextExtractor`, `PdfExtractor` (pdf-extract), `DocxExtractor` (zip + quick-xml); `extractor_for(path)`; `chunk_sections` (sliding window, overlap). |
 | `crates/index` | SQLite (rusqlite, bundled FTS5): file catalog + Name Index (`scan`, `search_names`, `Exclusion`), Content Index (`index_content`, `remove_unreferenced_content`, `rebuild_vectors`), hybrid `search` (File/Passage view, `MatchReason`, `connected`); saved Indexed Folders and Exclusions, `scan_all`, `index_jobs` queue (`run_jobs`, `pending_jobs`, `failed_files`). Paths are normalized (`C:/a`, `C:\a`, `\\?\C:\a` are one file), then stored as volume ID + relative path. `Index::with_volumes` swaps the adapter (tests use a fake). |
+| `crates/change-usn` | `UsnJournal`: the NTFS USN Journal as a `ChangeSource` (unprivileged read, paths by file ID); elsewhere always Lost. |
 | `crates/cli` | `sbm` binary and the tested `index` / `search` / `folders` / `remove_folder` / `exclude` / `accelerator_option` / `printable` functions; `main.rs` is thin, untested glue. |
 | `crates/bench` | Dev-only measurements: `embed_throughput [--accelerator <name>]`, `retrieval_benchmark`, Benchmark parser, File-view metrics, Location-miss report. |
 | `benchmark/public/` | Public Corpus `manifest.toml` (74 files: URL, sha256, license) and `queries.toml` (58 labelled Queries). |
@@ -38,7 +41,8 @@ Snapshot for the next session or agent (2026-10-13, after commit `da3114d`). Pro
 - Files are keyed by `(volume_id, relative_path)`; the `volumes` table keeps each volume's last root, so files on a Disconnected Drive show their last-known path with `connected: false`.
 - `sbm index` saves the vector file every 100 files; on every run the vector index is rebuilt from SQLite, so a crash between the two loses nothing.
 - Tests for this live in `crates/index/tests/{indexing,volumes}.rs`; shared fakes (`BagOfWords` counting embedder, `FakeVolumes`) in `tests/common/mod.rs`.
-- Not done yet: Live Updates / `ChangeSource`, throttling (M4); the dashboard counts exist (`pending_jobs`, `failed_files`) but nothing shows them except `sbm index`. Passage view intentionally omits name-only files.
+- `apply_changes(source)` asks the `ChangeSource` for each connected volume's changes since its saved cursor. Reported paths inside Indexed Folders (minus Exclusions) are re-checked like a scan and queued as Live Updates (`index_jobs.live`, run before other jobs); a Lost history rescans that volume's Indexed Folders. Changes and the new cursor commit in one transaction. Adding an Indexed Folder or Exclusion deletes the affected cursors. Tests: `crates/index/tests/live_updates.rs` (`FakeChangeSource`), `crates/change-usn/tests/usn_journal.rs` (real journal on the temp folder).
+- Not done yet: throttling (M4); the dashboard counts exist (`pending_jobs`, `failed_files`) but nothing shows them except `sbm index`. Passage view intentionally omits name-only files.
 
 ## Directories (`AppDirs`)
 | | Windows | Linux |
@@ -52,7 +56,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `da3114d`). Pro
 - Rust 1.99 (rustup, MSVC) with VS Build Tools: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - CUDA runtime DLLs: `export PATH="$(cygpath -u "$LOCALAPPDATA")/nvidia-cuda13/bin:$PATH"`. Use `cygpath`: a raw `C:\...` entry breaks at the colon. Without it, CUDA silently falls back to CPU and the CUDA tests fail.
 - Tests: `cargo test --workspace`; Python: `cd tools && uv run pytest`.
-- CLI: `cargo build --release -p sbm-cli`, then `target/release/sbm index [<folder>...]` (remembers folders, rescans all, resumes) and `target/release/sbm search [--passages] <query>...`, each with optional `--accelerator <name>`; also `sbm folders`, `sbm remove <folder>`, `sbm exclude <folder> | --name <pattern>`. 256 dims, f16 vectors. Smoke-tested on Windows (CUDA), including kill -9 mid-run and resume.
+- CLI: `cargo build --release -p sbm-cli`, then `target/release/sbm index [<folder>...]` (remembers folders, applies USN Journal changes since the last run, resumes) and `target/release/sbm search [--passages] <query>...`, each with optional `--accelerator <name>`; also `sbm folders`, `sbm remove <folder>`, `sbm exclude <folder> | --name <pattern>`. 256 dims, f16 vectors. Smoke-tested on Windows (CUDA), including kill -9 mid-run and resume.
 - Throughput: `target/release/embed_throughput --accelerator cpu|cuda|directml` (not while tests run; close GPU-using apps).
 - Retrieval Benchmark: `cargo run --release -p sbm-bench --bin retrieval_benchmark` (still uses pdftotext, which is not installed on Windows yet; a fresh run takes 40+ min on CPU).
 - Public Corpus: `cd tools && uv run fetch_public_corpus.py` (not yet fetched on Windows).
@@ -86,7 +90,9 @@ Snapshot for the next session or agent (2026-10-13, after commit `da3114d`). Pro
 - Text and DOCX extraction stop at 50 MB decompressed; PDFs have no size cap yet.
 - Public Corpus labels: many arXiv Targets are page 1 (easy); UU 36/2009 and UU 13/2003 are superseded texts; licenses to spot-check: Tom Lehrer recordings (PD claim), arXiv CC BY (verified on abs pages only).
 - Wikipedia files are fetched at a pinned revid as wikitext and converted with mwparserfromhell; changing the converter changes `sha256`: recompute and relabel affected line Targets.
-- UNC (`\\server\share`) paths are not normalized; only drive-letter verbatim paths are. Network shares have no volume GUID: their root is their ID (untested; no share on this machine).
+- USN adapter: a delete or rename re-checks its whole parent folder (metadata walk only). Paths come back in the file system's true case, so an Indexed Folder saved in another case would not match them (`sbm` canonicalizes folders; only hand-made paths are affected). If the journal wraps during a read, `ERROR_JOURNAL_ENTRY_DELETED` surfaces as an error, and the next run reports Lost.
+- Volumes without a journal (FAT/exFAT USB, network shares) rescan on every `sbm index`.
+- UNC (`\\server\share`) paths are not normalized; only drive-letter verbatim paths are. Network shares have no volume GUID: their root is their ID. The loopback share `\\localhost\C$\` is reachable on this machine and stands in for a share in the `change-usn` tests.
 - `sbm index` prints only added/changed/removed counts; work resumed from an interrupted run is not reported.
 - A corrupt PDF that panics pdf-extract prints the panic message once per try (3 times).
 - Unix `SystemVolumes` (mount point by device ID) compiles only on Unix and has not been run since the Windows move; an empty mount folder left behind by an unmounted drive counts as connected.
