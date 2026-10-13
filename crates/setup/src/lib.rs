@@ -7,6 +7,7 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
 use sbm_core::Result;
+use sha2::{Digest, Sha256};
 
 /// A file to download.
 #[derive(Debug, Clone, PartialEq)]
@@ -67,7 +68,30 @@ pub fn download(
             progress(current);
         }
         drop(out);
+        if sha256_of(&part)? != file.sha256 {
+            std::fs::remove_file(&part)?;
+            return Err(
+                format!("{} arrived damaged and will be downloaded again", file.path).into(),
+            );
+        }
         std::fs::rename(&part, &path)?;
     }
     Ok(())
+}
+
+/// Lowercase hex SHA-256 of the file at `path`, read in pieces.
+fn sha256_of(path: &Path) -> Result<String> {
+    let (mut hasher, mut file) = (Sha256::new(), File::open(path)?);
+    let mut buffer = vec![0; 64 * 1024];
+    loop {
+        match file.read(&mut buffer)? {
+            0 => break,
+            read => hasher.update(&buffer[..read]),
+        }
+    }
+    Ok(hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect())
 }

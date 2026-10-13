@@ -67,3 +67,24 @@ fn interrupted_download_resumes_where_it_stopped() {
     let requests = http.requests.lock().unwrap();
     assert_eq!(requests.last().unwrap().1, 4000);
 }
+
+#[test]
+fn corrupt_download_is_rejected_and_started_over_next_time() {
+    let dir = TempDir::new().unwrap();
+    let http = FakeHttp::default();
+    let mut file = http.serve("https://example.test/model.onnx", "model.onnx", b"tampered");
+    file.sha256 = common::sha256(b"original");
+
+    let error = download(
+        &[file],
+        dir.path(),
+        &http,
+        &AtomicBool::new(false),
+        &mut |_| {},
+    )
+    .unwrap_err();
+
+    assert!(error.to_string().contains("model.onnx"), "{error}");
+    let left: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
+    assert!(left.is_empty(), "{left:?}");
+}
