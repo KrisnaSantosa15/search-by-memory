@@ -380,6 +380,16 @@ impl Index {
         Ok(done)
     }
 
+    /// Files whose content is still to be indexed.
+    pub fn pending_jobs(&self) -> Result<usize> {
+        let count: i64 = self.db.query_row(
+            "SELECT count(*) FROM index_jobs WHERE status = 'pending'",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(count as usize)
+    }
+
     /// Adds the content of a file in the Name Index to the Content Index:
     /// its Chunks, their Embeddings in SQLite, and their vectors in `store`.
     pub fn index_content(

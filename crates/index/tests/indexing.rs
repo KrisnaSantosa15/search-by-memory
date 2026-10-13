@@ -111,3 +111,23 @@ fn interrupted_indexing_resumes_without_embedding_finished_files_again() {
         .unwrap();
     assert_eq!(results.len(), 2);
 }
+
+#[test]
+fn rescan_queues_only_files_that_changed() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "kept.txt", "unchanged notes\n");
+    let edited = write(folder.path(), "edited.txt", "first draft\n");
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    let mut store = store();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+    assert_eq!(index.pending_jobs().unwrap(), 2);
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+
+    std::fs::write(&edited, "second draft, much longer than the first\n").unwrap();
+    index.scan_all().unwrap();
+
+    assert_eq!(index.pending_jobs().unwrap(), 1);
+}
