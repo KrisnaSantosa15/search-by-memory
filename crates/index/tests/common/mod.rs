@@ -2,11 +2,13 @@
 
 #![allow(dead_code)]
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
-use sbm_core::{Embedding, EmbeddingProvider, Result};
+use sbm_core::{Embedding, EmbeddingProvider, Result, Volume, Volumes};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 pub const DIMENSIONS: usize = 64;
@@ -62,4 +64,42 @@ pub fn write(root: &Path, relative: &str, content: &str) -> PathBuf {
 
 pub fn store() -> UsearchStore {
     UsearchStore::new(DIMENSIONS, Precision::F16).unwrap()
+}
+
+/// Stands in for the operating system's volume table: tests mount, move,
+/// and disconnect volumes by ID.
+#[derive(Clone, Default)]
+pub struct FakeVolumes(Arc<Mutex<HashMap<String, PathBuf>>>);
+
+impl FakeVolumes {
+    pub fn mount(&self, id: &str, root: &Path) {
+        self.0
+            .lock()
+            .unwrap()
+            .insert(id.to_string(), root.to_path_buf());
+    }
+
+    pub fn disconnect(&self, id: &str) {
+        self.0.lock().unwrap().remove(id);
+    }
+}
+
+impl Volumes for FakeVolumes {
+    fn volume_of(&self, path: &Path) -> Result<Volume> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, root)| path.starts_with(root))
+            .max_by_key(|(_, root)| root.components().count())
+            .map(|(id, root)| Volume {
+                id: id.clone(),
+                root: root.clone(),
+            })
+            .ok_or_else(|| format!("no volume holds {}", path.display()).into())
+    }
+
+    fn mount_point(&self, id: &str) -> Option<PathBuf> {
+        self.0.lock().unwrap().get(id).cloned()
+    }
 }

@@ -1,53 +1,16 @@
 //! The file catalog identifies files by volume ID plus a path relative to the
 //! volume, so a drive that returns under another letter keeps its files.
 
-use std::collections::HashMap;
+mod common;
+
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
-use sbm_core::{Embedding, EmbeddingProvider, Result, Volume, Volumes};
+use common::FakeVolumes;
+use sbm_core::{Embedding, EmbeddingProvider, Result};
 use sbm_index::{Index, ScanChanges, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 use tempfile::TempDir;
-
-/// Stands in for the operating system's volume table: tests mount, move,
-/// and disconnect volumes by ID.
-#[derive(Clone, Default)]
-struct FakeVolumes(Arc<Mutex<HashMap<String, PathBuf>>>);
-
-impl FakeVolumes {
-    fn mount(&self, id: &str, root: &Path) {
-        self.0
-            .lock()
-            .unwrap()
-            .insert(id.to_string(), root.to_path_buf());
-    }
-
-    fn disconnect(&self, id: &str) {
-        self.0.lock().unwrap().remove(id);
-    }
-}
-
-impl Volumes for FakeVolumes {
-    fn volume_of(&self, path: &Path) -> Result<Volume> {
-        self.0
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|(_, root)| path.starts_with(root))
-            .max_by_key(|(_, root)| root.components().count())
-            .map(|(id, root)| Volume {
-                id: id.clone(),
-                root: root.clone(),
-            })
-            .ok_or_else(|| format!("no volume holds {}", path.display()).into())
-    }
-
-    fn mount_point(&self, id: &str) -> Option<PathBuf> {
-        self.0.lock().unwrap().get(id).cloned()
-    }
-}
 
 /// Stands in for the embedding model; every text gets the same Embedding.
 struct SameEmbedding;
