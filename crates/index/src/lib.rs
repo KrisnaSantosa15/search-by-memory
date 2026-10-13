@@ -279,8 +279,12 @@ impl Index {
             )?;
         }
         let gone: Vec<(i64, String)> = tx
-            .prepare("SELECT id, relative_path FROM files WHERE seen_in_scan != ?1")?
-            .query_map(params![scan], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .prepare(
+                "SELECT id, relative_path FROM files WHERE seen_in_scan != ?1 AND volume_id = ?2",
+            )?
+            .query_map(params![scan, volume.id], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })?
             .collect::<rusqlite::Result<_>>()?;
         for (id, path) in gone {
             if is_beneath(&path, &folder_path) {

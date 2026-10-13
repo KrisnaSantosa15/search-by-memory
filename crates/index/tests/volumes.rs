@@ -176,3 +176,22 @@ fn content_match_on_a_disconnected_drive_is_flagged_as_not_connected() {
     assert_eq!(results[0].path, e_drive.path().join("letters/tax.txt"));
     assert!(!results[0].connected);
 }
+
+#[test]
+fn scanning_one_drive_keeps_the_files_of_another() {
+    let (c_drive, e_drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    touch(c_drive.path(), "notes/diary.txt");
+    touch(e_drive.path(), "photos/beach.jpg");
+    let volumes = FakeVolumes::default();
+    volumes.mount("system", c_drive.path());
+    volumes.mount("usb-stick", e_drive.path());
+    let mut index = Index::open_in_memory()
+        .unwrap()
+        .with_volumes(volumes.clone());
+    index.scan(c_drive.path(), &[]).unwrap();
+
+    let changes = index.scan(e_drive.path(), &[]).unwrap();
+
+    assert_eq!(changes.removed, Vec::<PathBuf>::new());
+    assert_eq!(index.search_names("diary", 20).unwrap().len(), 1);
+}
