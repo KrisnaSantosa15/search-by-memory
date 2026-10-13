@@ -1,4 +1,8 @@
-//! Measurement logic for embedding benchmarks.
+//! Measurement logic for embedding benchmarks and retrieval Benchmarks.
+
+mod benchmark;
+
+pub use benchmark::{Benchmark, Query, Target};
 
 use std::time::Duration;
 
