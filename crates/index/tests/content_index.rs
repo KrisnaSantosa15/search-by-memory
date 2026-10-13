@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use sbm_core::{Embedding, EmbeddingProvider, Result};
+use sbm_core::{Embedding, EmbeddingProvider, Result, VectorStore};
 use sbm_index::{Index, MatchReason, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 use tempfile::TempDir;
@@ -127,4 +127,23 @@ fn file_content_is_found_by_an_exact_keyword() {
         .unwrap();
 
     assert_eq!(results[0].path, folder.path().join("docs/17.txt"));
+}
+
+#[test]
+fn copy_of_indexed_content_reuses_its_chunks_without_embedding() {
+    let folder = TempDir::new().unwrap();
+    let text = "slow cooked beef in coconut milk and chili\n";
+    let original = write(folder.path(), "recipes/rendang.txt", text);
+    let copy = write(folder.path(), "backup/rendang (1).txt", text);
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    index
+        .index_content(&original, &BagOfWords, &mut store)
+        .unwrap();
+    let vectors = store.len();
+
+    index.index_content(&copy, &Blind, &mut store).unwrap();
+
+    assert_eq!(store.len(), vectors);
 }

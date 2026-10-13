@@ -251,6 +251,19 @@ impl Index {
             return Ok(());
         };
         let hash = blake3::hash(&std::fs::read(path)?).to_hex().to_string();
+        let known: bool = self.db.query_row(
+            "SELECT EXISTS (SELECT 1 FROM chunks WHERE content_hash = ?1)",
+            params![hash],
+            |row| row.get(0),
+        )?;
+        if known {
+            // A Copy, or a moved file: its content is already indexed (ADR 0004).
+            self.db.execute(
+                "UPDATE files SET content_hash = ?1 WHERE path = ?2",
+                params![hash, path.to_string_lossy()],
+            )?;
+            return Ok(());
+        }
         let chunks = sbm_extract::chunk_sections(
             &extractor.extract(path)?,
             CHUNK_CHARS,
