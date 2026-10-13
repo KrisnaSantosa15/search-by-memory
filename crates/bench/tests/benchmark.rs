@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use sbm_bench::{Benchmark, Target};
 use sbm_core::Location;
@@ -53,4 +54,28 @@ fn line_range_target_parses_for_text_and_code() {
     );
 
     assert_eq!(target.location, Location::Lines { start: 10, end: 24 });
+}
+
+#[test]
+fn time_range_target_parses_for_audio_and_video() {
+    let target = only_target(
+        r#"
+        [[query]]
+        id = "en-003"
+        text = "clip where the rocket separates its first stage"
+        language = "en"
+
+        [[query.target]]
+        file = "video/launch.webm"
+        time = ["01:30", "1:02:10"]
+        "#,
+    );
+
+    assert_eq!(
+        target.location,
+        Location::Time {
+            start: Duration::from_secs(90),
+            end: Duration::from_secs(3730),
+        }
+    );
 }

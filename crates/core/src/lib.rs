@@ -1,5 +1,7 @@
 //! Domain types and provider interfaces for Search by Memory.
 
+use std::time::Duration;
+
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -10,6 +12,8 @@ pub enum Location {
     Page(u32),
     /// Inclusive, 1-based line range of text or code.
     Lines { start: u32, end: u32 },
+    /// Time range of audio or video, from the start of the media.
+    Time { start: Duration, end: Duration },
 }
 
 /// A dense vector representing the meaning of a Query or a Chunk.

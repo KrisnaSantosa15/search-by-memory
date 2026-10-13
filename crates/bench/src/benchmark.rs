@@ -1,6 +1,7 @@
 //! Labelled Benchmark Queries and their Targets.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use sbm_core::{Location, Result};
 use serde::Deserialize;
@@ -33,20 +34,25 @@ impl Benchmark {
         let queries = file
             .query
             .into_iter()
-            .map(|query| Query {
-                id: query.id,
-                text: query.text,
-                language: query.language,
-                targets: query
+            .map(|query| {
+                let targets = query
                     .target
                     .into_iter()
-                    .map(|target| Target {
-                        location: target.location(),
-                        file: target.file,
+                    .map(|target| {
+                        Ok(Target {
+                            location: target.location()?,
+                            file: target.file,
+                        })
                     })
-                    .collect(),
+                    .collect::<Result<_>>()?;
+                Ok(Query {
+                    id: query.id,
+                    text: query.text,
+                    language: query.language,
+                    targets,
+                })
             })
-            .collect();
+            .collect::<Result<_>>()?;
         Ok(Self { queries })
     }
 
@@ -73,14 +79,29 @@ struct TargetEntry {
     file: PathBuf,
     page: Option<u32>,
     lines: Option<[u32; 2]>,
+    time: Option<[String; 2]>,
 }
 
 impl TargetEntry {
-    fn location(&self) -> Location {
-        match (self.page, self.lines) {
-            (_, Some([start, end])) => Location::Lines { start, end },
-            (Some(page), _) => Location::Page(page),
-            (None, None) => unimplemented!("whole-file Targets"),
-        }
+    fn location(&self) -> Result<Location> {
+        Ok(match (self.page, self.lines, &self.time) {
+            (_, _, Some([start, end])) => Location::Time {
+                start: parse_timestamp(start)?,
+                end: parse_timestamp(end)?,
+            },
+            (_, Some([start, end]), _) => Location::Lines { start, end },
+            (Some(page), _, _) => Location::Page(page),
+            (None, None, None) => unimplemented!("whole-file Targets"),
+        })
     }
+}
+
+/// Parses `[h:]mm:ss` into the time from the start of the media.
+fn parse_timestamp(timestamp: &str) -> Result<Duration> {
+    let seconds = timestamp.split(':').try_fold(0u64, |total, part| {
+        part.parse::<u64>()
+            .map(|value| total * 60 + value)
+            .map_err(|_| format!("invalid timestamp {timestamp:?}"))
+    })?;
+    Ok(Duration::from_secs(seconds))
 }
