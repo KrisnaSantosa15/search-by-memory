@@ -143,7 +143,7 @@ impl OnnxEmbedder {
         }
         let reasons: Vec<String> = skipped
             .iter()
-            .map(|(accelerator, reason)| format!("{accelerator:?}: {reason}"))
+            .map(|(accelerator, reason)| format!("{accelerator}: {reason}"))
             .collect();
         Err(format!("no accelerator could run the model ({})", reasons.join("; ")).into())
     }
