@@ -1,0 +1,6 @@
+# Binary formats must never get line-ending conversion: a PDF's xref table
+# holds byte offsets, so CRLF rewriting on Windows corrupts it.
+*.pdf binary
+*.docx binary
+*.png binary
+*.onnx binary
