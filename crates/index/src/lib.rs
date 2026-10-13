@@ -153,6 +153,8 @@ pub struct SearchResult {
     pub path: PathBuf,
     /// Other paths with byte-for-byte identical content.
     pub copies: Vec<PathBuf>,
+    /// False while the drive holding `path` is a Disconnected Drive.
+    pub connected: bool,
     /// Verbatim text of the best Content Match, if any.
     pub snippet: Option<String>,
     pub location: Option<Location>,
@@ -449,22 +451,21 @@ impl Index {
             if view == View::File && seen_contents.contains(&hash) {
                 continue;
             }
-            let mut paths: Vec<PathBuf> = files
+            let mut paths: Vec<(PathBuf, bool)> = files
                 .query_map(params![hash], |row| {
-                    let (path, _connected) =
-                        self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?)?;
-                    Ok(path)
+                    self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?)
                 })?
                 .collect::<rusqlite::Result<_>>()?;
             paths.sort();
             if paths.is_empty() {
                 continue;
             }
-            let path = paths.remove(0);
+            let (path, connected) = paths.remove(0);
             seen_contents.push(hash);
             results.push(SearchResult {
                 path,
-                copies: paths,
+                copies: paths.into_iter().map(|(path, _)| path).collect(),
+                connected,
                 snippet: Some(text),
                 location: Some(location_from_columns(page, line_start, line_end)),
                 match_reason: MatchReason::Content,
@@ -663,6 +664,7 @@ fn fuse_name_matches(content: Vec<SearchResult>, names: &[NameMatch]) -> Vec<Sea
                 SearchResult {
                     path: name.path.clone(),
                     copies: Vec::new(),
+                    connected: name.connected,
                     snippet: None,
                     location: None,
                     match_reason: MatchReason::Name,

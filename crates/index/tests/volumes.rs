@@ -147,3 +147,32 @@ fn file_on_a_disconnected_drive_is_still_found_flagged_as_not_connected() {
     assert_eq!(matches[0].path, e_drive.path().join("reports/budget.xlsx"));
     assert!(!matches[0].connected);
 }
+
+#[test]
+fn content_match_on_a_disconnected_drive_is_flagged_as_not_connected() {
+    let e_drive = TempDir::new().unwrap();
+    touch(e_drive.path(), "letters/tax.txt");
+    let volumes = FakeVolumes::default();
+    volumes.mount("usb-stick", e_drive.path());
+    let mut index = Index::open_in_memory()
+        .unwrap()
+        .with_volumes(volumes.clone());
+    let mut store = UsearchStore::new(8, Precision::F16).unwrap();
+    index.scan(e_drive.path(), &[]).unwrap();
+    index
+        .index_content(
+            &e_drive.path().join("letters/tax.txt"),
+            &SameEmbedding,
+            &mut store,
+        )
+        .unwrap();
+
+    volumes.disconnect("usb-stick");
+    let results = index
+        .search("content", &SameEmbedding, &store, View::File, 20)
+        .unwrap();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].path, e_drive.path().join("letters/tax.txt"));
+    assert!(!results[0].connected);
+}
