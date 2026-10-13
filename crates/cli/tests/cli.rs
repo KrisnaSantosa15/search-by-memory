@@ -112,3 +112,14 @@ fn terminal_control_sequences_in_file_text_are_neutralised_for_display() {
     assert!(!shown.chars().any(|c| c.is_control()), "{shown:?}");
     assert!(shown.contains("total") && shown.contains("due"));
 }
+
+#[test]
+fn bidirectional_and_invisible_formatting_characters_are_neutralised_for_display() {
+    // Right-to-left overrides can make "invoice\u{202e}fdp.exe" display as "invoiceexe.pdf".
+    let shown =
+        sbm_cli::printable("invoice\u{202e}fdp.exe \u{2066}x\u{2069} zero\u{200b}width \u{feff}");
+
+    for hidden in ['\u{202e}', '\u{2066}', '\u{2069}', '\u{200b}', '\u{feff}'] {
+        assert!(!shown.contains(hidden), "{shown:?} still has {hidden:?}");
+    }
+}

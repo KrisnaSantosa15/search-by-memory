@@ -60,15 +60,34 @@ pub fn search(
 }
 
 /// Text from files or paths made safe to print: control characters, which could
-/// drive the terminal through escape sequences, become visible `\u{..}` escapes.
+/// drive the terminal through escape sequences, and invisible formatting
+/// characters, which could disguise text, become visible `\u{..}` escapes.
 pub fn printable(text: &str) -> String {
     text.chars()
         .map(|c| {
-            if c.is_control() {
+            if c.is_control() || is_hidden_format(c) {
                 c.escape_unicode().to_string()
             } else {
                 c.to_string()
             }
         })
         .collect()
+}
+
+/// Invisible formatting characters (Unicode Cf) that reorder or hide text:
+/// bidirectional marks, embeddings, overrides and isolates, zero-width
+/// characters, and the byte order mark.
+fn is_hidden_format(c: char) -> bool {
+    matches!(
+        c,
+        '\u{00ad}'
+            | '\u{061c}'
+            | '\u{180e}'
+            | '\u{200b}'..='\u{200f}'
+            | '\u{202a}'..='\u{202e}'
+            | '\u{2060}'..='\u{2064}'
+            | '\u{2066}'..='\u{206f}'
+            | '\u{feff}'
+            | '\u{fff9}'..='\u{fffb}'
+    )
 }
