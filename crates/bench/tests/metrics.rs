@@ -28,3 +28,16 @@ fn recall_at_k_is_the_share_of_queries_whose_target_file_is_in_the_top_k() {
     assert_eq!(scores.recall_at(1), 0.25);
     assert_eq!(scores.recall_at(3), 0.5);
 }
+
+#[test]
+fn mean_reciprocal_rank_averages_one_over_the_first_target_rank() {
+    let query = query_targeting(&["a.pdf"]);
+    let scores = Scores::new(vec![
+        FileRanking::new(&query, &ranked(&["a.pdf"])),
+        FileRanking::new(&query, &ranked(&["b.pdf", "a.pdf"])),
+        FileRanking::new(&query, &ranked(&["b.pdf", "c.pdf", "d.pdf", "a.pdf"])),
+        FileRanking::new(&query, &ranked(&["b.pdf"])),
+    ]);
+
+    assert_eq!(scores.mean_reciprocal_rank(), (1.0 + 0.5 + 0.25 + 0.0) / 4.0);
+}

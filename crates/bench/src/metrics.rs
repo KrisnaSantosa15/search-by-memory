@@ -40,4 +40,15 @@ impl Scores {
         let found = self.rankings.iter().filter(|ranking| ranking.found_within(k)).count();
         found as f64 / self.rankings.len() as f64
     }
+
+    /// Mean of 1 / rank of the first Target file; 0 when it is not found.
+    pub fn mean_reciprocal_rank(&self) -> f64 {
+        let total: f64 = self
+            .rankings
+            .iter()
+            .filter_map(|ranking| ranking.first_target_rank)
+            .map(|rank| 1.0 / rank as f64)
+            .sum();
+        total / self.rankings.len() as f64
+    }
 }
