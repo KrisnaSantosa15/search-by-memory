@@ -14,10 +14,12 @@ fn public_benchmark() -> Benchmark {
 }
 
 fn public_corpus() -> Option<PathBuf> {
-    let dir = std::env::var_os("SBM_PUBLIC_CORPUS").map(PathBuf::from).or_else(|| {
-        std::env::var_os("HOME")
-            .map(|home| PathBuf::from(home).join(".cache/search-by-memory/public-corpus"))
-    })?;
+    let dir = std::env::var_os("SBM_PUBLIC_CORPUS")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .map(|home| PathBuf::from(home).join(".cache/search-by-memory/public-corpus"))
+        })?;
     if dir.is_dir() {
         Some(dir)
     } else {
@@ -31,13 +33,23 @@ fn public_benchmark_has_english_and_indonesian_queries() {
     let benchmark = public_benchmark();
 
     for language in ["en", "id"] {
-        assert!(benchmark.queries().iter().any(|query| query.language == language));
+        assert!(
+            benchmark
+                .queries()
+                .iter()
+                .any(|query| query.language == language)
+        );
     }
 }
 
 #[test]
 fn every_public_target_file_is_in_the_public_corpus() {
-    let Some(corpus) = public_corpus() else { return };
+    let Some(corpus) = public_corpus() else {
+        return;
+    };
 
-    assert_eq!(public_benchmark().missing_targets(&corpus), Vec::<PathBuf>::new());
+    assert_eq!(
+        public_benchmark().missing_targets(&corpus),
+        Vec::<PathBuf>::new()
+    );
 }
