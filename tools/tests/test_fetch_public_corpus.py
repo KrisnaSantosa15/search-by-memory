@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from fetch_public_corpus import fetch_corpus
+from fetch_public_corpus import default_corpus_dir, fetch_corpus
 
 
 @pytest.fixture
@@ -76,3 +76,12 @@ def test_file_already_in_the_corpus_is_not_downloaded_again(tmp_path, server):
     fetch_corpus(manifest, corpus)
 
     assert (corpus / "paper.pdf").read_bytes() == b"cached"
+
+
+def test_corpus_lives_in_the_user_cache_unless_overridden(monkeypatch, tmp_path):
+    monkeypatch.delenv("SBM_PUBLIC_CORPUS", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert default_corpus_dir() == tmp_path / ".cache/search-by-memory/public-corpus"
+
+    monkeypatch.setenv("SBM_PUBLIC_CORPUS", str(tmp_path / "elsewhere"))
+    assert default_corpus_dir() == tmp_path / "elsewhere"
