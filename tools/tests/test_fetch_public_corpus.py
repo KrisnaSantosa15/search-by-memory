@@ -140,3 +140,45 @@ def test_rate_limited_download_is_retried_after_the_server_asked_delay(tmp_path)
 
     assert slept == [7]
     assert (tmp_path / "corpus/f").read_bytes() == b"data"
+
+
+def test_wikitext_download_is_stored_as_plain_text(tmp_path, server):
+    served, base_url = server
+    wikitext = b"{{Infobox|nama=Rendang}}\n'''Rendang''' berasal dari [[Minangkabau]].\n"
+    (served / "Rendang.wiki").write_bytes(wikitext)
+    text = "Rendang berasal dari Minangkabau.\n".encode()
+    manifest = write_manifest(
+        tmp_path / "manifest.toml",
+        [{
+            "path": "wiki/Rendang.txt",
+            "url": f"{base_url}/Rendang.wiki",
+            "source_sha256": sha256(wikitext),
+            "convert": "wikitext",
+            "sha256": sha256(text),
+            "license": "CC-BY-SA-4.0",
+        }],
+    )
+    corpus = tmp_path / "corpus"
+
+    fetch_corpus(manifest, corpus)
+
+    assert (corpus / "wiki/Rendang.txt").read_bytes() == text
+
+
+def test_wikitext_download_must_match_its_source_revision(tmp_path, server):
+    served, base_url = server
+    (served / "Rendang.wiki").write_bytes(b"Rendang berasal dari [[Minangkabau]].\n")
+    manifest = write_manifest(
+        tmp_path / "manifest.toml",
+        [{
+            "path": "wiki/Rendang.txt",
+            "url": f"{base_url}/Rendang.wiki",
+            "source_sha256": sha256(b"another revision"),
+            "convert": "wikitext",
+            "sha256": sha256("Rendang berasal dari Minangkabau.\n".encode()),
+            "license": "CC-BY-SA-4.0",
+        }],
+    )
+
+    with pytest.raises(ValueError, match="sha256"):
+        fetch_corpus(manifest, tmp_path / "corpus")

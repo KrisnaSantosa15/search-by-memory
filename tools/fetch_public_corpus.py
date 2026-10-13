@@ -39,11 +39,18 @@ def fetch_corpus(manifest: Path, corpus: Path, sleep: Callable[[float], None] = 
         if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == entry["sha256"]:
             continue
         data = download(entry["url"], sleep)
-        actual = hashlib.sha256(data).hexdigest()
-        if actual != entry["sha256"]:
-            raise ValueError(f"{entry['path']}: sha256 {actual} does not match manifest {entry['sha256']}")
+        if entry.get("convert") == "wikitext":
+            verify(entry["path"], data, entry["source_sha256"])
+            data = wikitext_to_text(data.decode()).encode()
+        verify(entry["path"], data, entry["sha256"])
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
+
+
+def verify(path: str, data: bytes, expected: str) -> None:
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != expected:
+        raise ValueError(f"{path}: sha256 {actual} does not match manifest {expected}")
 
 
 def download(url: str, sleep: Callable[[float], None], attempts: int = 5) -> bytes:
