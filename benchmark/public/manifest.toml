@@ -1,0 +1,349 @@
+# Public Corpus: freely licensed files fetched by tools/fetch_public_corpus.py.
+# Each entry: corpus-relative path, source URL, sha256 of the exact bytes, SPDX-style license.
+
+# --- en ---
+
+[[file]]
+path = "papers/msar-residuals.pdf"
+url = "https://arxiv.org/pdf/2610.13630v1"
+sha256 = "cbdddc8f188ff214f65eda12e00bf3eaf1f0663ca785ffa75502b6d78ca797d4"
+license = "CC-BY-4.0"
+source = "Qin et al., 'Multi-Stream Attention Residuals', arXiv:2610.13630v1 (cs.CL), 22 pp."
+
+[[file]]
+path = "papers/safe-qe-query-expansion.pdf"
+url = "https://arxiv.org/pdf/2610.13810v1"
+sha256 = "6805c6829c011703e2ecc8d50a419ea95f1852558b9a729e35625663b6f4c017"
+license = "CC-BY-4.0"
+source = "Jaiswal, Uprety, Tiwari, 'Tracing and Taming Hallucinated Terms via Subsequence-Association Filtering and Breadth-Aware Selection for LLM Query Expansion', arXiv:2610.13810v1 (cs.IR), 14 pp."
+
+[[file]]
+path = "papers/collective-voting.pdf"
+url = "https://arxiv.org/pdf/2610.05676v1"
+sha256 = "f0ba22e31c667d33e1ecb1b35b8d68089f96e9a33867986b3863d04cbf0aa7ea"
+license = "CC-BY-4.0"
+source = "Wang, Su, Plotkin, 'An evolutionary origin of collective decision making in humans and machines', arXiv:2610.05676v1 (physics.soc-ph), 39 pp."
+
+[[file]]
+path = "papers/n2o-adipic-acid.pdf"
+url = "https://arxiv.org/pdf/2610.07542v1"
+sha256 = "b43b22d683f6e7e181fd7f36c13d8754d445b0d982d83dc7252e5d02e8477097"
+license = "CC-BY-4.0"
+source = "'Satellite observations of nitrous oxide emissions from adipic acid production', arXiv:2610.07542v1, 14 pp."
+
+[[file]]
+path = "papers/enceladus-fermentation.pdf"
+url = "https://arxiv.org/pdf/2610.13434v1"
+sha256 = "f8f7bb1ffab87f06a40359dcff07028ee0226aa4de15a21337916a1df4328f72"
+license = "CC-BY-4.0"
+source = "'Fermentation heterotrophy can reproduce Enceladus's H2 and CH4 under limited serpentinization', arXiv:2610.13434v1 (astro-ph), 53 pp."
+
+[[file]]
+path = "papers/mental-accounting.pdf"
+url = "https://arxiv.org/pdf/2610.12587v1"
+sha256 = "46162963528d7b83f5649b10c9655a4e0a806f24b9bdebd5367403f3ec30919b"
+license = "CC-BY-4.0"
+source = "'On the Optimality of Mental Accounting', arXiv:2610.12587v1 (econ), 23 pp."
+
+[[file]]
+path = "papers/llm-pricing-collusion.pdf"
+url = "https://arxiv.org/pdf/2610.11256v1"
+sha256 = "c6de33a49bdb6bf486ef4a57e7845a1fdbe78faa2cc7268ec9dcf41bc9f2de94"
+license = "CC-BY-4.0"
+source = "'Who Leads and Who Collects: Algorithmic Collusion in Markets of Heterogeneous Language Models', arXiv:2610.11256v1 (econ), 42 pp."
+
+[[file]]
+path = "papers/makeham-test.pdf"
+url = "https://arxiv.org/pdf/2610.03685v1"
+sha256 = "29a77d93f0d1191454b2f4b92797da2b9b9a2dd2f162243e8a2545ba66a2da68"
+license = "CC-BY-4.0"
+source = "'Does a mortality schedule need a Makeham term? Calibrating the likelihood-ratio test', arXiv:2610.03685v1 (stat.ME), 16 pp."
+
+[[file]]
+path = "papers/gen-ebm-climate.pdf"
+url = "https://arxiv.org/pdf/2610.12267v1"
+sha256 = "f8d79ec3d908dc853ea89528e735fc5852b7152b13f89cc149c66b92b0bd46cb"
+license = "CC-BY-4.0"
+source = "'Climate multistability from snowball to post-runaway greenhouse climates' (Gen-EBM), arXiv:2610.12267v1 (astro-ph.EP), 18 pp."
+
+[[file]]
+path = "books/yellow-wallpaper.txt"
+url = "https://www.gutenberg.org/cache/epub/1952/pg1952.txt"
+sha256 = "20c7788eeae2fe3a0efd51a1f08b6723366a4be0778d65db219149a3522651d4"
+license = "PD"
+source = "Charlotte Perkins Gilman, 'The Yellow Wallpaper', Project Gutenberg #1952"
+
+[[file]]
+path = "books/sleepy-hollow.txt"
+url = "https://www.gutenberg.org/cache/epub/41/pg41.txt"
+sha256 = "6847c02f49c9ff8a5e2a0e8f49842bf3bffc7f5a87216c895a6b64f26ecf9353"
+license = "PD"
+source = "Washington Irving, 'The Legend of Sleepy Hollow', Project Gutenberg #41"
+
+[[file]]
+path = "books/metamorphosis.txt"
+url = "https://www.gutenberg.org/cache/epub/5200/pg5200.txt"
+sha256 = "0933283a19a4daaef0d412e8f69c74fae126b0a946cb74b8f3c783a8e869830d"
+license = "PD"
+source = "Franz Kafka (trans. David Wyllie), 'Metamorphosis', Project Gutenberg #5200"
+
+[[file]]
+path = "docs/fsm-parent-letter.docx"
+url = "https://assets.publishing.service.gov.uk/media/6a91728af5b35599aec18f41/FSM_protections_-_parent_letter.docx"
+sha256 = "5790324feedf0f30436a0b08714d249d89fe10e79aba0abf4e110e171f77bb7c"
+license = "OGL-UK-3.0"
+source = "DfE, 'Model parent or carer communication ... changes to temporary free school meals protections' (gov.uk publication free-school-meals-guidance-for-schools-and-local-authorities; page states 'All content is available under the Open Government Licence v3.0')"
+
+[[file]]
+path = "code/urllib3/retry.py"
+url = "https://raw.githubusercontent.com/urllib3/urllib3/5ebe9bf9f691646dcabdb259ffabfc6108ded5e8/src/urllib3/util/retry.py"
+sha256 = "2eda8108de2cb2b5b19edad348893f05c77601836f299166c35a56f5a9a80078"
+license = "MIT"
+source = "urllib3 src/urllib3/util/retry.py @ 5ebe9bf9f691646dcabdb259ffabfc6108ded5e8"
+
+[[file]]
+path = "code/requests/sessions.py"
+url = "https://raw.githubusercontent.com/psf/requests/611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60/src/requests/sessions.py"
+sha256 = "3d2089736ced93b2b405624a943f866d22652b17df06a85eb010f86272fc3e7d"
+license = "Apache-2.0"
+source = "psf/requests src/requests/sessions.py @ 611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60"
+
+[[file]]
+path = "code/click/parser.py"
+url = "https://raw.githubusercontent.com/pallets/click/2247b35ea1c47c727d7a06e51fa280e12a863ff6/src/click/parser.py"
+sha256 = "a09f9f53fde6bf1ba022e36d1da0804d9e7a9601261d18208c9892a84818ae30"
+license = "BSD-3-Clause"
+source = "pallets/click src/click/parser.py @ 2247b35ea1c47c727d7a06e51fa280e12a863ff6"
+
+[[file]]
+path = "code/click/README.md"
+url = "https://raw.githubusercontent.com/pallets/click/2247b35ea1c47c727d7a06e51fa280e12a863ff6/README.md"
+sha256 = "4c3de4aa0918deac2f712facacd1dc30a8cc4627d0118dd290292ab0af65ca0b"
+license = "BSD-3-Clause"
+source = "pallets/click README.md @ 2247b35ea1c47c727d7a06e51fa280e12a863ff6"
+
+[[file]]
+path = "code/groupcache/lru.go"
+url = "https://raw.githubusercontent.com/golang/groupcache/2c02b8208cf8c02a3e358cb1d9b60950647543fc/lru/lru.go"
+sha256 = "09457d325209f5e45e81222c0ef5cebe33fd2cee31114dd2e0239723b7915219"
+license = "Apache-2.0"
+source = "golang/groupcache lru/lru.go @ 2c02b8208cf8c02a3e358cb1d9b60950647543fc"
+
+[[file]]
+path = "code/p-retry/index.js"
+url = "https://raw.githubusercontent.com/sindresorhus/p-retry/1472907affe8d6107aba5884abc36d6361b3042e/index.js"
+sha256 = "3981dc16bfa766054aad9cf3ea56540eddff4ad0c82ec34196954bff33844a6a"
+license = "MIT"
+source = "sindresorhus/p-retry index.js @ 1472907affe8d6107aba5884abc36d6361b3042e"
+
+[[file]]
+path = "code/p-limit/index.js"
+url = "https://raw.githubusercontent.com/sindresorhus/p-limit/a8a6fbec4e0e866d6d779b10889bb4f5567e70eb/index.js"
+sha256 = "edde12a4a4dbdbe8d27161cdd0853db0bab435d5dc6c15f9f4dedc27ee9bca60"
+license = "MIT"
+source = "sindresorhus/p-limit index.js @ a8a6fbec4e0e866d6d779b10889bb4f5567e70eb"
+
+[[file]]
+path = "code/anyhow/error.rs"
+url = "https://raw.githubusercontent.com/dtolnay/anyhow/2cbb4e1bcbf8e7015f8d8b04a291c4c0597030b4/src/error.rs"
+sha256 = "2a78ee4e5f8d6b4476c761f77473362b9ed12f5402e4701001e7d04d628ba030"
+license = "MIT OR Apache-2.0"
+source = "dtolnay/anyhow src/error.rs @ 2cbb4e1bcbf8e7015f8d8b04a291c4c0597030b4"
+
+[[file]]
+path = "code/anyhow/README.md"
+url = "https://raw.githubusercontent.com/dtolnay/anyhow/2cbb4e1bcbf8e7015f8d8b04a291c4c0597030b4/README.md"
+sha256 = "86f5b88c45b2b9b7eefa0ad66c11918a607319cad683f01123ff38db68b4a49b"
+license = "MIT OR Apache-2.0"
+source = "dtolnay/anyhow README.md @ 2cbb4e1bcbf8e7015f8d8b04a291c4c0597030b4"
+
+# --- id ---
+[[file]]
+path = "id/regulasi/sisdiknas-20-2003.pdf"
+url = "https://peraturan.go.id/files/uu20-2003.pdf"
+sha256 = "78a12175a94be16b5fdef9786ef1c41cca2ccf7cb756f9a63d4acca8e89929c9"
+license = "PD-ID-Pasal42"
+source = "UU No. 20 Tahun 2003 tentang Sistem Pendidikan Nasional, DJPP Kemenkumham (peraturan.go.id)"
+
+[[file]]
+path = "id/regulasi/ketenagakerjaan-13-2003.pdf"
+url = "https://peraturan.go.id/files/UU+13-2003.pdf"
+sha256 = "2602a4a461a345ab3f45712b5e4232769a15435c28b6c2d8b191a4c7b9e6279f"
+license = "PD-ID-Pasal42"
+source = "UU No. 13 Tahun 2003 tentang Ketenagakerjaan, DJPP Kemenkumham (peraturan.go.id)"
+
+[[file]]
+path = "id/regulasi/lalu-lintas-22-2009.pdf"
+url = "https://peraturan.go.id/files/UU%2022%20Tahun%202009.pdf"
+sha256 = "e283110101d4b94c3bd1200d3b5f520f590d51251144be5fb210a23f49c4c3a0"
+license = "PD-ID-Pasal42"
+source = "UU No. 22 Tahun 2009 tentang Lalu Lintas dan Angkutan Jalan, peraturan.go.id"
+
+[[file]]
+path = "id/regulasi/kesehatan-36-2009.pdf"
+url = "https://peraturan.go.id/files/uu36-2009.pdf"
+sha256 = "f3f2f0d9a39474f55e34891d73af4d48cdd82be4ae5887e9772f04c724634dc6"
+license = "PD-ID-Pasal42"
+source = "UU No. 36 Tahun 2009 tentang Kesehatan, DJPP Kemenkumham (peraturan.go.id)"
+
+[[file]]
+path = "id/regulasi/pelindungan-data-pribadi-27-2022.pdf"
+url = "https://jdih.kemenkeu.go.id/download/46c17b53-4a45-411c-9b76-c6799e5769fc/UU_Nomor_27_Tahun_2022%20Perlindungan%20Data%20Pribadi.pdf"
+sha256 = "ed952dea04b87d14ecf037f9f324a65d50b396ddd34fc28ddf9ff014391971f6"
+license = "PD-ID-Pasal42"
+source = "UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi, JDIH Kemenkeu"
+
+[[file]]
+path = "id/wiki/Rendang.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29872701&action=raw"
+sha256 = "9c5e07e6d15a41ed42e380ae85b02fb9fbe81f899639168f1efc4171f73d0629"
+license = "CC-BY-SA-4.0"
+source = "Rendang @ id.wikipedia revid 29872701"
+
+[[file]]
+path = "id/wiki/Borobudur.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=30009241&action=raw"
+sha256 = "7494d1a7e29e8a29e6ed0735371bcfdeacf46caebd84f4cc78d4c7e9f6eb22f6"
+license = "CC-BY-SA-4.0"
+source = "Borobudur @ id.wikipedia revid 30009241"
+
+[[file]]
+path = "id/wiki/Krakatau.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29964577&action=raw"
+sha256 = "298142b7d43e3fd864a210be65bbb9ddb1d970cbb272b943a4783d01c350ad1e"
+license = "CC-BY-SA-4.0"
+source = "Krakatau @ id.wikipedia revid 29964577"
+
+[[file]]
+path = "id/wiki/Sumpah_Pemuda.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29757963&action=raw"
+sha256 = "11884fae95268f403d6d4441c8df162341bafee0094c8e5faa2c39d559280b28"
+license = "CC-BY-SA-4.0"
+source = "Sumpah Pemuda @ id.wikipedia revid 29757963"
+
+[[file]]
+path = "id/wiki/Batik.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=30014705&action=raw"
+sha256 = "aec954b98ad4a1d04650122ed6efddbb4dda7d1a673447310f2d88fd70e05798"
+license = "CC-BY-SA-4.0"
+source = "Batik @ id.wikipedia revid 30014705"
+
+[[file]]
+path = "id/wiki/Komodo.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=30022125&action=raw"
+sha256 = "978737b8c290ed65ffb675014d557cb954964005c5bdeb07854625f92a25b729"
+license = "CC-BY-SA-4.0"
+source = "Komodo @ id.wikipedia revid 30022125"
+
+[[file]]
+path = "id/wiki/Gudeg.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=29929046&action=raw"
+sha256 = "e4da715133cacde297f88adf55107ebe751521a2696b971ad4976448ecc1c3af"
+license = "CC-BY-SA-4.0"
+source = "Gudeg @ id.wikipedia revid 29929046"
+
+[[file]]
+path = "id/wiki/Wayang.txt"
+url = "https://id.wikipedia.org/w/index.php?oldid=30014635&action=raw"
+sha256 = "ca594f11d7f8dec17655f32c3d743a62999328c13d1b6ca96b46e9faf87be046"
+license = "CC-BY-SA-4.0"
+source = "Wayang @ id.wikipedia revid 30014635"
+
+# --- media ---
+[[file]]
+path = "media/images/borobudur.jpg"
+url = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Borobudur-Nothwest-view.jpg/1280px-Borobudur-Nothwest-view.jpg"
+sha256 = "c915174a3251de2f8cf5c27e7ff0f142dc05e6715f1aa9cd4a2810b8d733d11d"
+license = "PD"
+source = "Commons File:Borobudur-Nothwest-view.jpg, Gunawan Kartapranata"
+
+[[file]]
+path = "media/images/komodo-dragon.jpg"
+url = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Komodo_dragon_%28Varanus_komodoensis%29.jpg/1280px-Komodo_dragon_%28Varanus_komodoensis%29.jpg"
+sha256 = "f94fedbd79c2ea3f5a43d2b829c8abc81e16dfc9301413527038e6812935e4f8"
+license = "CC-BY-SA-4.0"
+source = "Commons File:Komodo dragon (Varanus komodoensis).jpg, Scottish wildlife photographer (Wikidata Q54800218)"
+
+[[file]]
+path = "media/images/rendang-klm.jpg"
+url = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Beef_rendang%2C_KLM%2C_2025_%2801%29.jpg/1280px-Beef_rendang%2C_KLM%2C_2025_%2801%29.jpg"
+sha256 = "1a052d17335ed6f565df20f3e64cbe41d89c061d9a0e66ae838e05a11e5aa168"
+license = "CC-BY-SA-4.0"
+source = "Commons File:Beef rendang, KLM, 2025 (01).jpg, Bahnfrend"
+
+[[file]]
+path = "media/images/floating-market.jpg"
+url = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Jukung_Pasar_Terapung.jpg/1280px-Jukung_Pasar_Terapung.jpg"
+sha256 = "d72bf737ba51e0d056a6da15951aee737ddedfbac84aecaf7b8fc34651bcb8d7"
+license = "CC-BY-SA-4.0"
+source = "Commons File:Jukung Pasar Terapung.jpg, Muhammad Haris"
+
+[[file]]
+path = "media/images/jakarta-traffic.jpg"
+url = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Traffic_jam_in_Duren_Tiga_bus_stop%2C_Jakarta%2C_August_2024.jpg/1280px-Traffic_jam_in_Duren_Tiga_bus_stop%2C_Jakarta%2C_August_2024.jpg"
+sha256 = "56ce81cfba9ad8f6b43b1427a6dd2224b59915a5cad3359a12e76f896e847d37"
+license = "CC-BY-SA-4.0"
+source = "Commons File:Traffic jam in Duren Tiga bus stop, Jakarta, August 2024.jpg, Dede2008"
+
+[[file]]
+path = "media/images/temperature-chart.png"
+url = "https://upload.wikimedia.org/wikipedia/commons/4/41/Temperature_Bar_Chart_Asia-Indonesia--1901-2020--2021-07-13.png"
+sha256 = "3a1222d8b2c59a3449ca02f39edb83a437b08b7bed42955c93148e890ab30801"
+license = "CC-BY-4.0"
+source = "Commons File:Temperature Bar Chart Asia-Indonesia--1901-2020--2021-07-13.png, Ed Hawkins (University of Reading)"
+
+[[file]]
+path = "media/images/indonesia-map.jpg"
+url = "https://upload.wikimedia.org/wikipedia/commons/9/94/Indonesia_relief_location_map.jpg"
+sha256 = "60253968e045086b2d248dfc4ea591e145bbe69cfc24bf3210ac2e3c7ed5fe73"
+license = "CC-BY-SA-3.0"
+source = "Commons File:Indonesia relief location map.jpg, Uwe Dedering"
+
+[[file]]
+path = "media/images/church-sign.jpg"
+url = "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Indonesia_Traffic-signs_Information-signs-01.jpg/1280px-Indonesia_Traffic-signs_Information-signs-01.jpg"
+sha256 = "83744d6e9e6bc10d887fa29d6ea404b30a8145e63be57bcae20a15efc03f3dfc"
+license = "CC-BY-SA-3.0"
+source = "Commons File:Indonesia Traffic-signs Information-signs-01.jpg, CEphoto, Uwe Aranas"
+
+[[file]]
+path = "media/video/flute-space-station.webm"
+url = "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/50/A_Flute_on_the_Space_Station.webm/A_Flute_on_the_Space_Station.webm.480p.vp9.webm"
+sha256 = "3b8945460526a26a73750e7418fd104f13c7b59b4366563294ad77c11a45d311"
+license = "PD"
+source = "Commons File:A Flute on the Space Station.webm, NASA (ReelNASA)"
+
+[[file]]
+path = "media/video/working-out-space-station.webm"
+url = "https://upload.wikimedia.org/wikipedia/commons/7/7c/Working_Out_Aboard_the_Space_Station.webm"
+sha256 = "39325860a1eb54a061819ae0daeee952a2c271639b62a219ed748732d80bbf6e"
+license = "PD"
+source = "Commons File:Working Out Aboard the Space Station.webm, NASA (ReelNASA)"
+
+[[file]]
+path = "media/video/wikitongues-nila-indonesian.webm"
+url = "https://upload.wikimedia.org/wikipedia/commons/transcoded/1/11/WIKITONGUES-_Nila_speaking_Indonesian.webm/WIKITONGUES-_Nila_speaking_Indonesian.webm.480p.vp9.webm"
+sha256 = "67b0118a486d0ee56034273183ff51a9f6947f170b6667012d25231e4795c9b1"
+license = "CC-BY-3.0"
+source = "Commons File:WIKITONGUES- Nila speaking Indonesian.webm, WikiTongues"
+
+[[file]]
+path = "media/audio/wp345-wikimedia-futures-lab.mp3"
+url = "https://upload.wikimedia.org/wikipedia/commons/1/12/WP345_-_Wikimedia_Futures_Lab%2C_Jeromi_Mikhael.mp3"
+sha256 = "d7810e52a5e6655375271e1825cab700e9b57ec12a96eff33d3f2b6fe60be6fd"
+license = "CC-BY-SA-4.0"
+source = "Commons File:WP345 - Wikimedia Futures Lab, Jeromi Mikhael.mp3, Wikipediapodden (Jan Ainali)"
+
+[[file]]
+path = "media/audio/lehrer-lobachevsky.mp3"
+url = "https://upload.wikimedia.org/wikipedia/commons/1/10/1-06_Lobachevsky.mp3"
+sha256 = "4df12e60a009c1b6bc21d0e776d96a084764f13a737b9acdb52715ea48ce7ef3"
+license = "PD"
+source = "Commons File:1-06 Lobachevsky.mp3, Tom Lehrer"
+
+[[file]]
+path = "media/audio/lehrer-the-elements.mp3"
+url = "https://upload.wikimedia.org/wikipedia/commons/1/13/1-16_The_Elements.mp3"
+sha256 = "11f90fec2a720d33f20f34f089e9ce9f5b47000bc0a8cd904e1beb96bc3d8aa5"
+license = "PD"
+source = "Commons File:1-16 The Elements.mp3, Tom Lehrer"
