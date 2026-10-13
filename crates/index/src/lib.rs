@@ -775,20 +775,14 @@ impl Index {
         let mut seen_contents: Vec<String> = Vec::new();
         for chunk_id in reciprocal_rank_fusion(&[&semantic, &keyword]) {
             // A vector saved before a crash can outlive its Chunk.
-            let Some((hash, page, line_start, line_end, text)): Option<(
-                String,
-                Option<u32>,
-                Option<u32>,
-                Option<u32>,
-                String,
-            )> = chunk
+            let Some((hash, page, line_start, line_end, text)) = chunk
                 .query_row(params![chunk_id], |row| {
                     Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
+                        row.get::<_, String>(0)?,
+                        row.get::<_, Option<u32>>(1)?,
+                        row.get::<_, Option<u32>>(2)?,
+                        row.get::<_, Option<u32>>(3)?,
+                        row.get::<_, String>(4)?,
                     ))
                 })
                 .optional()?
