@@ -59,3 +59,12 @@ pub fn write(root: &Path, relative: &str, content: &str) -> PathBuf {
     fs::write(&path, content).unwrap();
     path
 }
+
+/// Stands in for a change journal that cannot be read.
+pub struct BrokenJournal;
+
+impl ChangeSource for BrokenJournal {
+    fn changes_since(&self, _volume_id: &str, _since: Option<&ChangeCursor>) -> Result<Changes> {
+        Err("the change journal cannot be read".into())
+    }
+}

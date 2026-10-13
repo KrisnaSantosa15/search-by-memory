@@ -28,6 +28,8 @@ pub struct Status {
     pub files: usize,
     /// Files whose content is still to be indexed.
     pub pending: usize,
+    /// Why the last indexing pass stopped early, if it did.
+    pub error: Option<String>,
 }
 
 pub struct Engine {
@@ -49,6 +51,8 @@ struct Work {
     requested: u64,
     completed: u64,
     stop: bool,
+    /// Why the last pass stopped early, if it did.
+    error: Option<String>,
 }
 
 impl Engine {
@@ -109,6 +113,7 @@ impl Engine {
         Ok(Status {
             files: index.file_count()?,
             pending: index.pending_jobs()?,
+            error: self.shared.work.lock().unwrap().error.clone(),
         })
     }
 
@@ -156,10 +161,9 @@ fn run_worker(
             }
             work.requested
         };
-        if let Err(error) = index_pass(index, shared, embedder, changes, data_dir) {
-            eprintln!("sbm-engine: indexing failed: {error}");
-        }
+        let outcome = index_pass(index, shared, embedder, changes, data_dir);
         let mut work = shared.work.lock().unwrap();
+        work.error = outcome.err().map(|error| error.to_string());
         work.completed = target;
         shared.changed.notify_all();
         let (_work, _timeout) = shared

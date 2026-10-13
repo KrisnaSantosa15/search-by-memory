@@ -4,7 +4,7 @@ mod common;
 
 use std::sync::Arc;
 
-use common::{BagOfWords, NoJournal, write};
+use common::{BagOfWords, BrokenJournal, NoJournal, write};
 use sbm_engine::Engine;
 use sbm_index::View;
 use tempfile::TempDir;
@@ -40,4 +40,21 @@ fn status_counts_files_in_the_name_index_and_pending_content_work() {
     let status = engine.status().unwrap();
     assert_eq!(status.files, 3);
     assert_eq!(status.pending, 0);
+}
+
+#[test]
+fn indexing_error_is_reported_in_the_status() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(BrokenJournal)).unwrap();
+
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    let error = engine.status().unwrap().error;
+    assert!(
+        error
+            .as_deref()
+            .is_some_and(|error| error.contains("change journal cannot be read")),
+        "{error:?}"
+    );
 }
