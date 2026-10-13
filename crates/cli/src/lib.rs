@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use sbm_core::{EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
-use sbm_index::{Exclusion, Index, ScanChanges, SearchResult, View};
+use sbm_index::{Index, ScanChanges, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 const DATABASE: &str = "index.sqlite";
@@ -49,31 +49,6 @@ pub fn index(
         changes,
         failed: index.failed_files()?,
     })
-}
-
-/// Brings the indexes in `data_dir` in line with `folder`: scans it, embeds
-/// added and changed files, drops content no file uses, and saves the vectors.
-/// Files that fail to index are reported, not fatal.
-pub fn index_folder(
-    data_dir: &Path,
-    folder: &Path,
-    embedder: &dyn EmbeddingProvider,
-) -> Result<IndexReport> {
-    std::fs::create_dir_all(data_dir)?;
-    let mut index = Index::open(&data_dir.join(DATABASE))?;
-    let mut store = UsearchStore::new(embedder.dimensions(), Precision::F16)?;
-    index.rebuild_vectors(&mut store)?;
-    let changes = index.scan(folder, &Exclusion::defaults())?;
-    let mut failed = Vec::new();
-    for path in changes.added.iter().chain(&changes.changed) {
-        // A bad file must not stop indexing (FR-03).
-        if let Err(error) = index.index_content(path, embedder, &mut store) {
-            failed.push((path.clone(), error.to_string()));
-        }
-    }
-    index.remove_unreferenced_content(&mut store)?;
-    store.save(&data_dir.join(VECTORS))?;
-    Ok(IndexReport { changes, failed })
 }
 
 /// Results for a Query against the indexes in `data_dir`.

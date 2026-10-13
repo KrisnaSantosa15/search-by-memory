@@ -1,7 +1,7 @@
 //! `sbm`: index folders and search them from the command line.
 //!
 //! Usage:
-//!   sbm index [--accelerator <name>] <folder>...
+//!   sbm index [--accelerator <name>] [<folder>...]
 //!   sbm search [--accelerator <name>] [--passages] <query>...
 //!
 //! `--accelerator` is cpu, cuda, directml, or directml:<index>; a GPU falls back
@@ -21,6 +21,9 @@ use sbm_index::{MatchReason, SearchResult, View};
 const DIMENSIONS: usize = 256;
 const RESULTS: usize = 20;
 const SNIPPET_CHARS: usize = 160;
+const USAGE: &str = "usage:
+  sbm index [--accelerator <name>] [<folder>...]
+  sbm search [--accelerator <name>] [--passages] <query>...";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -42,26 +45,26 @@ fn run(args: &[String]) -> Result<()> {
         dirs.cache.join("models/embeddinggemma-2-onnx"),
     );
     match args.as_slice() {
-        [command, folders @ ..] if command == "index" && !folders.is_empty() => {
+        [command, folders @ ..] if command == "index" => {
             let embedder = load_embedder(&model_dir, &accelerators)?;
-            for folder in folders {
-                let folder = std::fs::canonicalize(folder)?;
-                let report = sbm_cli::index_folder(&data_dir, &folder, &embedder)?;
-                let changes = &report.changes;
-                println!(
-                    "{}: {} added, {} changed, {} removed",
-                    folder.display(),
-                    changes.added.len(),
-                    changes.changed.len(),
-                    changes.removed.len()
+            let folders = folders
+                .iter()
+                .map(std::fs::canonicalize)
+                .collect::<std::io::Result<Vec<_>>>()?;
+            let report = sbm_cli::index(&data_dir, &folders, &embedder)?;
+            let changes = &report.changes;
+            println!(
+                "{} added, {} changed, {} removed",
+                changes.added.len(),
+                changes.changed.len(),
+                changes.removed.len()
+            );
+            for (path, error) in &report.failed {
+                eprintln!(
+                    "    skipped {}: {}",
+                    sbm_cli::printable(&path.to_string_lossy()),
+                    sbm_cli::printable(error)
                 );
-                for (path, error) in &report.failed {
-                    eprintln!(
-                        "    skipped {}: {}",
-                        sbm_cli::printable(&path.to_string_lossy()),
-                        sbm_cli::printable(error)
-                    );
-                }
             }
             Ok(())
         }
@@ -80,8 +83,7 @@ fn run(args: &[String]) -> Result<()> {
             }
             Ok(())
         }
-        _ => Err("usage: sbm index [--accelerator <name>] <folder>... |                   sbm search [--accelerator <name>] [--passages] <query>..."
-            .into()),
+        _ => Err(USAGE.into()),
     }
 }
 

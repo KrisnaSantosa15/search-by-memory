@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use sbm_cli::{accelerator_option, index, index_folder, search};
+use sbm_cli::{accelerator_option, index, search};
 use sbm_core::{Embedding, EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
 use sbm_index::View;
@@ -57,7 +57,7 @@ fn indexed_folder_is_searchable_from_a_later_run() {
         "change the engine oil every five thousand miles\n",
     );
 
-    index_folder(data.path(), folder.path(), &BagOfWords).unwrap();
+    index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
     let results = search(
         data.path(),
         "beef with coconut milk",
@@ -90,7 +90,7 @@ fn unreadable_file_is_reported_and_the_rest_still_indexed() {
         "slow cooked beef in coconut milk and chili\n",
     );
 
-    let report = index_folder(data.path(), folder.path(), &BagOfWords).unwrap();
+    let report = index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
     let results = search(
         data.path(),
         "beef with coconut milk",
