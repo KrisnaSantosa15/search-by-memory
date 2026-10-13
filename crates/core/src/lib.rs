@@ -4,8 +4,10 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+mod system_file_availability;
 mod system_volumes;
 
+pub use system_file_availability::SystemFileAvailability;
 pub use system_volumes::SystemVolumes;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -120,6 +122,13 @@ pub trait Volumes {
     fn volume_of(&self, path: &Path) -> Result<Volume>;
     /// Where the volume `id` is mounted now, or `None` while it is not connected.
     fn mount_point(&self, id: &str) -> Option<PathBuf>;
+}
+
+/// Whether a file's content is on disk (platform adapter).
+pub trait FileAvailability {
+    /// Whether `path` is an Online-only File. Must not open the file, which
+    /// could download it.
+    fn is_online_only(&self, path: &Path) -> bool;
 }
 
 /// Where a ChangeSource stopped reading one volume's changes. The index stores

@@ -9,7 +9,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use sbm_core::{
-    ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, Result, Volume, Volumes,
+    ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, FileAvailability, Result,
+    Volume, Volumes,
 };
 use sbm_store_usearch::{Precision, UsearchStore};
 
@@ -167,5 +168,33 @@ impl ChangeSource for FakeChangeSource {
             },
             None => Changes::Lost { next },
         })
+    }
+}
+
+/// Stands in for the operating system's record of which files are Online-only
+/// Files: tests move a file's content to the cloud and download it again.
+#[derive(Clone, Default)]
+pub struct FakeFileAvailability(Arc<Mutex<Vec<PathBuf>>>);
+
+impl FakeFileAvailability {
+    pub fn move_to_cloud(&self, path: &Path) {
+        self.0.lock().unwrap().push(path.to_path_buf());
+    }
+
+    pub fn download(&self, path: &Path) {
+        self.0
+            .lock()
+            .unwrap()
+            .retain(|online_only| online_only != path);
+    }
+}
+
+impl FileAvailability for FakeFileAvailability {
+    fn is_online_only(&self, path: &Path) -> bool {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|online_only| online_only == path)
     }
 }

@@ -5,8 +5,8 @@ use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OptionalExtension, params};
 use sbm_core::{
-    ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, Location, Result,
-    SystemVolumes, VectorStore, Volume, Volumes,
+    ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, FileAvailability, Location,
+    Result, SystemFileAvailability, SystemVolumes, VectorStore, Volume, Volumes,
 };
 use walkdir::WalkDir;
 
@@ -205,6 +205,7 @@ pub struct SearchResult {
 pub struct Index {
     db: Connection,
     volumes: Box<dyn Volumes>,
+    availability: Box<dyn FileAvailability>,
 }
 
 impl Index {
@@ -221,6 +222,14 @@ impl Index {
     pub fn with_volumes(self, volumes: impl Volumes + 'static) -> Self {
         Self {
             volumes: Box::new(volumes),
+            ..self
+        }
+    }
+
+    /// Uses `availability` instead of the operating system's to tell Online-only Files apart.
+    pub fn with_file_availability(self, availability: impl FileAvailability + 'static) -> Self {
+        Self {
+            availability: Box::new(availability),
             ..self
         }
     }
@@ -243,6 +252,7 @@ impl Index {
         Ok(Self {
             db,
             volumes: Box::new(SystemVolumes),
+            availability: Box::new(SystemFileAvailability),
         })
     }
 
@@ -262,6 +272,7 @@ impl Index {
             exclusions,
             false,
             next_scan(&tx)?,
+            self.availability.as_ref(),
         )?;
         tx.commit()?;
         Ok(changes)
@@ -471,7 +482,15 @@ impl Index {
             remember_volume(&tx, &volume)?;
             let scan = next_scan(&tx)?;
             for path in paths {
-                let found = rescan(&tx, &volume, &path, &exclusions, live, scan)?;
+                let found = rescan(
+                    &tx,
+                    &volume,
+                    &path,
+                    &exclusions,
+                    live,
+                    scan,
+                    self.availability.as_ref(),
+                )?;
                 changes.added.extend(found.added);
                 changes.changed.extend(found.changed);
                 changes.removed.extend(found.removed);
@@ -850,7 +869,8 @@ fn next_scan(db: &Connection) -> rusqlite::Result<i64> {
 
 /// Brings the Name Index in line with the file or folder at the relative
 /// `folder_path` on `volume`, which may no longer exist, marking what it finds
-/// with `scan`. With `live`, content work is queued as Live Updates.
+/// with `scan`. With `live`, content work is queued as Live Updates. Content
+/// work is never queued for Online-only Files.
 fn rescan(
     tx: &Connection,
     volume: &Volume,
@@ -858,6 +878,7 @@ fn rescan(
     exclusions: &[Exclusion],
     live: bool,
     scan: i64,
+    availability: &dyn FileAvailability,
 ) -> Result<ScanChanges> {
     let folder = &beneath(&volume.root, folder_path);
     let mut changes = ScanChanges::default();
@@ -921,7 +942,9 @@ fn rescan(
             "INSERT INTO names (rowid, name, folder) VALUES (?1, ?2, ?3)",
             params![id, name, folder],
         )?;
-        queue_job(tx, id, mtime_ns, live)?;
+        if !availability.is_online_only(entry.path()) {
+            queue_job(tx, id, mtime_ns, live)?;
+        }
     }
     // Only rows that may lie beneath `folder_path`: `folder_path` and
     // `folder_path/...` sort before `folder_path0`, as '/' comes right before '0'.
