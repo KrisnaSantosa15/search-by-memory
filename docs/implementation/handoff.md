@@ -9,13 +9,14 @@ Snapshot for the next session or agent (2026-10-13, after commit `4692004`). Pro
 - **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` tries CUDA → DirectML → CPU (`--accelerator <name>` overrides; a named GPU falls back to CPU) and prints the one in use plus why others were skipped.
 - **Volume-aware file catalog**: done (volume ID + relative path; Disconnected Drives flagged).
 - **M4 indexing core**: done (saved Indexed Folders and Exclusions, `index_jobs` queue: newest first, retries, resume).
+- **M4 Online-only Files**: done. `FileAvailability` adapter (`SystemFileAvailability`: Windows recall/offline attributes, never opens the file); Online-only Files are name-indexed only, and content-indexed once downloaded.
 - **M4 Live Updates**: done. `ChangeSource` trait, `Index::apply_changes`, `UsnJournal` adapter (`crates/change-usn`, no admin rights; ADR 0005); `sbm index` uses it.
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
-  - M4: throttling (full-screen, battery, busy; Live Updates exempt), Online-only Files.
+  - M4: throttling (full-screen, battery, busy; Live Updates exempt).
   - M4 later: a background process that applies changes continuously (today `sbm index` runs on demand).
   - M3: Tauri 2 desktop launcher.
-- Tests: `cargo test --workspace` 144 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
+- Tests: `cargo test --workspace` 149 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
 
 ## Workspace
 | Path | Purpose |
