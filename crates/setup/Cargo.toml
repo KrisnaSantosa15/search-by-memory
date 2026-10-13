@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 sbm-core = { path = "../core" }
+sbm-embed-onnx = { path = "../embed-onnx" }
 sha2 = "=0.11.0"
 ureq = { version = "=3.4.2", default-features = false, features = ["rustls"] }
 

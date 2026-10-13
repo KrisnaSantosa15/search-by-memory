@@ -1495,6 +1495,7 @@ name = "sbm-setup"
 version = "0.1.0"
 dependencies = [
  "sbm-core",
+ "sbm-embed-onnx",
  "sha2 0.11.0",
  "tempfile",
  "ureq",

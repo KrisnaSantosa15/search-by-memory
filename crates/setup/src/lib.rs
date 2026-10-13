@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use sbm_core::Result;
+use sbm_embed_onnx::Accelerator;
 use sha2::{Digest, Sha256};
 
 /// A file to download.
@@ -54,6 +55,54 @@ pub fn embedding_model() -> Vec<RemoteFile> {
         sha256: sha256.to_string(),
     })
     .collect()
+}
+
+/// Who made a GPU.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GpuVendor {
+    Nvidia,
+    Amd,
+    Intel,
+    Other,
+}
+
+/// A graphics card found on this machine.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Gpu {
+    pub name: String,
+    pub vendor: GpuVendor,
+    /// Video memory of its own, in bytes; 0 for most integrated GPUs.
+    pub dedicated_memory: u64,
+}
+
+/// One way to run the embedding model, offered during first-run setup.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpeedOption {
+    pub accelerator: Accelerator,
+    /// The GPU it uses; `None` for the CPU.
+    pub gpu: Option<Gpu>,
+    pub recommended: bool,
+    /// Needs the NVIDIA CUDA runtime downloaded first.
+    pub needs_cuda_runtime: bool,
+}
+
+/// The ways to run the embedding model on a machine with `gpus`, fastest first.
+pub fn speed_options(gpus: &[Gpu]) -> Vec<SpeedOption> {
+    let option = |accelerator, gpu: Option<&Gpu>, recommended| SpeedOption {
+        accelerator,
+        gpu: gpu.cloned(),
+        recommended,
+        needs_cuda_runtime: accelerator == Accelerator::Cuda,
+    };
+    let mut options = Vec::new();
+    if let Some(nvidia) = gpus.iter().find(|gpu| gpu.vendor == GpuVendor::Nvidia) {
+        options.push(option(Accelerator::Cuda, Some(nvidia), true));
+    }
+    if let Some(strongest) = gpus.iter().max_by_key(|gpu| gpu.dedicated_memory) {
+        options.push(option(Accelerator::DirectMl, Some(strongest), false));
+    }
+    options.push(option(Accelerator::Cpu, None, false));
+    options
 }
 
 /// How a download ended.
