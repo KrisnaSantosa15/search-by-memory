@@ -4,7 +4,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use sbm_core::Result;
 use sha2::{Digest, Sha256};
@@ -27,6 +27,14 @@ pub struct Progress {
     pub total: u64,
 }
 
+/// How a download ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Finished {
+    Complete,
+    /// Stopped on request; the next download resumes where this one stopped.
+    Cancelled,
+}
+
 /// The web (system boundary).
 pub trait Http {
     /// The body of `url` from byte `from` on.
@@ -40,8 +48,7 @@ pub fn download(
     http: &dyn Http,
     cancel: &AtomicBool,
     progress: &mut dyn FnMut(Progress),
-) -> Result<()> {
-    let _ = cancel;
+) -> Result<Finished> {
     let mut current = Progress {
         done: 0,
         total: files.iter().map(|file| file.size).sum(),
@@ -72,6 +79,9 @@ pub fn download(
             out.write_all(&buffer[..read])?;
             current.done += read as u64;
             progress(current);
+            if cancel.load(Ordering::SeqCst) {
+                return Ok(Finished::Cancelled);
+            }
         }
         drop(out);
         if sha256_of(&part)? != file.sha256 {
@@ -82,7 +92,7 @@ pub fn download(
         }
         std::fs::rename(&part, &path)?;
     }
-    Ok(())
+    Ok(Finished::Complete)
 }
 
 /// Lowercase hex SHA-256 of the file at `path`, read in pieces.

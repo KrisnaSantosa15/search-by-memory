@@ -2,10 +2,10 @@
 
 mod common;
 
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use common::FakeHttp;
-use sbm_setup::{Progress, download};
+use sbm_setup::{Finished, Progress, download};
 use tempfile::TempDir;
 
 #[test]
@@ -109,4 +109,27 @@ fn files_already_downloaded_are_not_fetched_again() {
             total: 5000
         }
     );
+}
+
+#[test]
+fn cancelled_download_stops_and_resumes_later() {
+    let dir = TempDir::new().unwrap();
+    let http = FakeHttp::default();
+    let content = vec![7; 300_000];
+    let files = [http.serve("https://example.test/model.onnx", "model.onnx", &content)];
+    let cancel = AtomicBool::new(false);
+
+    let first = download(&files, dir.path(), &http, &cancel, &mut |_| {
+        cancel.store(true, Ordering::SeqCst)
+    })
+    .unwrap();
+    cancel.store(false, Ordering::SeqCst);
+    let second = download(&files, dir.path(), &http, &cancel, &mut |_| {}).unwrap();
+
+    assert_eq!((first, second), (Finished::Cancelled, Finished::Complete));
+    assert_eq!(
+        std::fs::read(dir.path().join("model.onnx")).unwrap(),
+        content
+    );
+    assert!(http.requests.lock().unwrap().last().unwrap().1 > 0);
 }
