@@ -39,5 +39,23 @@ fn mean_reciprocal_rank_averages_one_over_the_first_target_rank() {
         FileRanking::new(&query, &ranked(&["b.pdf"])),
     ]);
 
-    assert_eq!(scores.mean_reciprocal_rank(), (1.0 + 0.5 + 0.25 + 0.0) / 4.0);
+    assert_eq!(
+        scores.mean_reciprocal_rank(),
+        (1.0 + 0.5 + 0.25 + 0.0) / 4.0
+    );
+}
+
+#[test]
+fn ndcg_at_k_rewards_every_distinct_target_file_by_its_rank() {
+    // Two Targets in a.pdf (e.g. different pages) count as one relevant file.
+    let query = query_targeting(&["a.pdf", "a.pdf", "b.pdf"]);
+    let scores = Scores::new(vec![
+        FileRanking::new(&query, &ranked(&["a.pdf", "x.pdf", "b.pdf"])),
+        FileRanking::new(&query, &ranked(&["x.pdf", "y.pdf"])),
+    ]);
+
+    let ideal = 1.0 + 1.0 / 3f64.log2();
+    let found = 1.0 + 1.0 / 4f64.log2();
+    assert!((scores.ndcg_at(10) - (found / ideal) / 2.0).abs() < 1e-12);
+    assert!((scores.ndcg_at(2) - (1.0 / ideal) / 2.0).abs() < 1e-12);
 }
