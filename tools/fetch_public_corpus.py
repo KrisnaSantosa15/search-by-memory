@@ -9,8 +9,11 @@ Usage: uv run fetch_public_corpus.py [corpus_dir]
 import hashlib
 import os
 import sys
+import time
 import tomllib
+import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 
 
@@ -25,20 +28,32 @@ def default_corpus_dir() -> Path:
     return Path.home() / ".cache/search-by-memory/public-corpus"
 
 
-def fetch_corpus(manifest: Path, corpus: Path) -> None:
+def fetch_corpus(manifest: Path, corpus: Path, sleep: Callable[[float], None] = time.sleep) -> None:
     entries = tomllib.loads(manifest.read_text())["file"]
     for entry in entries:
         target = corpus / entry["path"]
         if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == entry["sha256"]:
             continue
-        request = urllib.request.Request(entry["url"], headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(request) as response:
-            data = response.read()
+        data = download(entry["url"], sleep)
         actual = hashlib.sha256(data).hexdigest()
         if actual != entry["sha256"]:
             raise ValueError(f"{entry['path']}: sha256 {actual} does not match manifest {entry['sha256']}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
+
+
+def download(url: str, sleep: Callable[[float], None], attempts: int = 5) -> bytes:
+    """Downloads `url`, waiting as asked (Retry-After) when the server rate-limits."""
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(request) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            if error.code != 429 or attempt == attempts:
+                raise
+            sleep(float(error.headers.get("Retry-After") or 30))
+    raise AssertionError("unreachable")
 
 
 def main() -> None:

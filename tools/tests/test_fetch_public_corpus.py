@@ -109,3 +109,34 @@ def test_downloads_identify_the_tool_with_a_user_agent(tmp_path):
     httpd.shutdown()
 
     assert seen[0].startswith("search-by-memory-bench/")
+
+
+def test_rate_limited_download_is_retried_after_the_server_asked_delay(tmp_path):
+    # Wikimedia answers bursts of downloads with 429 Too Many Requests.
+    attempts = []
+
+    class RateLimitedOnceHandler(SimpleHTTPRequestHandler):
+        def do_GET(self):
+            attempts.append(self.path)
+            if len(attempts) == 1:
+                self.send_response(429)
+                self.send_header("Retry-After", "7")
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"data")
+
+    httpd = HTTPServer(("127.0.0.1", 0), RateLimitedOnceHandler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    manifest = write_manifest(
+        tmp_path / "manifest.toml",
+        [{"path": "f", "url": f"http://127.0.0.1:{httpd.server_port}/f", "sha256": sha256(b"data"), "license": "CC0-1.0"}],
+    )
+    slept = []
+
+    fetch_corpus(manifest, tmp_path / "corpus", sleep=slept.append)
+    httpd.shutdown()
+
+    assert slept == [7]
+    assert (tmp_path / "corpus/f").read_bytes() == b"data"
