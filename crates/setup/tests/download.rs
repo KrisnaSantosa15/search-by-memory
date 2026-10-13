@@ -88,3 +88,25 @@ fn corrupt_download_is_rejected_and_started_over_next_time() {
     let left: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
     assert!(left.is_empty(), "{left:?}");
 }
+
+#[test]
+fn files_already_downloaded_are_not_fetched_again() {
+    let dir = TempDir::new().unwrap();
+    let http = FakeHttp::default();
+    let files = [http.serve("https://example.test/model.onnx", "model.onnx", &[7; 5000])];
+    let cancel = AtomicBool::new(false);
+    download(&files, dir.path(), &http, &cancel, &mut |_| {}).unwrap();
+    http.requests.lock().unwrap().clear();
+    let mut last = Progress::default();
+
+    download(&files, dir.path(), &http, &cancel, &mut |p| last = p).unwrap();
+
+    assert!(http.requests.lock().unwrap().is_empty());
+    assert_eq!(
+        last,
+        Progress {
+            done: 5000,
+            total: 5000
+        }
+    );
+}

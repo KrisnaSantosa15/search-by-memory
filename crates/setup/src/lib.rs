@@ -52,6 +52,12 @@ pub fn download(
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
+        // Only a verified download gets its final name.
+        if std::fs::metadata(&path).is_ok_and(|metadata| metadata.len() == file.size) {
+            current.done += file.size;
+            progress(current);
+            continue;
+        }
         // Bytes already fetched wait in a `.part` file, so a new run resumes there.
         let part = dir.join(format!("{}.part", file.path));
         let from = std::fs::metadata(&part).map_or(0, |metadata| metadata.len());
