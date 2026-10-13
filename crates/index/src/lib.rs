@@ -4,12 +4,47 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, params};
 use sbm_core::Result;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 /// A file whose filename or folder path is relevant to the Query.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NameMatch {
     pub path: PathBuf,
+}
+
+/// Folder names excluded anywhere on any drive (FR-03).
+const DEFAULT_EXCLUDED_NAMES: [&str; 8] = [
+    "node_modules",
+    ".git",
+    "target",
+    "venv",
+    ".venv",
+    "__pycache__",
+    ".cache",
+    "$RECYCLE.BIN",
+];
+
+/// A folder or name pattern the user does not want indexed.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Exclusion {
+    /// Any file or folder with this name, anywhere beneath an Indexed Folder.
+    Name(String),
+}
+
+impl Exclusion {
+    /// The Default Exclusions that apply on every drive.
+    pub fn defaults() -> Vec<Exclusion> {
+        DEFAULT_EXCLUDED_NAMES
+            .iter()
+            .map(|name| Exclusion::Name(name.to_string()))
+            .collect()
+    }
+
+    fn excludes(&self, entry: &DirEntry) -> bool {
+        match self {
+            Exclusion::Name(name) => entry.file_name() == name.as_str(),
+        }
+    }
 }
 
 /// The file catalog and Name Index, stored in SQLite.
@@ -32,10 +67,13 @@ impl Index {
         Ok(Self { db })
     }
 
-    /// Records every file beneath the Indexed Folder `folder` in the Name Index.
-    pub fn scan(&mut self, folder: &Path, _exclusions: &[String]) -> Result<()> {
+    /// Records every file beneath the Indexed Folder `folder`, minus Exclusions, in the Name Index.
+    pub fn scan(&mut self, folder: &Path, exclusions: &[Exclusion]) -> Result<()> {
         let tx = self.db.transaction()?;
-        for entry in WalkDir::new(folder) {
+        let entries = WalkDir::new(folder)
+            .into_iter()
+            .filter_entry(|entry| !exclusions.iter().any(|e| e.excludes(entry)));
+        for entry in entries {
             let entry = entry?;
             if !entry.file_type().is_file() {
                 continue;

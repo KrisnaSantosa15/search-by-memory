@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use sbm_index::Index;
+use sbm_index::{Exclusion, Index};
 use tempfile::TempDir;
 
 fn touch(root: &Path, relative: &str) {
@@ -76,4 +76,20 @@ fn exact_filename_match_ranks_first() {
 
     assert_eq!(matches.len(), 3);
     assert_eq!(matches[0].path, folder.path().join("archive/Report.pdf"));
+}
+
+#[test]
+fn files_beneath_default_exclusions_are_not_in_the_name_index() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "app/src/index.js");
+    touch(folder.path(), "app/node_modules/lodash/index.js");
+    touch(folder.path(), "app/.git/index.js");
+    touch(folder.path(), "tool/.venv/lib/index.js");
+    let mut index = Index::open_in_memory().unwrap();
+
+    index.scan(folder.path(), &Exclusion::defaults()).unwrap();
+    let matches = index.search_names("index.js", 20).unwrap();
+
+    let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
+    assert_eq!(paths, [folder.path().join("app/src/index.js")]);
 }
