@@ -4,7 +4,7 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 
 ## State (2026-10-13)
 - M1 technical validation in progress. Embedding, vector store, Benchmark tooling and Public Corpus are done; all tests green, one deliberately ignored (i8 recall).
-- Nothing in progress. Next: diagnose low Location Accuracy, grow the corpus with distractors, and the unfinished CPU throughput benchmark.
+- Nothing in progress. Next: the unfinished CPU throughput benchmark, or a much larger corpus so file-level Recall stops saturating.
 
 ## Workspace
 | Path | Purpose |
@@ -43,11 +43,12 @@ Snapshot for the next session or agent. Progress lives in [`backlog.md`](backlog
 - Benchmark is for development only; the user's own files come in as a Personal Corpus later (labels outside git).
 - Public Corpus label caveats: most arXiv Targets are page 1 (abstract) — too easy; media time ranges verified from subtitles/frames; UU 36/2009 and UU 13/2003 are superseded/amended texts.
 - Real-corpus CPU embedding ≈ 1 Chunk/s (1,000-char Chunks, batch 8), half the synthetic estimate.
-- First retrieval run: file-level metrics saturated (Recall@5 = 1.0 everywhere); Location Accuracy 0.28–0.44 is the weak spot.
+- Retrieval runs: file-level Recall@5 = 1.0 even with 25 near-neighbour distractors; Location Accuracy (0.56–0.67) is the weak spot, mostly right file but wrong place. 256 dims ≥ 512/768 on this corpus; i8 loses 0.02–0.07 Location Accuracy, f16 matches exact.
+- Wikipedia files are fetched as raw wikitext (pinned revid) and converted to plain text; manifest `source_sha256` checks the download, `sha256` the converted file.
 - Wikimedia rate-limits bursts (429); the fetcher honours Retry-After.
 
 ## Open questions for the user
-1. Review the 40 drafted Queries in `benchmark/public/queries.toml`.
+1. Review the 58 drafted Queries in `benchmark/public/queries.toml`.
 2. License spot-checks flagged by gathering: Tom Lehrer recordings (PD claim), arXiv CC BY verified on abs pages only.
 3. f16 vs i8 vector precision (decide on real Benchmark data).
 4. When to resume the benchmark (CPU int8/q4 now, GPU on Windows later).
