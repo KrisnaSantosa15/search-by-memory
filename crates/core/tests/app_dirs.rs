@@ -31,6 +31,12 @@ fn windows_data_and_cache_live_in_local_app_data() {
 fn unix_data_and_cache_follow_the_xdg_defaults_under_home() {
     let dirs = AppDirs::from_env(Platform::Unix, env(&[("HOME", "/home/ana")]));
 
-    assert_eq!(dirs.data, PathBuf::from("/home/ana/.local/share/search-by-memory"));
-    assert_eq!(dirs.cache, PathBuf::from("/home/ana/.cache/search-by-memory"));
+    assert_eq!(
+        dirs.data,
+        PathBuf::from("/home/ana/.local/share/search-by-memory")
+    );
+    assert_eq!(
+        dirs.cache,
+        PathBuf::from("/home/ana/.cache/search-by-memory")
+    );
 }

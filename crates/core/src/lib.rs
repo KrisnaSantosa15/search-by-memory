@@ -117,6 +117,16 @@ pub struct AppDirs {
 }
 
 impl AppDirs {
+    /// The directories for the running platform and environment.
+    pub fn current() -> Self {
+        let platform = if cfg!(windows) {
+            Platform::Windows
+        } else {
+            Platform::Unix
+        };
+        Self::from_env(platform, |name| std::env::var_os(name))
+    }
+
     /// Resolves the directories from environment variables, looked up by `var`.
     pub fn from_env(platform: Platform, var: impl Fn(&str) -> Option<OsString>) -> Self {
         let dir = |name| PathBuf::from(var(name).unwrap_or_default());
