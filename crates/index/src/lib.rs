@@ -253,104 +253,16 @@ impl Index {
         let folder = normalized(folder);
         let volume = self.volumes.volume_of(&folder)?;
         let folder_path = relative_path(&folder, &volume)?;
-        self.scan_path(&volume, &folder_path, exclusions, false)
-    }
-
-    /// Brings the Name Index in line with the file or folder at the relative
-    /// `folder_path` on `volume`, which may no longer exist. With `live`, content
-    /// work is queued as Live Updates.
-    fn scan_path(
-        &mut self,
-        volume: &Volume,
-        folder_path: &str,
-        exclusions: &[Exclusion],
-        live: bool,
-    ) -> Result<ScanChanges> {
-        let folder = &beneath(&volume.root, folder_path);
-        let mut changes = ScanChanges::default();
         let tx = self.db.transaction()?;
-        remember_volume(&tx, volume)?;
-        let scan: i64 = tx.query_row(
-            "SELECT coalesce(max(seen_in_scan), 0) + 1 FROM files",
-            [],
-            |row| row.get(0),
+        remember_volume(&tx, &volume)?;
+        let changes = rescan(
+            &tx,
+            &volume,
+            &folder_path,
+            exclusions,
+            false,
+            next_scan(&tx)?,
         )?;
-        let entries = WalkDir::new(folder)
-            .into_iter()
-            .filter_entry(|entry| {
-                entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry.path()))
-            })
-            // A deleted file or folder: whatever the index knows beneath it is swept below.
-            .filter(|entry| folder.exists() || entry.is_ok());
-        for entry in entries {
-            let entry = entry?;
-            if !entry.file_type().is_file() {
-                continue;
-            }
-            let path = relative_path(entry.path(), volume)?;
-            let metadata = entry.metadata()?;
-            let size = metadata.len() as i64;
-            let mtime_ns = metadata
-                .modified()?
-                .duration_since(UNIX_EPOCH)
-                .map_or(0, |since| since.as_nanos() as i64);
-            let known: Option<(i64, i64, i64)> = tx
-                .query_row(
-                    "SELECT id, size, mtime_ns FROM files WHERE volume_id = ?1 AND relative_path = ?2",
-                    params![volume.id, path],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-                )
-                .optional()?;
-            if let Some((id, previous_size, previous_mtime)) = known {
-                if (previous_size, previous_mtime) != (size, mtime_ns) {
-                    changes.changed.push(entry.path().to_path_buf());
-                    queue_job(&tx, id, mtime_ns, live)?;
-                }
-                tx.execute(
-                    "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3
-                     WHERE volume_id = ?4 AND relative_path = ?5",
-                    params![scan, size, mtime_ns, volume.id, path],
-                )?;
-                continue;
-            }
-            let name_lower = entry.file_name().to_string_lossy().to_lowercase();
-            let stem_lower = entry
-                .path()
-                .file_stem()
-                .map(|stem| stem.to_string_lossy().to_lowercase())
-                .unwrap_or_default();
-            tx.execute(
-                "INSERT INTO files
-                     (volume_id, relative_path, name_lower, stem_lower, size, mtime_ns, seen_in_scan)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![volume.id, path, name_lower, stem_lower, size, mtime_ns, scan],
-            )?;
-            let id = tx.last_insert_rowid();
-            changes.added.push(entry.path().to_path_buf());
-            let name = entry.file_name().to_string_lossy();
-            let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
-            tx.execute(
-                "INSERT INTO names (rowid, name, folder) VALUES (?1, ?2, ?3)",
-                params![id, name, folder],
-            )?;
-            queue_job(&tx, id, mtime_ns, live)?;
-        }
-        let gone: Vec<(i64, String)> = tx
-            .prepare(
-                "SELECT id, relative_path FROM files WHERE seen_in_scan != ?1 AND volume_id = ?2",
-            )?
-            .query_map(params![scan, volume.id], |row| {
-                Ok((row.get(0)?, row.get(1)?))
-            })?
-            .collect::<rusqlite::Result<_>>()?;
-        for (id, path) in gone {
-            if is_beneath(&path, folder_path) {
-                tx.execute("DELETE FROM names WHERE rowid = ?1", params![id])?;
-                tx.execute("DELETE FROM index_jobs WHERE file_id = ?1", params![id])?;
-                tx.execute("DELETE FROM files WHERE id = ?1", params![id])?;
-                changes.removed.push(beneath(&volume.root, &path));
-            }
-        }
         tx.commit()?;
         Ok(changes)
     }
@@ -554,17 +466,22 @@ impl Index {
                     false,
                 ),
             };
+            // The changes and the cursor after them are saved together.
+            let tx = self.db.transaction()?;
+            remember_volume(&tx, &volume)?;
+            let scan = next_scan(&tx)?;
             for path in paths {
-                let found = self.scan_path(&volume, &path, &exclusions, live)?;
+                let found = rescan(&tx, &volume, &path, &exclusions, live, scan)?;
                 changes.added.extend(found.added);
                 changes.changed.extend(found.changed);
                 changes.removed.extend(found.removed);
             }
-            self.db.execute(
+            tx.execute(
                 "INSERT INTO change_cursors (volume_id, cursor) VALUES (?1, ?2)
                  ON CONFLICT (volume_id) DO UPDATE SET cursor = excluded.cursor",
                 params![volume.id, next.0],
             )?;
+            tx.commit()?;
         }
         Ok(changes)
     }
@@ -922,6 +839,118 @@ impl Index {
 }
 
 /// Records where `volume` is mounted, to show its files while it is disconnected.
+/// The number that marks files seen by a new scan.
+fn next_scan(db: &Connection) -> rusqlite::Result<i64> {
+    db.query_row(
+        "SELECT coalesce(max(seen_in_scan), 0) + 1 FROM files",
+        [],
+        |row| row.get(0),
+    )
+}
+
+/// Brings the Name Index in line with the file or folder at the relative
+/// `folder_path` on `volume`, which may no longer exist, marking what it finds
+/// with `scan`. With `live`, content work is queued as Live Updates.
+fn rescan(
+    tx: &Connection,
+    volume: &Volume,
+    folder_path: &str,
+    exclusions: &[Exclusion],
+    live: bool,
+    scan: i64,
+) -> Result<ScanChanges> {
+    let folder = &beneath(&volume.root, folder_path);
+    let mut changes = ScanChanges::default();
+    let entries = WalkDir::new(folder)
+        .into_iter()
+        .filter_entry(|entry| {
+            entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry.path()))
+        })
+        // A deleted file or folder: whatever the index knows beneath it is swept below.
+        .filter(|entry| folder.exists() || entry.is_ok());
+    for entry in entries {
+        let entry = entry?;
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let path = relative_path(entry.path(), volume)?;
+        let metadata = entry.metadata()?;
+        let size = metadata.len() as i64;
+        let mtime_ns = metadata
+            .modified()?
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |since| since.as_nanos() as i64);
+        let known: Option<(i64, i64, i64)> = tx
+            .query_row(
+                "SELECT id, size, mtime_ns FROM files WHERE volume_id = ?1 AND relative_path = ?2",
+                params![volume.id, path],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        if let Some((id, previous_size, previous_mtime)) = known {
+            if (previous_size, previous_mtime) != (size, mtime_ns) {
+                changes.changed.push(entry.path().to_path_buf());
+                queue_job(tx, id, mtime_ns, live)?;
+            }
+            tx.execute(
+                "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3
+                 WHERE volume_id = ?4 AND relative_path = ?5",
+                params![scan, size, mtime_ns, volume.id, path],
+            )?;
+            continue;
+        }
+        let name_lower = entry.file_name().to_string_lossy().to_lowercase();
+        let stem_lower = entry
+            .path()
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        tx.execute(
+            "INSERT INTO files
+                 (volume_id, relative_path, name_lower, stem_lower, size, mtime_ns, seen_in_scan)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                volume.id, path, name_lower, stem_lower, size, mtime_ns, scan
+            ],
+        )?;
+        let id = tx.last_insert_rowid();
+        changes.added.push(entry.path().to_path_buf());
+        let name = entry.file_name().to_string_lossy();
+        let folder = path.rsplit_once('/').map_or("", |(folder, _)| folder);
+        tx.execute(
+            "INSERT INTO names (rowid, name, folder) VALUES (?1, ?2, ?3)",
+            params![id, name, folder],
+        )?;
+        queue_job(tx, id, mtime_ns, live)?;
+    }
+    // Only rows that may lie beneath `folder_path`: `folder_path` and
+    // `folder_path/...` sort before `folder_path0`, as '/' comes right before '0'.
+    let (from, to) = if folder_path.is_empty() {
+        (String::new(), String::from(char::MAX))
+    } else {
+        (folder_path.to_string(), format!("{folder_path}0"))
+    };
+    let gone: Vec<(i64, String)> = tx
+        .prepare(
+            "SELECT id, relative_path FROM files
+             WHERE volume_id = ?1 AND relative_path >= ?2 AND relative_path < ?3
+                 AND seen_in_scan != ?4",
+        )?
+        .query_map(params![volume.id, from, to, scan], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    for (id, path) in gone {
+        if is_beneath(&path, folder_path) {
+            tx.execute("DELETE FROM names WHERE rowid = ?1", params![id])?;
+            tx.execute("DELETE FROM index_jobs WHERE file_id = ?1", params![id])?;
+            tx.execute("DELETE FROM files WHERE id = ?1", params![id])?;
+            changes.removed.push(beneath(&volume.root, &path));
+        }
+    }
+    Ok(changes)
+}
+
 fn remember_volume(db: &Connection, volume: &Volume) -> rusqlite::Result<()> {
     db.execute(
         "INSERT INTO volumes (id, last_root) VALUES (?1, ?2)
