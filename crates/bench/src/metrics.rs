@@ -21,6 +21,8 @@ pub struct FileRanking {
     target_ranks: Vec<usize>,
     /// Number of distinct Target files.
     target_files: usize,
+    /// Whether the Snippet of the best-ranked Target file overlaps one of its Targets.
+    snippet_on_target: Option<bool>,
 }
 
 impl FileRanking {
@@ -33,9 +35,22 @@ impl FileRanking {
             .filter(|(_, result)| targets.contains(&result.file))
             .map(|(index, _)| index + 1)
             .collect();
+        let snippet_on_target = results
+            .iter()
+            .find(|result| targets.contains(&result.file))
+            .map(|found| {
+                query.targets.iter().any(|target| {
+                    target.file == found.file
+                        && found
+                            .snippet
+                            .as_ref()
+                            .is_some_and(|snippet| snippet.overlaps(&target.location))
+                })
+            });
         Self {
             target_ranks,
             target_files: targets.len(),
+            snippet_on_target,
         }
     }
 
@@ -93,6 +108,17 @@ impl Scores {
     /// Mean normalized discounted cumulative gain over the top `k` Results.
     pub fn ndcg_at(&self, k: usize) -> f64 {
         self.mean(|ranking| ranking.ndcg_at(k))
+    }
+
+    /// Share of Queries with a found Target file whose shown Snippet overlaps a Target Location.
+    pub fn location_accuracy(&self) -> f64 {
+        let judged: Vec<bool> = self
+            .rankings
+            .iter()
+            .filter_map(|ranking| ranking.snippet_on_target)
+            .collect();
+        let on_target = judged.iter().filter(|&&hit| hit).count();
+        on_target as f64 / judged.len() as f64
     }
 
     fn mean(&self, score: impl Fn(&FileRanking) -> f64) -> f64 {
