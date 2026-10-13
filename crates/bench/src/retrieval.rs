@@ -162,6 +162,9 @@ pub fn evaluate<S: VectorStore>(
     Ok(Scores::new(rankings))
 }
 
+/// Chunks per model call: bounds memory for files with many Chunks.
+const EMBEDDING_BATCH: usize = 8;
+
 /// Chunk Embeddings stored on disk by a key such as the file's content hash,
 /// so repeated Benchmark runs embed each file once.
 pub struct EmbeddingCache {
@@ -196,7 +199,10 @@ impl EmbeddingCache {
                 .map(|vector| Embedding::new(vector.to_vec()))
                 .collect());
         }
-        let embeddings = embedder.embed_chunks(chunks)?;
+        let mut embeddings = Vec::with_capacity(chunks.len());
+        for batch in chunks.chunks(EMBEDDING_BATCH) {
+            embeddings.extend(embedder.embed_chunks(batch)?);
+        }
         let bytes: Vec<u8> = embeddings
             .iter()
             .flat_map(|embedding| embedding.as_slice().iter().flat_map(|v| v.to_le_bytes()))
