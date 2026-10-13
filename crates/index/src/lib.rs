@@ -172,6 +172,7 @@ impl Index {
     /// minus Exclusions: new files are added, files no longer there are removed, and
     /// changed files are reported.
     pub fn scan(&mut self, folder: &Path, exclusions: &[Exclusion]) -> Result<ScanChanges> {
+        let folder = &normalized(folder);
         let mut changes = ScanChanges::default();
         let tx = self.db.transaction()?;
         let scan: i64 = tx.query_row(
@@ -453,6 +454,12 @@ impl Index {
 
 /// The Query as FTS5 syntax: each word quoted, so user text is never parsed as
 /// operators, and the last word matched as a prefix because the user may still be typing it.
+/// One spelling per path, so the catalog has one row per file: on Windows,
+/// `C:/a/b.txt` becomes `C:\a\b.txt`.
+fn normalized(path: &Path) -> PathBuf {
+    path.components().collect()
+}
+
 fn fts_query(query: &str) -> Option<String> {
     let words: Vec<&str> = query
         .split(|c: char| !c.is_alphanumeric())

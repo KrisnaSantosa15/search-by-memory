@@ -185,6 +185,21 @@ fn scan_reports_added_and_removed_files() {
     assert_eq!(second.removed, [folder.path().join("notes/todo.md")]);
 }
 
+#[cfg(windows)]
+#[test]
+fn indexed_folder_spelled_with_forward_slashes_is_the_same_folder() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "notes/todo.md");
+    let mut index = Index::open_in_memory().unwrap();
+    index.scan(folder.path(), &[]).unwrap();
+
+    let forward_slashes = folder.path().to_string_lossy().replace('\\', "/");
+    let rescan = index.scan(Path::new(&forward_slashes), &[]).unwrap();
+
+    assert!(rescan.added.is_empty(), "added: {:?}", rescan.added);
+    assert!(rescan.removed.is_empty(), "removed: {:?}", rescan.removed);
+}
+
 #[test]
 fn name_index_persists_across_reopening_the_database() {
     let folder = TempDir::new().unwrap();
