@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OptionalExtension, params};
-use sbm_core::Result;
+use sbm_core::{Embedding, EmbeddingProvider, Location, Result, VectorStore};
 use walkdir::{DirEntry, WalkDir};
 
 /// A file whose filename or folder path is relevant to the Query.
@@ -67,7 +67,8 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 1] = ["CREATE TABLE files (
+const MIGRATIONS: [&str; 2] = [
+    "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
          name_lower TEXT NOT NULL,
@@ -76,7 +77,55 @@ const MIGRATIONS: [&str; 1] = ["CREATE TABLE files (
          mtime_ns INTEGER NOT NULL,
          seen_in_scan INTEGER NOT NULL
      );
-     CREATE VIRTUAL TABLE names USING fts5(name, folder);"];
+     CREATE VIRTUAL TABLE names USING fts5(name, folder);",
+    // Content Index (ADR 0004): Chunks belong to file content, not to paths.
+    "ALTER TABLE files ADD COLUMN content_hash TEXT;
+     CREATE TABLE chunks (
+         id INTEGER PRIMARY KEY,
+         content_hash TEXT NOT NULL,
+         page INTEGER,
+         line_start INTEGER,
+         line_end INTEGER,
+         text TEXT NOT NULL,
+         embedding BLOB NOT NULL
+     );
+     CREATE INDEX chunks_by_content ON chunks (content_hash);
+     CREATE INDEX files_by_content ON files (content_hash);",
+];
+
+/// Chunk size in characters: about 256 tokens of prose.
+const CHUNK_CHARS: usize = 1000;
+/// Characters each Chunk repeats from the one before (15%).
+const CHUNK_OVERLAP_CHARS: usize = 150;
+/// Content Matches considered per Result requested.
+const CANDIDATES_PER_RESULT: usize = 10;
+
+/// How Results are grouped (FR-02).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum View {
+    /// One Result per file.
+    File,
+    /// One Result per Content Match.
+    Passage,
+}
+
+/// Why a Result was returned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MatchReason {
+    Name,
+    Content,
+    Both,
+}
+
+/// One row of the result list.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SearchResult {
+    pub path: PathBuf,
+    /// Verbatim text of the best Content Match, if any.
+    pub snippet: Option<String>,
+    pub location: Option<Location>,
+    pub match_reason: MatchReason,
+}
 
 /// The file catalog and Name Index, stored in SQLite.
 pub struct Index {
@@ -188,6 +237,104 @@ impl Index {
         Ok(changes)
     }
 
+    /// Adds the content of a file in the Name Index to the Content Index:
+    /// its Chunks, their Embeddings in SQLite, and their vectors in `store`.
+    pub fn index_content(
+        &mut self,
+        path: &Path,
+        embedder: &dyn EmbeddingProvider,
+        store: &mut impl VectorStore,
+    ) -> Result<()> {
+        let Some(extractor) = sbm_extract::extractor_for(path) else {
+            return Ok(());
+        };
+        let hash = blake3::hash(&std::fs::read(path)?).to_hex().to_string();
+        let chunks = sbm_extract::chunk_sections(
+            &extractor.extract(path)?,
+            CHUNK_CHARS,
+            CHUNK_OVERLAP_CHARS,
+        );
+        let texts: Vec<&str> = chunks.iter().map(|chunk| chunk.text.as_str()).collect();
+        let embeddings = embedder.embed_chunks(&texts)?;
+        let tx = self.db.transaction()?;
+        for (chunk, embedding) in chunks.iter().zip(&embeddings) {
+            let (page, line_start, line_end) = location_columns(&chunk.location);
+            tx.execute(
+                "INSERT INTO chunks (content_hash, page, line_start, line_end, text, embedding)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    hash,
+                    page,
+                    line_start,
+                    line_end,
+                    chunk.text,
+                    embedding_bytes(embedding)
+                ],
+            )?;
+            store.add(tx.last_insert_rowid() as u64, embedding)?;
+        }
+        tx.execute(
+            "UPDATE files SET content_hash = ?1 WHERE path = ?2",
+            params![hash, path.to_string_lossy()],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Results for a Query from the Content Index, best first.
+    pub fn search(
+        &self,
+        query: &str,
+        embedder: &dyn EmbeddingProvider,
+        store: &impl VectorStore,
+        _view: View,
+        limit: usize,
+    ) -> Result<Vec<SearchResult>> {
+        let neighbors =
+            store.search(&embedder.embed_query(query)?, limit * CANDIDATES_PER_RESULT)?;
+        let mut chunk = self.db.prepare(
+            "SELECT content_hash, page, line_start, line_end, text FROM chunks WHERE id = ?1",
+        )?;
+        let mut files = self
+            .db
+            .prepare("SELECT path FROM files WHERE content_hash = ?1")?;
+        let mut results: Vec<SearchResult> = Vec::new();
+        for neighbor in neighbors {
+            let (hash, page, line_start, line_end, text): (
+                String,
+                Option<u32>,
+                Option<u32>,
+                Option<u32>,
+                String,
+            ) = chunk.query_row(params![neighbor.id as i64], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            })?;
+            let paths: Vec<String> = files
+                .query_map(params![hash], |row| row.get(0))?
+                .collect::<rusqlite::Result<_>>()?;
+            for path in paths {
+                let path = PathBuf::from(path);
+                if results.iter().any(|result| result.path == path) {
+                    continue;
+                }
+                results.push(SearchResult {
+                    path,
+                    snippet: Some(text.clone()),
+                    location: Some(location_from_columns(page, line_start, line_end)),
+                    match_reason: MatchReason::Content,
+                });
+            }
+        }
+        results.truncate(limit);
+        Ok(results)
+    }
+
     /// Name Matches for a Query, best first.
     pub fn search_names(&self, query: &str, limit: usize) -> Result<Vec<NameMatch>> {
         let exact = query.trim().to_lowercase();
@@ -241,4 +388,34 @@ fn wildcard_match(pattern: &str, name: &str) -> bool {
         }
     }
     rest.len() >= last.len() && rest.ends_with(last)
+}
+
+/// A Location as the nullable `page`, `line_start`, `line_end` columns of `chunks`.
+fn location_columns(location: &Location) -> (Option<u32>, Option<u32>, Option<u32>) {
+    match location {
+        Location::Page(page) => (Some(*page), None, None),
+        Location::Lines { start, end } => (None, Some(*start), Some(*end)),
+        Location::Time { .. } | Location::WholeFile => (None, None, None),
+    }
+}
+
+fn location_from_columns(
+    page: Option<u32>,
+    line_start: Option<u32>,
+    line_end: Option<u32>,
+) -> Location {
+    match (page, line_start, line_end) {
+        (Some(page), _, _) => Location::Page(page),
+        (None, Some(start), Some(end)) => Location::Lines { start, end },
+        _ => Location::WholeFile,
+    }
+}
+
+/// Little-endian f32 values, as stored in `chunks.embedding`.
+fn embedding_bytes(embedding: &Embedding) -> Vec<u8> {
+    embedding
+        .as_slice()
+        .iter()
+        .flat_map(|value| value.to_le_bytes())
+        .collect()
 }

@@ -6,8 +6,11 @@ license.workspace = true
 
 [dependencies]
 sbm-core = { path = "../core" }
+sbm-extract = { path = "../extract" }
+blake3 = "=1.8.7"
 rusqlite = { version = "=0.40.2", features = ["bundled"] }
 walkdir = "=2.5.0"
 
 [dev-dependencies]
+sbm-store-usearch = { path = "../store-usearch" }
 tempfile = "=3.27.0"
