@@ -6,16 +6,16 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - **Development moved to Windows** (RTX 4060 8 GB). The workspace builds and all tests pass on Windows; Linux paths are unchanged.
 - **M1 Technical Validation**: done except deferred benchmarks: a clean GPU throughput run, and CPU int8/q4 models.
 - **M2 Name + Text Search MVP**: Name Index, extractors, chunking, Content Index, hybrid search, and the `sbm` CLI are done and smoke-tested with the real model (on Linux).
-- **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` still runs on CPU.
-- **In progress**: clean GPU benchmark (user closes GPU-using apps first), then `sbm` default Accelerator (proposed: CUDA → DirectML → CPU, printing the one in use and why it fell back).
+- **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` tries CUDA → DirectML → CPU (`--accelerator <name>` overrides; a named GPU falls back to CPU) and prints the one in use plus why others were skipped.
+- **In progress**: clean GPU benchmark (user closes GPU-using apps first).
 - **Next M2 items**: volume-aware file catalog (volume ID per file); end-to-end Benchmark run through `sbm` (hybrid vs semantic-only).
-- Tests: `cargo test --workspace` 95 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
+- Tests: `cargo test --workspace` 103 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
 
 ## Workspace
 | Path | Purpose |
 |---|---|
 | `crates/core` | Domain types and provider traits: `Location`, `Embedding`, `Section`, `EmbeddingProvider`, `VectorStore`, `ContentExtractor`; `AppDirs` (per-platform data and cache directories). |
-| `crates/embed-onnx` | EmbeddingGemma 2 via ONNX Runtime (`OnnxEmbedder::load` / `load_on`, `Accelerator`). |
+| `crates/embed-onnx` | EmbeddingGemma 2 via ONNX Runtime (`OnnxEmbedder::load` / `load_on` / `load_first`, `skipped()`, `Accelerator::default_order`). |
 | `crates/store-usearch` | USearch `VectorStore` (`UsearchStore`: f16/i8, `save`, memory-mapped `open_view`). |
 | `crates/extract` | `TextExtractor`, `PdfExtractor` (pdf-extract), `DocxExtractor` (zip + quick-xml); `extractor_for(path)`; `chunk_sections` (sliding window, overlap). |
 | `crates/index` | SQLite (rusqlite, bundled FTS5): file catalog + Name Index (`scan`, `search_names`, `Exclusion`), Content Index (`index_content`, `remove_unreferenced_content`, `rebuild_vectors`), hybrid `search` (File/Passage view, `MatchReason`). Paths are normalized (`C:/a`, `C:\a`, `\\?\C:\a` are one file). |
@@ -44,7 +44,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - Rust 1.99 (rustup, MSVC) with VS Build Tools: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - CUDA runtime DLLs: `export PATH="$(cygpath -u "$LOCALAPPDATA")/nvidia-cuda13/bin:$PATH"`. Use `cygpath`: a raw `C:\...` entry breaks at the colon. Without it, CUDA silently falls back to CPU and the CUDA tests fail.
 - Tests: `cargo test --workspace`; Python: `cd tools && uv run pytest`.
-- CLI: `cargo build --release -p sbm-cli`, then `target/release/sbm index <folder>...` and `target/release/sbm search [--passages] <query>...`. 256 dims, f16 vectors. Not yet smoke-tested on Windows.
+- CLI: `cargo build --release -p sbm-cli`, then `target/release/sbm index <folder>...` and `target/release/sbm search [--passages] <query>...`, each with optional `--accelerator <name>`. 256 dims, f16 vectors. Smoke-tested on Windows (CUDA); indexed folders print as `\?\D:\…` (canonicalize), cosmetic.
 - Throughput: `target/release/embed_throughput --accelerator cpu|cuda|directml` (not while tests run; close GPU-using apps).
 - Retrieval Benchmark: `cargo run --release -p sbm-bench --bin retrieval_benchmark` (still uses pdftotext, which is not installed on Windows yet; a fresh run takes 40+ min on CPU).
 - Public Corpus: `cd tools && uv run fetch_public_corpus.py` (not yet fetched on Windows).
@@ -60,7 +60,6 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - CUDA runtime in `%LOCALAPPDATA%\nvidia-cuda13\bin` (1.4 GB): cudart + cuBLAS (CUDA 13.4.2 redist), cuFFT, cuDNN 9.27.0 for CUDA 13; NVIDIA redist zips, sha256-verified; zips and extracted folders kept alongside. End users will need these DLLs too (packaging decision open).
 - `ort`'s `copy-dylibs` symlinks DLLs next to the test binaries; without Windows Developer Mode, symlinks fail and it copies to `target/<profile>` only. Provider DLLs were copied by hand into `target/{release,debug}/deps`. Repeat after `cargo clean` or an `ort` update, or enable Developer Mode.
 - DirectML: all 48 opset-20 `Gelu` nodes fall back to CPU; GPU↔CPU copies take 83% of its time. Rewriting `Gelu` into supported ops gave 1.6–2.4× (Python prototype only). The user chose CUDA over fixing this.
-- `OnnxEmbedder` swallows the fallback reason; surface it when `sbm` picks its Accelerator.
 
 ## Measurements so far
 | Chunks/s (fp32, 256 dims) | 256 tok | 512 tok |
@@ -91,8 +90,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - Untracked `tools/**/__pycache__/*.pyc` files appear after pytest; do not commit them.
 
 ## Open questions for the user
-1. `sbm` Accelerator order: CUDA → DirectML → CPU, or simply CUDA → CPU.
-2. Shipping CUDA: bundle the ~1.4 GB runtime DLLs, download on first run, or require a user install.
-3. Review the 58 drafted Queries in `benchmark/public/queries.toml`; license spot-checks above.
-4. f16 vs i8 and 256 vs 512 dims: confirm with the deferred Benchmark runs.
-5. PDF backend: keep pdf-extract, or move to pdfium/poppler for scanned PDFs.
+1. Shipping CUDA: bundle the ~1.4 GB runtime DLLs, download on first run, or require a user install.
+2. Review the 58 drafted Queries in `benchmark/public/queries.toml`; license spot-checks above.
+3. f16 vs i8 and 256 vs 512 dims: confirm with the deferred Benchmark runs.
+4. PDF backend: keep pdf-extract, or move to pdfium/poppler for scanned PDFs.
