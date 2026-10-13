@@ -11,6 +11,8 @@ use walkdir::{DirEntry, WalkDir};
 #[derive(Debug, Clone, PartialEq)]
 pub struct NameMatch {
     pub path: PathBuf,
+    /// The Query is the whole filename, with or without its extension.
+    pub exact: bool,
 }
 
 /// Folder names excluded anywhere on any drive (FR-03).
@@ -410,7 +412,8 @@ impl Index {
             return Ok(Vec::new());
         };
         let mut statement = self.db.prepare(
-            "SELECT files.path FROM names JOIN files ON files.id = names.rowid
+            "SELECT files.path, (files.name_lower = ?3 OR files.stem_lower = ?3)
+             FROM names JOIN files ON files.id = names.rowid
              WHERE names MATCH ?1
              ORDER BY (files.name_lower = ?3 OR files.stem_lower = ?3) DESC, rank
              LIMIT ?2",
@@ -419,6 +422,7 @@ impl Index {
             .query_map(params![query, limit as i64, exact], |row| {
                 Ok(NameMatch {
                     path: PathBuf::from(row.get::<_, String>(0)?),
+                    exact: row.get(1)?,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -538,6 +542,13 @@ fn fuse_name_matches(content: Vec<SearchResult>, names: &[NameMatch]) -> Vec<Sea
         }
     }
     scored.sort_by(|a, b| b.1.total_cmp(&a.1));
+    // An exact filename match is always placed at the top (FR-02).
+    let exact: Vec<&PathBuf> = names
+        .iter()
+        .filter(|name| name.exact)
+        .map(|name| &name.path)
+        .collect();
+    scored.sort_by_key(|(result, _)| !exact.contains(&&result.path));
     scored.into_iter().map(|(result, _)| result).collect()
 }
 

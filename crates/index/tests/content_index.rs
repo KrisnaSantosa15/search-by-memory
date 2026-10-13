@@ -282,3 +282,29 @@ fn name_and_content_results_are_merged_with_their_match_reason() {
     assert!(reasons.contains(&(photo.as_path(), MatchReason::Name)));
     assert!(reasons.contains(&(other.as_path(), MatchReason::Content)));
 }
+
+#[test]
+fn exact_filename_match_is_placed_at_the_top() {
+    let folder = TempDir::new().unwrap();
+    for n in 0..5 {
+        write(
+            folder.path(),
+            &format!("notes/{n}.txt"),
+            "budget budget budget for the trip\n",
+        );
+    }
+    let sheet = write(folder.path(), "finance/Budget.xlsx", "binary spreadsheet");
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    for n in 0..5 {
+        let path = folder.path().join(format!("notes/{n}.txt"));
+        index.index_content(&path, &BagOfWords, &mut store).unwrap();
+    }
+
+    let results = index
+        .search("budget.xlsx", &BagOfWords, &store, View::File, 20)
+        .unwrap();
+
+    assert_eq!(results[0].path, sheet);
+}
