@@ -30,6 +30,25 @@ pub enum Accelerator {
     DirectMlDevice(u32),
 }
 
+impl std::str::FromStr for Accelerator {
+    type Err = String;
+
+    /// Parses `cpu`, `directml`, or `directml:<adapter index>`.
+    fn from_str(name: &str) -> std::result::Result<Self, String> {
+        match name.split_once(':') {
+            None if name == "cpu" => Ok(Accelerator::Cpu),
+            None if name == "directml" => Ok(Accelerator::DirectMl),
+            Some(("directml", device)) => device
+                .parse()
+                .map(Accelerator::DirectMlDevice)
+                .map_err(|_| format!("invalid DirectML adapter index {device:?}")),
+            _ => Err(format!(
+                "unknown accelerator {name:?}; expected cpu, directml, or directml:<index>"
+            )),
+        }
+    }
+}
+
 pub struct OnnxEmbedder {
     session: Mutex<Session>,
     accelerator: Accelerator,
