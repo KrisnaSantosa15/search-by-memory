@@ -23,3 +23,20 @@ impl ContentExtractor for TextExtractor {
         }])
     }
 }
+
+/// PDF documents: one Section per page.
+pub struct PdfExtractor;
+
+impl ContentExtractor for PdfExtractor {
+    fn extract(&self, path: &Path) -> Result<Vec<Section>> {
+        let pages = pdf_extract::extract_text_by_pages(path)?;
+        Ok(pages
+            .into_iter()
+            .enumerate()
+            .map(|(index, text)| Section {
+                location: Location::Page(index as u32 + 1),
+                text,
+            })
+            .collect())
+    }
+}
