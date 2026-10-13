@@ -26,6 +26,8 @@ pub enum Accelerator {
     Cpu,
     /// Any DirectX 12 GPU on Windows, preferring the most powerful one.
     DirectMl,
+    /// The DirectX 12 GPU with this adapter index on Windows.
+    DirectMlDevice(u32),
 }
 
 pub struct OnnxEmbedder {
@@ -56,8 +58,18 @@ impl OnnxEmbedder {
             ..TruncationParams::default()
         }))?;
         let pad_id = tokenizer.token_to_id("<pad>").map_or(0, i64::from);
-        let session =
-            session_builder(accelerator)?.commit_from_file(model_dir.join("onnx/model.onnx"))?;
+        let model = model_dir.join("onnx/model.onnx");
+        let (session, accelerator) = match session_builder(accelerator)
+            .and_then(|mut builder| builder.commit_from_file(&model))
+        {
+            Ok(session) => (session, accelerator),
+            // The GPU is missing or unusable: CPU is slower but always works.
+            Err(_) if accelerator != Accelerator::Cpu => (
+                session_builder(Accelerator::Cpu)?.commit_from_file(&model)?,
+                Accelerator::Cpu,
+            ),
+            Err(error) => return Err(error.into()),
+        };
         Ok(Self {
             session: Mutex::new(session),
             accelerator,
@@ -117,18 +129,24 @@ fn session_builder(accelerator: Accelerator) -> ort::Result<SessionBuilder> {
     match accelerator {
         Accelerator::Cpu => Ok(builder),
         #[cfg(windows)]
-        Accelerator::DirectMl => Ok(builder
-            // DirectML supports neither memory patterns nor parallel execution.
-            .with_memory_pattern(false)?
-            .with_parallel_execution(false)?
-            .with_execution_providers([ort::ep::DirectML::default()
-                .with_performance_preference(
+        Accelerator::DirectMl | Accelerator::DirectMlDevice(_) => {
+            let directml = ort::ep::DirectML::default();
+            let directml = match accelerator {
+                Accelerator::DirectMlDevice(device) => directml.with_device_id(device as i32),
+                _ => directml.with_performance_preference(
                     ort::ep::directml::PerformancePreference::HighPerformance,
-                )
-                .build()
-                .error_on_failure()])?),
+                ),
+            };
+            Ok(builder
+                // DirectML supports neither memory patterns nor parallel execution.
+                .with_memory_pattern(false)?
+                .with_parallel_execution(false)?
+                .with_execution_providers([directml.build().error_on_failure()])?)
+        }
         #[cfg(not(windows))]
-        Accelerator::DirectMl => Err(ort::Error::new("DirectML is only available on Windows")),
+        Accelerator::DirectMl | Accelerator::DirectMlDevice(_) => {
+            Err(ort::Error::new("DirectML is only available on Windows"))
+        }
     }
 }
 

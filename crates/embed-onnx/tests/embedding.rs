@@ -99,6 +99,18 @@ fn directml_embeddings_match_the_pytorch_reference() {
     assert_matches_pytorch_reference(&embedder);
 }
 
+#[test]
+fn embedder_falls_back_to_cpu_when_the_gpu_cannot_be_used() {
+    let Some(dir) = model_dir() else { return };
+    let missing_gpu = Accelerator::DirectMlDevice(99);
+
+    let embedder =
+        OnnxEmbedder::load_on(&dir, 768, DEFAULT_MAX_TOKENS, missing_gpu).expect("model loads");
+
+    assert_eq!(embedder.accelerator(), Accelerator::Cpu);
+    assert_matches_pytorch_reference(&embedder);
+}
+
 fn assert_matches_pytorch_reference(embedder: &OnnxEmbedder) {
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/parity.json")).expect("fixture parses");
