@@ -18,6 +18,20 @@ pub enum Location {
     WholeFile,
 }
 
+impl Location {
+    /// Whether both Locations point at some shared part of the same file.
+    pub fn overlaps(&self, other: &Location) -> bool {
+        use Location::*;
+        match (self, other) {
+            (WholeFile, _) | (_, WholeFile) => true,
+            (Page(a), Page(b)) => a == b,
+            (Lines { start: a1, end: a2 }, Lines { start: b1, end: b2 }) => a1 <= b2 && b1 <= a2,
+            (Time { start: a1, end: a2 }, Time { start: b1, end: b2 }) => a1 <= b2 && b1 <= a2,
+            _ => false,
+        }
+    }
+}
+
 /// A dense vector representing the meaning of a Query or a Chunk.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Embedding(Vec<f32>);
