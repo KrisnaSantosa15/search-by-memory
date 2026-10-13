@@ -17,10 +17,12 @@ const BATCH_SIZES: [usize; 3] = [1, 8, 32];
 const CHUNK_WORDS: [(usize, &str); 2] = [(190, "~256 tok"), (380, "~512 tok")];
 
 fn main() -> sbm_core::Result<()> {
-    let model_dir = std::env::var_os("SBM_MODEL_DIR").map(PathBuf::from).unwrap_or_else(|| {
-        PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
-            .join(".cache/search-by-memory/models/embeddinggemma-2-onnx")
-    });
+    let model_dir = std::env::var_os("SBM_MODEL_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+                .join(".cache/search-by-memory/models/embeddinggemma-2-onnx")
+        });
     let embedder = OnnxEmbedder::load(&model_dir, 256, DEFAULT_MAX_TOKENS)?;
 
     println!("| Chunk | Batch | Chunks/s | p50 batch | p95 batch | 1M Chunks | 2M Chunks |");
@@ -51,5 +53,10 @@ fn main() -> sbm_core::Result<()> {
 }
 
 fn words_of_prose(words: usize) -> String {
-    SENTENCE.split_whitespace().cycle().take(words).collect::<Vec<_>>().join(" ")
+    SENTENCE
+        .split_whitespace()
+        .cycle()
+        .take(words)
+        .collect::<Vec<_>>()
+        .join(" ")
 }

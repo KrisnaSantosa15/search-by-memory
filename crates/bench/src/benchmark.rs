@@ -102,7 +102,11 @@ struct TargetEntry {
 
 impl TargetEntry {
     fn location(&self) -> Result<Location> {
-        let kinds = [self.page.is_some(), self.lines.is_some(), self.time.is_some()];
+        let kinds = [
+            self.page.is_some(),
+            self.lines.is_some(),
+            self.time.is_some(),
+        ];
         if kinds.iter().filter(|&&given| given).count() > 1 {
             return Err(format!("{:?} has more than one Location", self.file).into());
         }

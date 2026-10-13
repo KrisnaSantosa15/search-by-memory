@@ -22,7 +22,10 @@ fn query_with_page_target_parses_from_benchmark_file() {
 
     let query = &benchmark.queries()[0];
     assert_eq!(query.id, "en-001");
-    assert_eq!(query.text, "paper arguing attention alone replaces recurrence");
+    assert_eq!(
+        query.text,
+        "paper arguing attention alone replaces recurrence"
+    );
     assert_eq!(query.language, "en");
     assert_eq!(
         query.targets,
