@@ -51,6 +51,7 @@
 - File view (one Result per file, Copies grouped) and Passage view (one per Content Match).
 - Embedding in batches of 8; hashing streamed.
 - `sbm index <folder>` / `sbm search [--passages]`: bad files reported and skipped; terminal control characters escaped.
+- Smoke test (Public Corpus `code/`, 15 files, real model, CPU): index 194 s, 2.0 GB peak (6.1 GB before batching); search 2.7 s cold incl. model load.
 
 ## In progress
 - —
