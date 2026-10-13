@@ -41,3 +41,23 @@ fn file_created_after_the_cursor_becomes_content_searchable() {
         .unwrap();
     assert_eq!(results[0].path, recipe);
 }
+
+#[test]
+fn intact_change_history_rechecks_only_the_reported_paths() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let volumes = FakeVolumes::default();
+    volumes.mount("d-drive", drive.path());
+    let journal = FakeChangeSource::default();
+    let mut index = Index::open(&data.path().join("index.sqlite"))
+        .unwrap()
+        .with_volumes(volumes);
+    index.add_indexed_folder(drive.path()).unwrap();
+    index.apply_changes(&journal).unwrap();
+
+    let reported = write(drive.path(), "notes/reported.txt", "reported\n");
+    write(drive.path(), "notes/unreported.txt", "unreported\n");
+    journal.record("d-drive", "notes/reported.txt");
+    let changes = index.apply_changes(&journal).unwrap();
+
+    assert_eq!(changes.added, vec![reported]);
+}

@@ -5,8 +5,8 @@ use std::time::UNIX_EPOCH;
 
 use rusqlite::{Connection, OptionalExtension, params};
 use sbm_core::{
-    ChangeSource, Embedding, EmbeddingProvider, Location, Result, SystemVolumes, VectorStore,
-    Volume, Volumes,
+    ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, Location, Result,
+    SystemVolumes, VectorStore, Volume, Volumes,
 };
 use walkdir::{DirEntry, WalkDir};
 
@@ -83,7 +83,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 7] = [
+const MIGRATIONS: [&str; 8] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -153,6 +153,8 @@ const MIGRATIONS: [&str; 7] = [
          volume_id TEXT,
          relative_path TEXT
      );",
+    // Where each volume's ChangeSource was last read (FR-04).
+    "CREATE TABLE change_cursors (volume_id TEXT PRIMARY KEY, cursor TEXT NOT NULL);",
 ];
 
 /// Chunk size in characters: about 256 tokens of prose.
@@ -246,26 +248,42 @@ impl Index {
     /// minus Exclusions: new files are added, files no longer there are removed, and
     /// changed files are reported.
     pub fn scan(&mut self, folder: &Path, exclusions: &[Exclusion]) -> Result<ScanChanges> {
-        let folder = &normalized(folder);
-        let volume = self.volumes.volume_of(folder)?;
-        let folder_path = relative_path(folder, &volume)?;
+        let folder = normalized(folder);
+        let volume = self.volumes.volume_of(&folder)?;
+        let folder_path = relative_path(&folder, &volume)?;
+        self.scan_path(&volume, &folder_path, exclusions)
+    }
+
+    /// Brings the Name Index in line with the file or folder at the relative
+    /// `folder_path` on `volume`, which may no longer exist.
+    fn scan_path(
+        &mut self,
+        volume: &Volume,
+        folder_path: &str,
+        exclusions: &[Exclusion],
+    ) -> Result<ScanChanges> {
+        let folder = &beneath(&volume.root, folder_path);
         let mut changes = ScanChanges::default();
         let tx = self.db.transaction()?;
-        remember_volume(&tx, &volume)?;
+        remember_volume(&tx, volume)?;
         let scan: i64 = tx.query_row(
             "SELECT coalesce(max(seen_in_scan), 0) + 1 FROM files",
             [],
             |row| row.get(0),
         )?;
-        let entries = WalkDir::new(folder).into_iter().filter_entry(|entry| {
-            entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry))
-        });
+        let entries = WalkDir::new(folder)
+            .into_iter()
+            .filter_entry(|entry| {
+                entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry))
+            })
+            // A deleted file or folder: whatever the index knows beneath it is swept below.
+            .filter(|entry| folder.exists() || entry.is_ok());
         for entry in entries {
             let entry = entry?;
             if !entry.file_type().is_file() {
                 continue;
             }
-            let path = relative_path(entry.path(), &volume)?;
+            let path = relative_path(entry.path(), volume)?;
             let metadata = entry.metadata()?;
             let size = metadata.len() as i64;
             let mtime_ns = metadata
@@ -322,7 +340,7 @@ impl Index {
             })?
             .collect::<rusqlite::Result<_>>()?;
         for (id, path) in gone {
-            if is_beneath(&path, &folder_path) {
+            if is_beneath(&path, folder_path) {
                 tx.execute("DELETE FROM names WHERE rowid = ?1", params![id])?;
                 tx.execute("DELETE FROM index_jobs WHERE file_id = ?1", params![id])?;
                 tx.execute("DELETE FROM files WHERE id = ?1", params![id])?;
@@ -478,8 +496,55 @@ impl Index {
     /// volume: changed files are queued as Live Updates, deleted ones leave both
     /// indexes, and a lost change history rescans that volume's Indexed Folders.
     pub fn apply_changes(&mut self, source: &dyn ChangeSource) -> Result<ScanChanges> {
-        let _ = source;
-        self.scan_all()
+        let exclusions = self.exclusions()?;
+        let volume_ids: Vec<String> = self
+            .db
+            .prepare("SELECT DISTINCT volume_id FROM indexed_folders ORDER BY volume_id")?
+            .query_map([], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut changes = ScanChanges::default();
+        for volume_id in volume_ids {
+            // Folders on a Disconnected Drive keep their files and cursor.
+            let Some(root) = self.volumes.mount_point(&volume_id) else {
+                continue;
+            };
+            let volume = Volume {
+                id: volume_id,
+                root,
+            };
+            let cursor: Option<String> = self
+                .db
+                .query_row(
+                    "SELECT cursor FROM change_cursors WHERE volume_id = ?1",
+                    params![volume.id],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            let (paths, next) = match source
+                .changes_since(&volume.id, cursor.map(ChangeCursor).as_ref())?
+            {
+                Changes::Paths { paths, next } => (paths, next),
+                Changes::Lost { next } => (
+                    self.db
+                        .prepare("SELECT relative_path FROM indexed_folders WHERE volume_id = ?1")?
+                        .query_map(params![volume.id], |row| row.get(0))?
+                        .collect::<rusqlite::Result<_>>()?,
+                    next,
+                ),
+            };
+            for path in paths {
+                let found = self.scan_path(&volume, &path, &exclusions)?;
+                changes.added.extend(found.added);
+                changes.changed.extend(found.changed);
+                changes.removed.extend(found.removed);
+            }
+            self.db.execute(
+                "INSERT INTO change_cursors (volume_id, cursor) VALUES (?1, ?2)
+                 ON CONFLICT (volume_id) DO UPDATE SET cursor = excluded.cursor",
+                params![volume.id, next.0],
+            )?;
+        }
+        Ok(changes)
     }
 
     /// Indexes the content of up to `limit` queued files. Each file is committed on
