@@ -51,8 +51,12 @@ pub fn download(
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let mut body = http.get(&file.url, 0)?;
-        let mut out = File::create(&path)?;
+        // Bytes already fetched wait in a `.part` file, so a new run resumes there.
+        let part = dir.join(format!("{}.part", file.path));
+        let from = std::fs::metadata(&part).map_or(0, |metadata| metadata.len());
+        current.done += from;
+        let mut out = File::options().create(true).append(true).open(&part)?;
+        let mut body = http.get(&file.url, from)?;
         loop {
             let read = body.read(&mut buffer)?;
             if read == 0 {
@@ -62,6 +66,8 @@ pub fn download(
             current.done += read as u64;
             progress(current);
         }
+        drop(out);
+        std::fs::rename(&part, &path)?;
     }
     Ok(())
 }

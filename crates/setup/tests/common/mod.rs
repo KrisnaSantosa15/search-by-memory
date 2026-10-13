@@ -16,6 +16,8 @@ pub struct FakeHttp {
     files: Arc<Mutex<HashMap<String, Vec<u8>>>>,
     /// (url, first byte asked for) of every request.
     pub requests: Arc<Mutex<Vec<(String, u64)>>>,
+    /// The next response breaks off after this many bytes, as a dropped connection.
+    cut: Arc<Mutex<Option<usize>>>,
 }
 
 impl FakeHttp {
@@ -34,14 +36,38 @@ impl FakeHttp {
     }
 }
 
+impl FakeHttp {
+    /// Drops the connection of the next request after `bytes` bytes.
+    pub fn drop_next_connection_after(&self, bytes: usize) {
+        *self.cut.lock().unwrap() = Some(bytes);
+    }
+}
+
+/// A body that fails after its bytes run out, as a dropped connection.
+struct Dropped(std::io::Cursor<Vec<u8>>);
+
+impl Read for Dropped {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        match self.0.read(buffer)? {
+            0 => Err(std::io::Error::new(
+                std::io::ErrorKind::ConnectionReset,
+                "connection dropped",
+            )),
+            read => Ok(read),
+        }
+    }
+}
+
 impl Http for FakeHttp {
     fn get(&self, url: &str, from: u64) -> Result<Box<dyn Read + Send>> {
         self.requests.lock().unwrap().push((url.to_string(), from));
         let content = self.files.lock().unwrap().get(url).cloned();
         let content = content.ok_or_else(|| format!("404 {url}"))?;
-        Ok(Box::new(std::io::Cursor::new(
-            content[from as usize..].to_vec(),
-        )))
+        let rest = content[from as usize..].to_vec();
+        Ok(match self.cut.lock().unwrap().take() {
+            Some(bytes) => Box::new(Dropped(std::io::Cursor::new(rest[..bytes].to_vec()))),
+            None => Box::new(std::io::Cursor::new(rest)),
+        })
     }
 }
 
