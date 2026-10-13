@@ -1,8 +1,10 @@
 //! Measurement logic for embedding benchmarks and retrieval Benchmarks.
 
 mod benchmark;
+mod metrics;
 
 pub use benchmark::{Benchmark, Query, Target};
+pub use metrics::{FileRanking, Scores};
 
 use std::time::Duration;
 
