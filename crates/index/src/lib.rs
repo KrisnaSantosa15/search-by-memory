@@ -83,7 +83,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 9] = [
+const MIGRATIONS: [&str; 10] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -157,6 +157,7 @@ const MIGRATIONS: [&str; 9] = [
     "CREATE TABLE change_cursors (volume_id TEXT PRIMARY KEY, cursor TEXT NOT NULL);",
     // Live Updates go ahead of Initial Indexing work (FR-04).
     "ALTER TABLE index_jobs ADD COLUMN live INTEGER NOT NULL DEFAULT 0;",
+    "ALTER TABLE files ADD COLUMN is_online_only INTEGER NOT NULL DEFAULT 0;",
 ];
 
 /// Chunk size in characters: about 256 tokens of prose.
@@ -901,22 +902,28 @@ fn rescan(
             .modified()?
             .duration_since(UNIX_EPOCH)
             .map_or(0, |since| since.as_nanos() as i64);
-        let known: Option<(i64, i64, i64)> = tx
+        let online_only = availability.is_online_only(entry.path());
+        let known: Option<(i64, i64, i64, bool)> = tx
             .query_row(
-                "SELECT id, size, mtime_ns FROM files WHERE volume_id = ?1 AND relative_path = ?2",
+                "SELECT id, size, mtime_ns, is_online_only FROM files
+                 WHERE volume_id = ?1 AND relative_path = ?2",
                 params![volume.id, path],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .optional()?;
-        if let Some((id, previous_size, previous_mtime)) = known {
-            if (previous_size, previous_mtime) != (size, mtime_ns) {
+        if let Some((id, previous_size, previous_mtime, was_online_only)) = known {
+            // A download leaves size and mtime alone, but the content is new to the index.
+            let downloaded = was_online_only && !online_only;
+            if (previous_size, previous_mtime) != (size, mtime_ns) || downloaded {
                 changes.changed.push(entry.path().to_path_buf());
-                queue_job(tx, id, mtime_ns, live)?;
+                if !online_only {
+                    queue_job(tx, id, mtime_ns, live)?;
+                }
             }
             tx.execute(
-                "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3
-                 WHERE volume_id = ?4 AND relative_path = ?5",
-                params![scan, size, mtime_ns, volume.id, path],
+                "UPDATE files SET seen_in_scan = ?1, size = ?2, mtime_ns = ?3, is_online_only = ?4
+                 WHERE volume_id = ?5 AND relative_path = ?6",
+                params![scan, size, mtime_ns, online_only, volume.id, path],
             )?;
             continue;
         }
@@ -927,11 +934,18 @@ fn rescan(
             .map(|stem| stem.to_string_lossy().to_lowercase())
             .unwrap_or_default();
         tx.execute(
-            "INSERT INTO files
-                 (volume_id, relative_path, name_lower, stem_lower, size, mtime_ns, seen_in_scan)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO files (volume_id, relative_path, name_lower, stem_lower, size, mtime_ns,
+                                seen_in_scan, is_online_only)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
-                volume.id, path, name_lower, stem_lower, size, mtime_ns, scan
+                volume.id,
+                path,
+                name_lower,
+                stem_lower,
+                size,
+                mtime_ns,
+                scan,
+                online_only
             ],
         )?;
         let id = tx.last_insert_rowid();
@@ -942,7 +956,7 @@ fn rescan(
             "INSERT INTO names (rowid, name, folder) VALUES (?1, ?2, ?3)",
             params![id, name, folder],
         )?;
-        if !availability.is_online_only(entry.path()) {
+        if !online_only {
             queue_job(tx, id, mtime_ns, live)?;
         }
     }
