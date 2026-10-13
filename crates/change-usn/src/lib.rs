@@ -15,6 +15,7 @@ impl ChangeSource for UsnJournal {
 
 #[cfg(windows)]
 mod platform {
+    use std::collections::HashMap;
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
 
@@ -70,6 +71,14 @@ mod platform {
             });
         };
         let mut paths = Vec::new();
+        // A file usually has several records per read; look each one up once.
+        let mut known: HashMap<u64, Option<String>> = HashMap::new();
+        let mut lookup = |id: u64| {
+            known
+                .entry(id)
+                .or_insert_with(|| path_of(&root, id))
+                .clone()
+        };
         let mut usn = start;
         let mut buffer = vec![0u8; READ_BUFFER];
         while usn < journal.NextUsn {
@@ -118,11 +127,9 @@ mod platform {
                 let path = if gone {
                     None
                 } else {
-                    path_of(&root, record.FileReferenceNumber)
+                    lookup(record.FileReferenceNumber)
                 };
-                if let Some(path) =
-                    path.or_else(|| path_of(&root, record.ParentFileReferenceNumber))
-                {
+                if let Some(path) = path.or_else(|| lookup(record.ParentFileReferenceNumber)) {
                     paths.push(path);
                 }
                 offset += record.RecordLength as usize;
