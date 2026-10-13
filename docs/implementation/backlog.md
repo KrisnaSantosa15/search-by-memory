@@ -44,7 +44,8 @@
 - Sliding-window chunker: whole lines, overlap, line/page Locations kept, blank Chunks dropped.
 - Known gap: pdf-extract/lopdf return no text for the OCR layer of UU 27/2022 (pdftotext reads it).
 
-- —
+## In progress
+- M2 Content Index + hybrid search (`crates/index`): content-hash Chunks, FTS5 keywords, Copies, reuse, rank fusion, views, rebuild, CLI.
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
