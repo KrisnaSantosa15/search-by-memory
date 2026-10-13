@@ -56,7 +56,7 @@
 ### Windows port
 - Builds with MSVC: usearch's NumKong linked statically (`.cargo/config.toml`); binary fixtures exempt from CRLF (`.gitattributes`).
 - `AppDirs`: data in `%LOCALAPPDATA%\search-by-memory`, cache (models, Public Corpus) in its `cache` folder; Unix unchanged. CLI, benches, tests, and `tools/` use it.
-- Index paths normalized: `/` and `\?\` spellings are the same file.
+- Index paths normalized: `C:/…` and `\\?\C:\…` spellings are the same file.
 - Rust suite green on Windows (89 passed, 1 ignored); Python 13 passed.
 
 ## In progress
