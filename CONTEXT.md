@@ -7,7 +7,7 @@ A local-first desktop launcher that finds files on the user's machine from a nat
 ### Content
 
 **Location**:
-A position inside a file expressed in terms the user can navigate to: a page number for paged documents, a line range for text and code.
+A position inside a file expressed in terms the user can navigate to: a page number for paged documents, a line range for text and code, a time range for audio and video, or the whole file for images.
 _Avoid_: Offset, position, chunk ID
 
 **Chunk**:
