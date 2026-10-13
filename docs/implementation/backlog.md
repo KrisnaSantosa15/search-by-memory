@@ -67,9 +67,12 @@
 - GPU was 58–62% busy with other apps (e.g. NVIDIA Broadcast) during all measurements.
 - CUDA (`Accelerator::Cuda`): ort ships Windows binaries for CUDA 13 only; needs CUDA 13 runtime + cuDNN 9 DLLs on PATH. Passes parity and batch checks.
 - CUDA, preliminary (GPU ~65% busy with other apps): ~48 Chunks/s at both 256 and 512 tok (1M Chunks ≈ 6 h).
+- `OnnxEmbedder::load_first` tries Accelerators in order; `skipped()` gives each one's failure reason.
+- `sbm --accelerator <name>` (GPU falls back to CPU); default CUDA → DirectML → CPU on Windows, CPU elsewhere; prints the one in use and why others were skipped.
+- `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
-- Clean GPU benchmark (background apps closed); `sbm` default Accelerator and fallback order.
+- Clean GPU benchmark (background apps closed).
 
 ## Next
 - M2: volume-aware file catalog (volume ID per file).
