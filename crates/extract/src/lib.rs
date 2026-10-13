@@ -11,6 +11,9 @@ impl ContentExtractor for TextExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
         let text = std::fs::read_to_string(path)?;
         let lines = text.lines().count() as u32;
+        if lines == 0 {
+            return Ok(Vec::new());
+        }
         Ok(vec![Section {
             location: Location::Lines {
                 start: 1,

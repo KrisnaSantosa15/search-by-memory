@@ -20,3 +20,12 @@ fn text_file_is_extracted_with_its_line_range() {
         }]
     );
 }
+
+#[test]
+fn empty_text_file_has_no_sections() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("empty.txt");
+    fs::write(&path, "").unwrap();
+
+    assert!(TextExtractor.extract(&path).unwrap().is_empty());
+}
