@@ -27,7 +27,8 @@ const DEFAULT_EXCLUDED_NAMES: [&str; 8] = [
 /// A folder or name pattern the user does not want indexed.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Exclusion {
-    /// Any file or folder with this name, anywhere beneath an Indexed Folder.
+    /// Any file or folder whose name matches this pattern, anywhere beneath an
+    /// Indexed Folder; `*` stands for any run of characters.
     Name(String),
     /// One folder and everything beneath it.
     Folder(PathBuf),
@@ -44,7 +45,9 @@ impl Exclusion {
 
     fn excludes(&self, entry: &DirEntry) -> bool {
         match self {
-            Exclusion::Name(name) => entry.file_name() == name.as_str(),
+            Exclusion::Name(pattern) => {
+                wildcard_match(pattern, &entry.file_name().to_string_lossy())
+            }
             Exclusion::Folder(folder) => entry.path() == folder,
         }
     }
@@ -136,4 +139,24 @@ fn fts_query(query: &str) -> Option<String> {
     let mut terms: Vec<String> = words.iter().map(|word| format!("\"{word}\"")).collect();
     terms.last_mut()?.push('*');
     Some(terms.join(" "))
+}
+
+/// Whether `name` matches `pattern`, where `*` stands for any run of characters.
+fn wildcard_match(pattern: &str, name: &str) -> bool {
+    let mut parts = pattern.split('*');
+    let first = parts.next().unwrap_or_default();
+    let Some(mut rest) = name.strip_prefix(first) else {
+        return false;
+    };
+    let parts: Vec<&str> = parts.collect();
+    let Some((last, middle)) = parts.split_last() else {
+        return rest.is_empty();
+    };
+    for part in middle {
+        match rest.find(part) {
+            Some(at) => rest = &rest[at + part.len()..],
+            None => return false,
+        }
+    }
+    rest.len() >= last.len() && rest.ends_with(last)
 }

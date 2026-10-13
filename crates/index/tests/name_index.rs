@@ -120,3 +120,20 @@ fn files_beneath_an_excluded_folder_are_not_in_the_name_index() {
     let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
     assert_eq!(paths, [folder.path().join("work/budget.xlsx")]);
 }
+
+#[test]
+fn files_matching_an_excluded_name_pattern_are_not_in_the_name_index() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "thesis/draft.docx");
+    touch(folder.path(), "thesis/draft.docx.tmp");
+    touch(folder.path(), "thesis/draft-backup.tmp");
+    let mut index = Index::open_in_memory().unwrap();
+
+    index
+        .scan(folder.path(), &[Exclusion::Name("*.tmp".into())])
+        .unwrap();
+    let matches = index.search_names("draft", 20).unwrap();
+
+    let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
+    assert_eq!(paths, [folder.path().join("thesis/draft.docx")]);
+}
