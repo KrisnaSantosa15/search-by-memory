@@ -65,26 +65,42 @@ pub struct ScanChanges {
     pub removed: Vec<PathBuf>,
 }
 
+/// Schema migrations in order; the database's `user_version` counts those applied.
+/// Append new migrations, never edit released ones.
+const MIGRATIONS: [&str; 1] = ["CREATE TABLE files (
+         id INTEGER PRIMARY KEY,
+         path TEXT NOT NULL UNIQUE,
+         name_lower TEXT NOT NULL,
+         stem_lower TEXT NOT NULL,
+         size INTEGER NOT NULL,
+         mtime_ns INTEGER NOT NULL,
+         seen_in_scan INTEGER NOT NULL
+     );
+     CREATE VIRTUAL TABLE names USING fts5(name, folder);"];
+
 /// The file catalog and Name Index, stored in SQLite.
 pub struct Index {
     db: Connection,
 }
 
 impl Index {
+    /// Opens the index database at `path`, creating it or applying pending migrations.
+    pub fn open(path: &Path) -> Result<Self> {
+        Self::migrated(Connection::open(path)?)
+    }
+
     pub fn open_in_memory() -> Result<Self> {
-        let db = Connection::open_in_memory()?;
-        db.execute_batch(
-            "CREATE TABLE files (
-                 id INTEGER PRIMARY KEY,
-                 path TEXT NOT NULL UNIQUE,
-                 name_lower TEXT NOT NULL,
-                 stem_lower TEXT NOT NULL,
-                 size INTEGER NOT NULL,
-                 mtime_ns INTEGER NOT NULL,
-                 seen_in_scan INTEGER NOT NULL
-             );
-             CREATE VIRTUAL TABLE names USING fts5(name, folder);",
-        )?;
+        Self::migrated(Connection::open_in_memory()?)
+    }
+
+    fn migrated(mut db: Connection) -> Result<Self> {
+        let tx = db.transaction()?;
+        let version: i64 = tx.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        for migration in MIGRATIONS.iter().skip(version as usize) {
+            tx.execute_batch(migration)?;
+        }
+        tx.pragma_update(None, "user_version", MIGRATIONS.len() as i64)?;
+        tx.commit()?;
         Ok(Self { db })
     }
 

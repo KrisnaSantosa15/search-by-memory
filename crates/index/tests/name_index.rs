@@ -184,3 +184,19 @@ fn scan_reports_added_and_removed_files() {
     assert_eq!(second.added, [folder.path().join("notes/done.md")]);
     assert_eq!(second.removed, [folder.path().join("notes/todo.md")]);
 }
+
+#[test]
+fn name_index_persists_across_reopening_the_database() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "notes/shopping.txt");
+    let data = TempDir::new().unwrap();
+    let db_path = data.path().join("index.sqlite");
+
+    Index::open(&db_path)
+        .unwrap()
+        .scan(folder.path(), &[])
+        .unwrap();
+    let reopened = Index::open(&db_path).unwrap();
+
+    assert_eq!(reopened.search_names("shopping", 20).unwrap().len(), 1);
+}
