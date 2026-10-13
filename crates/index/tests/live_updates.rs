@@ -101,3 +101,45 @@ fn deleted_file_leaves_the_name_index_and_the_content_index() {
     assert!(results.is_empty(), "{results:?}");
     assert_eq!(store.len(), 0);
 }
+
+#[test]
+fn renamed_folder_moves_its_files_without_reembedding() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        drive.path(),
+        "photos/2024/beach-notes.txt",
+        "sunset over the beach\n",
+    );
+    write(
+        drive.path(),
+        "photos/mountain-notes.txt",
+        "snow on the mountain\n",
+    );
+    let journal = FakeChangeSource::default();
+    let mut index = indexed_drive(&data, &drive, &journal);
+    let (embedder, mut store) = (BagOfWords::default(), store());
+    index.run_jobs(&embedder, &mut store, usize::MAX).unwrap();
+    let embedded = embedder.embedded();
+
+    std::fs::rename(drive.path().join("photos"), drive.path().join("pictures")).unwrap();
+    journal.record("d-drive", "photos");
+    journal.record("d-drive", "pictures");
+    index.apply_changes(&journal).unwrap();
+    index.run_jobs(&embedder, &mut store, usize::MAX).unwrap();
+
+    assert_eq!(embedder.embedded(), embedded);
+    let results = index
+        .search("sunset beach", &embedder, &store, View::Passage, 20)
+        .unwrap();
+    assert_eq!(
+        results[0].path,
+        drive.path().join("pictures/2024/beach-notes.txt")
+    );
+    let names = index.search_names("notes", 20).unwrap();
+    assert_eq!(names.len(), 2, "{names:?}");
+    assert!(
+        names
+            .iter()
+            .all(|name| name.path.starts_with(drive.path().join("pictures")))
+    );
+}
