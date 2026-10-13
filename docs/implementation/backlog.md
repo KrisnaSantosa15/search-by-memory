@@ -31,7 +31,7 @@
 - Run with distractors (3,992 Chunks, 43 Queries scored): Recall@5 still 1.0, MRR 0.93–0.95; Location Accuracy 0.67 @256, 0.56 @512, 0.60 @768; i8 costs 0.02–0.07.
 
 ## In progress
-- —
+- M2 Name Index (`crates/index`, SQLite FTS5): filename, folder path, partial names, exact-first, Exclusions, rescan, migrations.
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
