@@ -58,3 +58,17 @@ pub fn search(
     let store = UsearchStore::open_view(&vectors)?;
     index.search(query, embedder, &store, view, limit)
 }
+
+/// Text from files or paths made safe to print: control characters, which could
+/// drive the terminal through escape sequences, become visible `\u{..}` escapes.
+pub fn printable(text: &str) -> String {
+    text.chars()
+        .map(|c| {
+            if c.is_control() {
+                c.escape_unicode().to_string()
+            } else {
+                c.to_string()
+            }
+        })
+        .collect()
+}

@@ -103,3 +103,12 @@ fn unreadable_file_is_reported_and_the_rest_still_indexed() {
     assert_eq!(report.failed[0].0, broken);
     assert_eq!(results[0].path, recipe);
 }
+
+#[test]
+fn terminal_control_sequences_in_file_text_are_neutralised_for_display() {
+    // File content could otherwise clear the screen or forge output in the terminal.
+    let shown = sbm_cli::printable("total \u{1b}[2J\u{1b}]0;pwned\u{7} due\r\n");
+
+    assert!(!shown.chars().any(|c| c.is_control()), "{shown:?}");
+    assert!(shown.contains("total") && shown.contains("due"));
+}

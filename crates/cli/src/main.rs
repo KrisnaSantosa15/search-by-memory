@@ -52,7 +52,11 @@ fn run(args: &[String]) -> Result<()> {
                     changes.removed.len()
                 );
                 for (path, error) in &report.failed {
-                    eprintln!("    skipped {}: {error}", path.display());
+                    eprintln!(
+                        "    skipped {}: {}",
+                        sbm_cli::printable(&path.to_string_lossy()),
+                        sbm_cli::printable(error)
+                    );
                 }
             }
             Ok(())
@@ -87,15 +91,19 @@ fn print_result(rank: usize, result: &SearchResult) {
         Some(Location::Lines { start, end }) => format!(" lines {start}-{end}"),
         _ => String::new(),
     };
-    println!("{rank:>2}. {}{location}  [{reason}]", result.path.display());
+    let path = sbm_cli::printable(&result.path.to_string_lossy());
+    println!("{rank:>2}. {path}{location}  [{reason}]");
     for copy in &result.copies {
-        println!("    also at {}", copy.display());
+        println!(
+            "    also at {}",
+            sbm_cli::printable(&copy.to_string_lossy())
+        );
     }
     if let Some(snippet) = &result.snippet {
         let line: String = snippet.split_whitespace().collect::<Vec<_>>().join(" ");
         println!(
             "    {}",
-            line.chars().take(SNIPPET_CHARS).collect::<String>()
+            sbm_cli::printable(&line.chars().take(SNIPPET_CHARS).collect::<String>())
         );
     }
 }
