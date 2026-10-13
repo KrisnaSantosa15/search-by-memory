@@ -69,6 +69,16 @@
 - Smoke-tested on Windows: kill -9 mid-run, rerun finishes the 16 pending files.
 - Search skips vectors whose Chunk is gone (vector file saved before a crash).
 
+### M4 — Live Updates (`crates/core`, `crates/index`, `crates/change-usn`, `crates/cli`)
+- `ChangeSource` trait: changed paths since a cursor, or Lost (rescan); a folder stands for everything beneath it.
+- `Index::apply_changes`: re-checks only reported paths in Indexed Folders, minus Exclusions; cursor per volume saved with the changes.
+- Live Updates queued ahead of Initial Indexing work; deletes leave both indexes; renamed folders reuse Chunks.
+- Lost history, new Indexed Folder, or new Exclusion rescans the volume; Disconnected Drives keep their cursor.
+- `UsnJournal` adapter: unprivileged read (no admin), paths by file ID; deletes and old names report their folder; no journal (e.g. network share) → Lost.
+- `sbm index` uses the USN Journal instead of rescanning.
+- Measured: 88k journal records read in 0.43 s; 2,000 changed paths on a 50k-file catalog applied in 0.13 s (was 68 s before batching).
+- Smoke-tested `sbm` on Windows: add, folder rename, and delete picked up between runs.
+
 ### Windows port
 - Builds with MSVC: usearch's NumKong linked statically (`.cargo/config.toml`); binary fixtures exempt from CRLF (`.gitattributes`).
 - `AppDirs`: data in `%LOCALAPPDATA%\search-by-memory`, cache (models, Public Corpus) in its `cache` folder; Unix unchanged. CLI, benches, tests, and `tools/` use it.
@@ -88,7 +98,6 @@
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
-- M4: `ChangeSource` trait and `Index::apply_changes` (Live Updates); then USN Journal adapter.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
