@@ -11,10 +11,9 @@ Snapshot for the next session or agent (2026-10-13, after commit `da3114d`). Pro
 - **M4 indexing core**: done (saved Indexed Folders and Exclusions, `index_jobs` queue: newest first, retries, resume).
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
-  - Small fix: `search` errors when the vector file holds a Chunk id SQLite no longer has (possible after a crash); skip such ids.
   - M4: USN Journal `ChangeSource` and Live Updates (queued ahead of Initial Indexing jobs), throttling (full-screen, battery, busy), Online-only Files.
   - M3: Tauri 2 desktop launcher.
-- Tests: `cargo test --workspace` 127 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
+- Tests: `cargo test --workspace` 128 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
 
 ## Workspace
 | Path | Purpose |
