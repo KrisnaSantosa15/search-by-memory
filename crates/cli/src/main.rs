@@ -4,13 +4,13 @@
 //!   sbm index <folder>...
 //!   sbm search [--passages] <query>...
 //!
-//! Data lives in $SBM_DATA_DIR (default ~/.local/share/search-by-memory); the
+//! Data lives in $SBM_DATA_DIR (default: see `AppDirs`); the
 //! EmbeddingGemma ONNX model in $SBM_MODEL_DIR.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use sbm_core::{Location, Result};
+use sbm_core::{AppDirs, Location, Result};
 use sbm_embed_onnx::{DEFAULT_MAX_TOKENS, OnnxEmbedder};
 use sbm_index::{MatchReason, SearchResult, View};
 
@@ -31,11 +31,11 @@ fn main() -> ExitCode {
 }
 
 fn run(args: &[String]) -> Result<()> {
-    let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
-    let data_dir = env_path("SBM_DATA_DIR", home.join(".local/share/search-by-memory"));
+    let dirs = AppDirs::current();
+    let data_dir = env_path("SBM_DATA_DIR", dirs.data);
     let model_dir = env_path(
         "SBM_MODEL_DIR",
-        home.join(".cache/search-by-memory/models/embeddinggemma-2-onnx"),
+        dirs.cache.join("models/embeddinggemma-2-onnx"),
     );
     match args {
         [command, folders @ ..] if command == "index" && !folders.is_empty() => {
