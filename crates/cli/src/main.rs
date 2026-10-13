@@ -3,6 +3,12 @@
 //! Usage:
 //!   sbm index [--accelerator <name>] [<folder>...]
 //!   sbm search [--accelerator <name>] [--passages] <query>...
+//!   sbm folders
+//!   sbm remove <folder>
+//!   sbm exclude <folder> | --name <pattern>
+//!
+//! `sbm index` remembers the folders it is given and rescans every remembered
+//! folder; an interrupted run resumes where it stopped.
 //!
 //! `--accelerator` is cpu, cuda, directml, or directml:<index>; a GPU falls back
 //! to CPU. Without it, CUDA, then DirectML, then CPU are tried (GPUs on Windows only).
@@ -15,7 +21,7 @@ use std::process::ExitCode;
 
 use sbm_core::{AppDirs, Location, Result};
 use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
-use sbm_index::{MatchReason, SearchResult, View};
+use sbm_index::{Exclusion, MatchReason, SearchResult, View};
 
 /// Matryoshka dimensions: 256 scored as well as 512 and 768 on the Benchmark.
 const DIMENSIONS: usize = 256;
@@ -23,7 +29,10 @@ const RESULTS: usize = 20;
 const SNIPPET_CHARS: usize = 160;
 const USAGE: &str = "usage:
   sbm index [--accelerator <name>] [<folder>...]
-  sbm search [--accelerator <name>] [--passages] <query>...";
+  sbm search [--accelerator <name>] [--passages] <query>...
+  sbm folders
+  sbm remove <folder>
+  sbm exclude <folder> | --name <pattern>";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -82,6 +91,30 @@ fn run(args: &[String]) -> Result<()> {
                 print_result(rank + 1, result);
             }
             Ok(())
+        }
+        [command] if command == "folders" => {
+            for folder in sbm_cli::folders(&data_dir)? {
+                let connected = if folder.connected {
+                    ""
+                } else {
+                    "  (drive not connected)"
+                };
+                let path = sbm_cli::printable(&folder.path.to_string_lossy());
+                println!("{path}{connected}");
+            }
+            Ok(())
+        }
+        [command, folder] if command == "remove" => {
+            // Not canonicalized: the folder's drive may be disconnected.
+            let folder = std::path::absolute(folder)?;
+            sbm_cli::remove_folder(&data_dir, &folder, DIMENSIONS)
+        }
+        [command, flag, pattern] if command == "exclude" && flag == "--name" => {
+            sbm_cli::exclude(&data_dir, Exclusion::Name(pattern.clone()))
+        }
+        [command, folder] if command == "exclude" => {
+            let folder = std::fs::canonicalize(folder)?;
+            sbm_cli::exclude(&data_dir, Exclusion::Folder(folder))
         }
         _ => Err(USAGE.into()),
     }
