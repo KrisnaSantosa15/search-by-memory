@@ -55,6 +55,7 @@ impl std::str::FromStr for Accelerator {
 pub struct OnnxEmbedder {
     session: Mutex<Session>,
     accelerator: Accelerator,
+    skipped: Vec<(Accelerator, String)>,
     tokenizer: Tokenizer,
     pad_id: i64,
     dimensions: usize,
@@ -68,11 +69,28 @@ impl OnnxEmbedder {
     }
 
     /// Like [`OnnxEmbedder::load`], running the model on `accelerator`.
+    /// When the GPU is missing or unusable, falls back to CPU: slower but always works.
     pub fn load_on(
         model_dir: &Path,
         dimensions: usize,
         max_tokens: usize,
         accelerator: Accelerator,
+    ) -> Result<Self> {
+        Self::load_first(
+            model_dir,
+            dimensions,
+            max_tokens,
+            &[accelerator, Accelerator::Cpu],
+        )
+    }
+
+    /// Like [`OnnxEmbedder::load`], running the model on the first of
+    /// `accelerators` that works. See [`OnnxEmbedder::skipped`] for the others.
+    pub fn load_first(
+        model_dir: &Path,
+        dimensions: usize,
+        max_tokens: usize,
+        accelerators: &[Accelerator],
     ) -> Result<Self> {
         let mut tokenizer = Tokenizer::from_file(model_dir.join("tokenizer.json"))?;
         tokenizer.with_truncation(Some(TruncationParams {
@@ -81,29 +99,39 @@ impl OnnxEmbedder {
         }))?;
         let pad_id = tokenizer.token_to_id("<pad>").map_or(0, i64::from);
         let model = model_dir.join("onnx/model.onnx");
-        let (session, accelerator) = match session_builder(accelerator)
-            .and_then(|mut builder| builder.commit_from_file(&model))
-        {
-            Ok(session) => (session, accelerator),
-            // The GPU is missing or unusable: CPU is slower but always works.
-            Err(_) if accelerator != Accelerator::Cpu => (
-                session_builder(Accelerator::Cpu)?.commit_from_file(&model)?,
-                Accelerator::Cpu,
-            ),
-            Err(error) => return Err(error.into()),
-        };
-        Ok(Self {
-            session: Mutex::new(session),
-            accelerator,
-            tokenizer,
-            pad_id,
-            dimensions,
-        })
+        let mut skipped = Vec::new();
+        for &accelerator in accelerators {
+            match session_builder(accelerator)
+                .and_then(|mut builder| builder.commit_from_file(&model))
+            {
+                Ok(session) => {
+                    return Ok(Self {
+                        session: Mutex::new(session),
+                        accelerator,
+                        skipped,
+                        tokenizer,
+                        pad_id,
+                        dimensions,
+                    });
+                }
+                Err(error) => skipped.push((accelerator, error.to_string())),
+            }
+        }
+        let reasons: Vec<String> = skipped
+            .iter()
+            .map(|(accelerator, reason)| format!("{accelerator:?}: {reason}"))
+            .collect();
+        Err(format!("no accelerator could run the model ({})", reasons.join("; ")).into())
     }
 
     /// The hardware the model runs on.
     pub fn accelerator(&self) -> Accelerator {
         self.accelerator
+    }
+
+    /// Accelerators tried before the one in use, each with why it could not run the model.
+    pub fn skipped(&self) -> &[(Accelerator, String)] {
+        &self.skipped
     }
 
     /// Embeds all texts in one model call, right-padding to the longest input.

@@ -111,6 +111,26 @@ fn embedder_falls_back_to_cpu_when_the_gpu_cannot_be_used() {
     assert_matches_pytorch_reference(&embedder);
 }
 
+#[test]
+fn embedder_reports_why_it_skipped_an_accelerator() {
+    let Some(dir) = model_dir() else { return };
+    let missing_gpu = Accelerator::DirectMlDevice(99);
+
+    let embedder = OnnxEmbedder::load_first(
+        &dir,
+        256,
+        DEFAULT_MAX_TOKENS,
+        &[missing_gpu, Accelerator::Cpu],
+    )
+    .expect("model loads");
+
+    assert_eq!(embedder.accelerator(), Accelerator::Cpu);
+    let skipped = embedder.skipped();
+    assert_eq!(skipped.len(), 1, "{skipped:?}");
+    assert_eq!(skipped[0].0, missing_gpu);
+    assert!(!skipped[0].1.is_empty(), "reason should not be blank");
+}
+
 /// The ADR 0001 gate holds on an NVIDIA GPU through CUDA.
 #[cfg(windows)]
 #[test]
