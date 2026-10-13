@@ -103,6 +103,7 @@
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
+- Engine (`crates/engine`): long-running indexing + search for the desktop app.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
