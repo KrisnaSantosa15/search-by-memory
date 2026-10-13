@@ -274,3 +274,39 @@ fn removed_indexed_folder_leaves_both_indexes() {
         .unwrap();
     assert_eq!(results, []);
 }
+
+#[test]
+fn removing_a_folder_inside_another_indexed_folder_keeps_its_files() {
+    let (data, documents) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        documents.path(),
+        "taxes/2024.txt",
+        "income tax return for 2024\n",
+    );
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    let mut store = store();
+    index.add_indexed_folder(documents.path()).unwrap();
+    index
+        .add_indexed_folder(&documents.path().join("taxes"))
+        .unwrap();
+    index.scan_all().unwrap();
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+
+    index
+        .remove_indexed_folder(&documents.path().join("taxes"), &mut store)
+        .unwrap();
+
+    assert_eq!(index.search_names("2024", 20).unwrap().len(), 1);
+    let results = index
+        .search(
+            "income tax",
+            &BagOfWords::default(),
+            &store,
+            View::Passage,
+            20,
+        )
+        .unwrap();
+    assert_eq!(results.len(), 1);
+}

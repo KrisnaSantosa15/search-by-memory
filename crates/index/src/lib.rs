@@ -355,21 +355,29 @@ impl Index {
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
             .collect::<rusqlite::Result<_>>()?;
         let mut found = None;
-        for (id, volume_id, path) in folders {
-            if self.path_of(&volume_id, &path)?.0 == folder {
-                found = Some((id, volume_id, path));
+        for (id, volume_id, path) in &folders {
+            if self.path_of(volume_id, path)?.0 == folder {
+                found = Some((*id, volume_id.clone(), path.clone()));
             }
         }
         let Some((id, volume_id, folder_path)) = found else {
             return Err(format!("{} is not an Indexed Folder", folder.display()).into());
         };
+        // Files another Indexed Folder covers are still wanted.
+        let others: Vec<&String> = folders
+            .iter()
+            .filter(|(other, volume, _)| *other != id && *volume == volume_id)
+            .map(|(_, _, path)| path)
+            .collect();
         let tx = self.db.transaction()?;
         let files: Vec<(i64, String)> = tx
             .prepare("SELECT id, relative_path FROM files WHERE volume_id = ?1")?
             .query_map(params![volume_id], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect::<rusqlite::Result<_>>()?;
         for (file, path) in files {
-            if is_beneath(&path, &folder_path) {
+            if is_beneath(&path, &folder_path)
+                && !others.iter().any(|other| is_beneath(&path, other))
+            {
                 tx.execute("DELETE FROM names WHERE rowid = ?1", params![file])?;
                 tx.execute("DELETE FROM index_jobs WHERE file_id = ?1", params![file])?;
                 tx.execute("DELETE FROM files WHERE id = ?1", params![file])?;
