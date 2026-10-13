@@ -18,6 +18,39 @@ pub struct IndexReport {
     pub failed: Vec<(PathBuf, String)>,
 }
 
+/// Files indexed between saves of the vector index, so an interrupted run
+/// loses little work.
+const FILES_PER_SAVE: usize = 100;
+
+/// Adds `new_folders` to the Indexed Folders in `data_dir`, rescans them all,
+/// and indexes the content of added and changed files, newest first. Work left
+/// by an interrupted run is resumed. Files that fail to index are reported, not fatal.
+pub fn index(
+    data_dir: &Path,
+    new_folders: &[PathBuf],
+    embedder: &dyn EmbeddingProvider,
+) -> Result<IndexReport> {
+    std::fs::create_dir_all(data_dir)?;
+    let mut index = Index::open(&data_dir.join(DATABASE))?;
+    let mut store = UsearchStore::new(embedder.dimensions(), Precision::F16)?;
+    index.rebuild_vectors(&mut store)?;
+    for folder in new_folders {
+        index.add_indexed_folder(folder)?;
+    }
+    let changes = index.scan_all()?;
+    loop {
+        let done = index.run_jobs(embedder, &mut store, FILES_PER_SAVE)?;
+        store.save(&data_dir.join(VECTORS))?;
+        if done < FILES_PER_SAVE {
+            break;
+        }
+    }
+    Ok(IndexReport {
+        changes,
+        failed: index.failed_files()?,
+    })
+}
+
 /// Brings the indexes in `data_dir` in line with `folder`: scans it, embeds
 /// added and changed files, drops content no file uses, and saves the vectors.
 /// Files that fail to index are reported, not fatal.

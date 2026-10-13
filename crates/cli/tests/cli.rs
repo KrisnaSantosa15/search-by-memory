@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use sbm_cli::{accelerator_option, index_folder, search};
+use sbm_cli::{accelerator_option, index, index_folder, search};
 use sbm_core::{Embedding, EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
 use sbm_index::View;
@@ -161,4 +161,22 @@ fn cpu_named_as_accelerator_is_tried_once() {
 fn unknown_or_missing_accelerator_name_is_an_error() {
     assert!(accelerator_option(&args(&["index", "--accelerator", "tpu", "Documents"])).is_err());
     assert!(accelerator_option(&args(&["index", "--accelerator"])).is_err());
+}
+
+#[test]
+fn indexed_folders_are_rescanned_by_later_runs_without_naming_them() {
+    let (folder, data) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "kitchen/a.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    index(data.path(), &[folder.path().to_path_buf()], &BagOfWords).unwrap();
+    let later = write(folder.path(), "garage/b.txt", "change the engine oil\n");
+
+    let report = index(data.path(), &[], &BagOfWords).unwrap();
+    let results = search(data.path(), "engine oil", &BagOfWords, View::File, 20).unwrap();
+
+    assert_eq!(report.changes.added, [later.clone()]);
+    assert_eq!(results[0].path, later);
 }
