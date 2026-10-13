@@ -41,8 +41,8 @@ impl Benchmark {
                     .target
                     .into_iter()
                     .map(|target| Target {
+                        location: target.location(),
                         file: target.file,
-                        location: Location::Page(target.page),
                     })
                     .collect(),
             })
@@ -71,5 +71,16 @@ struct QueryEntry {
 #[derive(Deserialize)]
 struct TargetEntry {
     file: PathBuf,
-    page: u32,
+    page: Option<u32>,
+    lines: Option<[u32; 2]>,
+}
+
+impl TargetEntry {
+    fn location(&self) -> Location {
+        match (self.page, self.lines) {
+            (_, Some([start, end])) => Location::Lines { start, end },
+            (Some(page), _) => Location::Page(page),
+            (None, None) => unimplemented!("whole-file Targets"),
+        }
+    }
 }

@@ -31,3 +31,26 @@ fn query_with_page_target_parses_from_benchmark_file() {
         }]
     );
 }
+
+fn only_target(source: &str) -> Target {
+    let benchmark = Benchmark::parse(source).unwrap();
+    benchmark.queries()[0].targets[0].clone()
+}
+
+#[test]
+fn line_range_target_parses_for_text_and_code() {
+    let target = only_target(
+        r#"
+        [[query]]
+        id = "en-002"
+        text = "function that retries failed downloads"
+        language = "en"
+
+        [[query.target]]
+        file = "repo/src/download.rs"
+        lines = [10, 24]
+        "#,
+    );
+
+    assert_eq!(target.location, Location::Lines { start: 10, end: 24 });
+}

@@ -8,6 +8,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Location {
     /// 1-based page of a paged document.
     Page(u32),
+    /// Inclusive, 1-based line range of text or code.
+    Lines { start: u32, end: u32 },
 }
 
 /// A dense vector representing the meaning of a Query or a Chunk.
