@@ -163,3 +163,32 @@ fn file_that_cannot_be_indexed_is_reported_and_does_not_block_others() {
         .unwrap();
     assert_eq!(results[0].path, good);
 }
+
+#[test]
+fn moved_file_is_indexed_through_the_queue_without_reembedding() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let before = write(
+        folder.path(),
+        "inbox/lease.txt",
+        "tenancy lease for the flat\n",
+    );
+    let embedder = BagOfWords::default();
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    let mut store = store();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+    index.run_jobs(&embedder, &mut store, usize::MAX).unwrap();
+
+    let after = folder.path().join("archive/lease.txt");
+    std::fs::create_dir(folder.path().join("archive")).unwrap();
+    std::fs::rename(&before, &after).unwrap();
+    index.scan_all().unwrap();
+    index.run_jobs(&embedder, &mut store, usize::MAX).unwrap();
+
+    assert_eq!(embedder.embedded(), 1);
+    let results = index
+        .search("tenancy lease", &embedder, &store, View::Passage, 20)
+        .unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].path, after);
+}
