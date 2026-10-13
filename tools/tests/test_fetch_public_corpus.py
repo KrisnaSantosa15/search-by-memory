@@ -85,3 +85,27 @@ def test_corpus_lives_in_the_user_cache_unless_overridden(monkeypatch, tmp_path)
 
     monkeypatch.setenv("SBM_PUBLIC_CORPUS", str(tmp_path / "elsewhere"))
     assert default_corpus_dir() == tmp_path / "elsewhere"
+
+
+def test_downloads_identify_the_tool_with_a_user_agent(tmp_path):
+    # Wikimedia and arXiv reject anonymous default agents such as "Python-urllib".
+    seen = []
+
+    class RecordingHandler(SimpleHTTPRequestHandler):
+        def do_GET(self):
+            seen.append(self.headers["User-Agent"])
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"data")
+
+    httpd = HTTPServer(("127.0.0.1", 0), RecordingHandler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    manifest = write_manifest(
+        tmp_path / "manifest.toml",
+        [{"path": "f", "url": f"http://127.0.0.1:{httpd.server_port}/f", "sha256": sha256(b"data"), "license": "CC0-1.0"}],
+    )
+
+    fetch_corpus(manifest, tmp_path / "corpus")
+    httpd.shutdown()
+
+    assert seen[0].startswith("search-by-memory-bench/")

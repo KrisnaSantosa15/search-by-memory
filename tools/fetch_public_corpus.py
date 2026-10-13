@@ -14,6 +14,7 @@ import urllib.request
 from pathlib import Path
 
 
+USER_AGENT = "search-by-memory-bench/0.1 (offline Benchmark corpus fetcher)"
 MANIFEST = Path(__file__).resolve().parent.parent / "benchmark/public/manifest.toml"
 
 
@@ -30,7 +31,8 @@ def fetch_corpus(manifest: Path, corpus: Path) -> None:
         target = corpus / entry["path"]
         if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == entry["sha256"]:
             continue
-        with urllib.request.urlopen(entry["url"]) as response:
+        request = urllib.request.Request(entry["url"], headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(request) as response:
             data = response.read()
         actual = hashlib.sha256(data).hexdigest()
         if actual != entry["sha256"]:
