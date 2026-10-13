@@ -9,8 +9,10 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` tries CUDA → DirectML → CPU (`--accelerator <name>` overrides; a named GPU falls back to CPU) and prints the one in use plus why others were skipped.
 - **In progress**: clean GPU benchmark (user closes GPU-using apps first).
 - **Volume-aware file catalog**: done (volume ID + relative path; Disconnected Drives flagged).
-- **Next M2 item**: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only).
-- Tests: `cargo test --workspace` 113 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
+- **M4 indexing core**: done (saved Indexed Folders and Exclusions, `index_jobs` queue: newest first, retries, resume).
+- **Next M2 item**: end-to-end Benchmark run through `sbm` (hybrid vs semantic-only); deferred by the user with the other benchmarks.
+- **Next M4 items**: USN Journal `ChangeSource` and Live Updates (ahead of Initial Indexing jobs), throttling, Online-only Files.
+- Tests: `cargo test --workspace` 127 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
 
 ## Workspace
 | Path | Purpose |
@@ -29,7 +31,8 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - `scan` walks an Indexed Folder (Default Exclusions, user folder/`*` patterns), mark-and-sweep against SQLite, and reports added / changed (size or mtime) / removed files.
 - `index_content` hashes a file (BLAKE3, streamed); known content is reused (Copies, moves; ADR 0004). New content is extracted, chunked (1,000 chars, 150 overlap), embedded in batches of 8, stored in `chunks` (text + embedding BLOB) and `chunk_words` (FTS5), and added to USearch with the Chunk id as vector id.
 - `search` fuses semantic (USearch) and keyword (FTS5) Chunk lists by Reciprocal Rank Fusion (k = 60); File view groups by content hash (Copies) and fuses with Name Matches; an exact filename match goes on top.
-- `remove_unreferenced_content` runs after indexing a scan's added/changed files, so moved files reuse content before it is collected.
+- Indexed Folders and Exclusions are saved (`add_indexed_folder`, `add_exclusion`). `scan_all` scans connected Indexed Folders and queues an `index_jobs` row per added/changed file (priority = mtime).
+- `run_jobs(embedder, store, limit)` takes the newest pending job on a connected drive, commits each file on its own, retries a failing file 3 times then marks it failed (`failed_files`). Once no runnable job is left it runs `remove_unreferenced_content`, so moved files reuse content before it is collected.
 - Schema: `MIGRATIONS` in `crates/index/src/lib.rs`, tracked by `PRAGMA user_version`; append only, never edit. A newer schema is refused.
 - Files are keyed by `(volume_id, relative_path)`; the `volumes` table keeps each volume's last root, so files on a Disconnected Drive show their last-known path with `connected: false`.
 - Not done yet: index_jobs / resume, Live Updates, throttling (M4); persisted Indexed Folders (the CLI passes them each run). Passage view intentionally omits name-only files.
@@ -46,7 +49,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `039a479`). Pro
 - Rust 1.99 (rustup, MSVC) with VS Build Tools: `export PATH="$HOME/.cargo/bin:$PATH"`.
 - CUDA runtime DLLs: `export PATH="$(cygpath -u "$LOCALAPPDATA")/nvidia-cuda13/bin:$PATH"`. Use `cygpath`: a raw `C:\...` entry breaks at the colon. Without it, CUDA silently falls back to CPU and the CUDA tests fail.
 - Tests: `cargo test --workspace`; Python: `cd tools && uv run pytest`.
-- CLI: `cargo build --release -p sbm-cli`, then `target/release/sbm index <folder>...` and `target/release/sbm search [--passages] <query>...`, each with optional `--accelerator <name>`. 256 dims, f16 vectors. Smoke-tested on Windows (CUDA); indexed folders print as `\?\D:\…` (canonicalize), cosmetic.
+- CLI: `cargo build --release -p sbm-cli`, then `target/release/sbm index [<folder>...]` (remembers folders, rescans all, resumes) and `target/release/sbm search [--passages] <query>...`, each with optional `--accelerator <name>`; also `sbm folders`, `sbm remove <folder>`, `sbm exclude <folder> | --name <pattern>`. 256 dims, f16 vectors. Smoke-tested on Windows (CUDA); indexed folders print as `\?\D:\…` (canonicalize), cosmetic.
 - Throughput: `target/release/embed_throughput --accelerator cpu|cuda|directml` (not while tests run; close GPU-using apps).
 - Retrieval Benchmark: `cargo run --release -p sbm-bench --bin retrieval_benchmark` (still uses pdftotext, which is not installed on Windows yet; a fresh run takes 40+ min on CPU).
 - Public Corpus: `cd tools && uv run fetch_public_corpus.py` (not yet fetched on Windows).
