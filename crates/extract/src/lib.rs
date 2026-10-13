@@ -120,3 +120,26 @@ impl ContentExtractor for DocxExtractor {
         }])
     }
 }
+
+/// Extensions of plain text, Markdown, and source code files (FR-03).
+const TEXT_EXTENSIONS: [&str; 30] = [
+    "txt", "md", "markdown", "rst", "csv", "log", "rs", "py", "js", "jsx", "ts", "tsx", "go", "c",
+    "h", "cpp", "hpp", "cs", "java", "kt", "swift", "rb", "php", "sh", "sql", "html", "css",
+    "json", "yaml", "toml",
+];
+
+/// The ContentExtractor for a file's format, or `None` when its content is not indexed.
+pub fn extractor_for(path: &Path) -> Option<&'static dyn ContentExtractor> {
+    let name = path.file_name()?.to_string_lossy();
+    if name.starts_with("~$") {
+        // Office lock files hold the editing user's name, not document content.
+        return None;
+    }
+    let extension = path.extension()?.to_string_lossy().to_lowercase();
+    match extension.as_str() {
+        "pdf" => Some(&PdfExtractor),
+        "docx" => Some(&DocxExtractor),
+        _ if TEXT_EXTENSIONS.contains(&extension.as_str()) => Some(&TextExtractor),
+        _ => None,
+    }
+}

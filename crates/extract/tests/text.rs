@@ -53,5 +53,9 @@ fn text_file_that_is_not_utf8_is_still_extracted() {
 
     let sections = TextExtractor.extract(&path).unwrap();
 
-    assert!(sections[0].text.contains("au lait"), "{:?}", sections[0].text);
+    assert!(
+        sections[0].text.contains("au lait"),
+        "{:?}",
+        sections[0].text
+    );
 }
