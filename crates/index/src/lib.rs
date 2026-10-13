@@ -57,8 +57,12 @@ impl Exclusion {
 /// What a scan found different from the previous one.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ScanChanges {
+    /// Files new to the index.
+    pub added: Vec<PathBuf>,
     /// Known files whose size or modification time differ, so their content needs a check.
     pub changed: Vec<PathBuf>,
+    /// Files no longer beneath the folder, now removed from the index.
+    pub removed: Vec<PathBuf>,
 }
 
 /// The file catalog and Name Index, stored in SQLite.
@@ -138,6 +142,7 @@ impl Index {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![path, name_lower, stem_lower, size, mtime_ns, scan],
             )?;
+            changes.added.push(entry.path().to_path_buf());
             let name = entry.file_name().to_string_lossy();
             let folder = entry.path().parent().unwrap_or(folder).to_string_lossy();
             tx.execute(
@@ -153,6 +158,7 @@ impl Index {
             if Path::new(&path).starts_with(folder) {
                 tx.execute("DELETE FROM names WHERE rowid = ?1", params![id])?;
                 tx.execute("DELETE FROM files WHERE id = ?1", params![id])?;
+                changes.removed.push(PathBuf::from(path));
             }
         }
         tx.commit()?;

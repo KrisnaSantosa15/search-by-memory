@@ -168,3 +168,19 @@ fn rescan_reports_files_whose_size_changed_for_a_content_check() {
 
     assert_eq!(changes.changed, [folder.path().join("notes/todo.md")]);
 }
+
+#[test]
+fn scan_reports_added_and_removed_files() {
+    let folder = TempDir::new().unwrap();
+    touch(folder.path(), "notes/todo.md");
+    let mut index = Index::open_in_memory().unwrap();
+    let first = index.scan(folder.path(), &[]).unwrap();
+
+    fs::remove_file(folder.path().join("notes/todo.md")).unwrap();
+    touch(folder.path(), "notes/done.md");
+    let second = index.scan(folder.path(), &[]).unwrap();
+
+    assert_eq!(first.added, [folder.path().join("notes/todo.md")]);
+    assert_eq!(second.added, [folder.path().join("notes/done.md")]);
+    assert_eq!(second.removed, [folder.path().join("notes/todo.md")]);
+}
