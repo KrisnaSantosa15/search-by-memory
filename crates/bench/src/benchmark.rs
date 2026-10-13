@@ -35,6 +35,9 @@ impl Benchmark {
             .query
             .into_iter()
             .map(|query| {
+                if query.target.is_empty() {
+                    return Err(format!("Query {:?} has no Target", query.id).into());
+                }
                 let targets = query
                     .target
                     .into_iter()
@@ -84,6 +87,10 @@ struct TargetEntry {
 
 impl TargetEntry {
     fn location(&self) -> Result<Location> {
+        let kinds = [self.page.is_some(), self.lines.is_some(), self.time.is_some()];
+        if kinds.iter().filter(|&&given| given).count() > 1 {
+            return Err(format!("{:?} has more than one Location", self.file).into());
+        }
         Ok(match (self.page, self.lines, &self.time) {
             (_, _, Some([start, end])) => {
                 let (start, end) = (parse_timestamp(start)?, parse_timestamp(end)?);

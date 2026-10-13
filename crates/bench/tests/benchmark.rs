@@ -122,3 +122,21 @@ fn ranges_ending_before_they_start_are_rejected() {
     assert!(Benchmark::parse(&with_target("lines = [24, 10]")).is_err());
     assert!(Benchmark::parse(&with_target(r#"time = ["02:10", "01:30"]"#)).is_err());
 }
+
+#[test]
+fn target_with_more_than_one_location_kind_is_rejected() {
+    assert!(Benchmark::parse(&with_target("page = 2\nlines = [10, 24]")).is_err());
+}
+
+#[test]
+fn query_with_empty_target_list_is_rejected() {
+    let source = r#"
+        [[query]]
+        id = "en-901"
+        text = "a remembered passage"
+        language = "en"
+        target = []
+        "#;
+
+    assert!(Benchmark::parse(source).is_err());
+}
