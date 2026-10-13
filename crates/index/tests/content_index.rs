@@ -178,11 +178,17 @@ fn copies_are_one_result_in_file_view() {
 #[test]
 fn moved_file_reuses_existing_chunks_without_reembedding() {
     let folder = TempDir::new().unwrap();
-    let before = write(folder.path(), "inbox/rendang.txt", "slow cooked beef in coconut milk and chili\n");
+    let before = write(
+        folder.path(),
+        "inbox/rendang.txt",
+        "slow cooked beef in coconut milk and chili\n",
+    );
     let mut index = Index::open_in_memory().unwrap();
     let mut store = store();
     index.scan(folder.path(), &[]).unwrap();
-    index.index_content(&before, &BagOfWords, &mut store).unwrap();
+    index
+        .index_content(&before, &BagOfWords, &mut store)
+        .unwrap();
     let vectors = store.len();
 
     let after = folder.path().join("recipes/rendang.txt");
@@ -199,4 +205,42 @@ fn moved_file_reuses_existing_chunks_without_reembedding() {
     assert_eq!(store.len(), vectors);
     assert_eq!(results[0].path, after);
     assert!(results[0].copies.is_empty());
+}
+
+#[test]
+fn edited_file_is_found_by_its_new_content_and_old_content_is_removed() {
+    let folder = TempDir::new().unwrap();
+    let notes = write(
+        folder.path(),
+        "notes.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    index
+        .index_content(&notes, &BagOfWords, &mut store)
+        .unwrap();
+
+    fs::write(&notes, "change the engine oil every five thousand miles\n").unwrap();
+    let changes = index.scan(folder.path(), &[]).unwrap();
+    for changed in &changes.changed {
+        index
+            .index_content(changed, &BagOfWords, &mut store)
+            .unwrap();
+    }
+    index.remove_unreferenced_content(&mut store).unwrap();
+    let results = index
+        .search("engine oil", &BagOfWords, &store, View::File, 20)
+        .unwrap();
+
+    assert_eq!(store.len(), 1);
+    assert_eq!(results.len(), 1);
+    assert!(
+        results[0]
+            .snippet
+            .as_deref()
+            .unwrap()
+            .contains("engine oil")
+    );
 }

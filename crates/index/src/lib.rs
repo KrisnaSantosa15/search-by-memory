@@ -308,6 +308,27 @@ impl Index {
         Ok(())
     }
 
+    /// Removes Chunks, and their vectors in `store`, whose content no file
+    /// references any longer. Run it after indexing a scan's added and changed
+    /// files, so that moved files reuse their content first (ADR 0004).
+    pub fn remove_unreferenced_content(&mut self, store: &mut impl VectorStore) -> Result<()> {
+        let tx = self.db.transaction()?;
+        let unreferenced: Vec<i64> = tx
+            .prepare(
+                "SELECT id FROM chunks WHERE content_hash NOT IN
+                 (SELECT content_hash FROM files WHERE content_hash IS NOT NULL)",
+            )?
+            .query_map([], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        for id in unreferenced {
+            store.remove(id as u64)?;
+            tx.execute("DELETE FROM chunk_words WHERE rowid = ?1", params![id])?;
+            tx.execute("DELETE FROM chunks WHERE id = ?1", params![id])?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     /// Results for a Query from the Content Index, best first.
     pub fn search(
         &self,
