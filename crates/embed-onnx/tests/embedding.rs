@@ -169,6 +169,16 @@ fn directml_batch_matches_embedding_chunks_one_by_one() {
     assert_batch_matches_one_by_one(&embedder);
 }
 
+#[cfg(windows)]
+#[test]
+fn cuda_batch_matches_embedding_chunks_one_by_one() {
+    let Some(dir) = model_dir() else { return };
+    let embedder = OnnxEmbedder::load_on(&dir, 256, DEFAULT_MAX_TOKENS, Accelerator::Cuda)
+        .expect("model loads");
+    assert_eq!(embedder.accelerator(), Accelerator::Cuda);
+    assert_batch_matches_one_by_one(&embedder);
+}
+
 fn assert_batch_matches_one_by_one(embedder: &OnnxEmbedder) {
     let chunks = [
         "Short note.",
