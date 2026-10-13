@@ -109,11 +109,21 @@ pub fn download(
         let from = std::fs::metadata(&part).map_or(0, |metadata| metadata.len());
         current.done += from;
         let mut out = File::options().create(true).append(true).open(&part)?;
-        let mut body = http.get(&file.url, from)?;
+        // One byte past the expected size is enough to tell the file is wrong.
+        let mut body = http
+            .get(&file.url, from)?
+            .take(file.size.saturating_sub(from) + 1);
+        let mut written = from;
         loop {
             let read = body.read(&mut buffer)?;
             if read == 0 {
                 break;
+            }
+            written += read as u64;
+            if written > file.size {
+                drop(out);
+                std::fs::remove_file(&part)?;
+                return Err(format!("{} is larger than expected", file.path).into());
             }
             out.write_all(&buffer[..read])?;
             current.done += read as u64;

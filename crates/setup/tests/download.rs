@@ -133,3 +133,27 @@ fn cancelled_download_stops_and_resumes_later() {
     );
     assert!(http.requests.lock().unwrap().last().unwrap().1 > 0);
 }
+
+#[test]
+fn download_longer_than_expected_is_stopped_and_rejected() {
+    let dir = TempDir::new().unwrap();
+    let http = FakeHttp::default();
+    let mut file = http.serve(
+        "https://example.test/model.onnx",
+        "model.onnx",
+        &[7; 300_000],
+    );
+    file.size = 1000;
+
+    let result = download(
+        &[file],
+        dir.path(),
+        &http,
+        &AtomicBool::new(false),
+        &mut |_| {},
+    );
+
+    assert!(result.is_err());
+    let left: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
+    assert!(left.is_empty(), "{left:?}");
+}
