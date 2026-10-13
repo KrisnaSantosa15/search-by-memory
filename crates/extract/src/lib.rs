@@ -166,10 +166,13 @@ pub fn chunk_sections(sections: &[Section], max_chars: usize, overlap_chars: usi
                 length += lines[end].len();
                 end += 1;
             }
-            chunks.push(Chunk {
-                location: lines_location(&section.location, start, end),
-                text: lines[start..end].concat(),
-            });
+            let text = lines[start..end].concat();
+            if !text.trim().is_empty() {
+                chunks.push(Chunk {
+                    location: lines_location(&section.location, start, end),
+                    text,
+                });
+            }
             if end == lines.len() {
                 break;
             }

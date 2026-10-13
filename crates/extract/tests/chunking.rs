@@ -27,3 +27,26 @@ fn long_text_is_split_into_overlapping_chunks_with_line_ranges() {
         ]
     );
 }
+
+#[test]
+fn page_chunks_keep_their_page_and_blank_pages_have_none() {
+    let sections = [
+        Section {
+            location: Location::Page(1),
+            text: "Invoice for March rent\n".into(),
+        },
+        Section {
+            location: Location::Page(2),
+            text: "\n  \n".into(),
+        },
+        Section {
+            location: Location::Page(3),
+            text: "Paid by bank transfer\n".into(),
+        },
+    ];
+
+    let chunks = chunk_sections(&sections, 1000, 100);
+
+    let pages: Vec<Location> = chunks.into_iter().map(|chunk| chunk.location).collect();
+    assert_eq!(pages, [Location::Page(1), Location::Page(3)]);
+}
