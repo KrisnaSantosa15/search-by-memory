@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use sbm_core::{AppDirs, EmbeddingProvider};
-use sbm_embed_onnx::{DEFAULT_MAX_TOKENS, OnnxEmbedder};
+use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
 
 fn model_dir() -> Option<PathBuf> {
     let dir = std::env::var_os("SBM_MODEL_DIR")
@@ -85,6 +85,21 @@ fn embeddings_have_the_configured_dimensions_and_unit_length() {
 fn onnx_embeddings_match_the_pytorch_reference() {
     let Some(dir) = model_dir() else { return };
     let embedder = OnnxEmbedder::load(&dir, 768, DEFAULT_MAX_TOKENS).expect("model loads");
+    assert_matches_pytorch_reference(&embedder);
+}
+
+/// The ADR 0001 gate holds on the GPU too.
+#[cfg(windows)]
+#[test]
+fn directml_embeddings_match_the_pytorch_reference() {
+    let Some(dir) = model_dir() else { return };
+    let embedder = OnnxEmbedder::load_on(&dir, 768, DEFAULT_MAX_TOKENS, Accelerator::DirectMl)
+        .expect("model loads");
+    assert_eq!(embedder.accelerator(), Accelerator::DirectMl);
+    assert_matches_pytorch_reference(&embedder);
+}
+
+fn assert_matches_pytorch_reference(embedder: &OnnxEmbedder) {
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/parity.json")).expect("fixture parses");
 

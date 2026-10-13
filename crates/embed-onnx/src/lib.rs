@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use ort::session::Session;
+use ort::session::builder::SessionBuilder;
 use ort::value::Tensor;
 use sbm_core::{Embedding, EmbeddingProvider, Result};
 use tokenizers::{Tokenizer, TruncationParams};
@@ -19,8 +20,17 @@ pub const DEFAULT_MAX_TOKENS: usize = 2048;
 /// Width of the (unused, text-only) image/video/audio feature inputs.
 const MEDIA_FEATURE_WIDTH: usize = 512;
 
+/// The hardware that runs the embedding model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Accelerator {
+    Cpu,
+    /// Any DirectX 12 GPU on Windows, preferring the most powerful one.
+    DirectMl,
+}
+
 pub struct OnnxEmbedder {
     session: Mutex<Session>,
+    accelerator: Accelerator,
     tokenizer: Tokenizer,
     pad_id: i64,
     dimensions: usize,
@@ -30,19 +40,36 @@ impl OnnxEmbedder {
     /// Loads `tokenizer.json` and `onnx/model.onnx` from `model_dir`.
     /// Text beyond `max_tokens` tokens is ignored.
     pub fn load(model_dir: &Path, dimensions: usize, max_tokens: usize) -> Result<Self> {
+        Self::load_on(model_dir, dimensions, max_tokens, Accelerator::Cpu)
+    }
+
+    /// Like [`OnnxEmbedder::load`], running the model on `accelerator`.
+    pub fn load_on(
+        model_dir: &Path,
+        dimensions: usize,
+        max_tokens: usize,
+        accelerator: Accelerator,
+    ) -> Result<Self> {
         let mut tokenizer = Tokenizer::from_file(model_dir.join("tokenizer.json"))?;
         tokenizer.with_truncation(Some(TruncationParams {
             max_length: max_tokens,
             ..TruncationParams::default()
         }))?;
         let pad_id = tokenizer.token_to_id("<pad>").map_or(0, i64::from);
-        let session = Session::builder()?.commit_from_file(model_dir.join("onnx/model.onnx"))?;
+        let session =
+            session_builder(accelerator)?.commit_from_file(model_dir.join("onnx/model.onnx"))?;
         Ok(Self {
             session: Mutex::new(session),
+            accelerator,
             tokenizer,
             pad_id,
             dimensions,
         })
+    }
+
+    /// The hardware the model runs on.
+    pub fn accelerator(&self) -> Accelerator {
+        self.accelerator
     }
 
     /// Embeds all texts in one model call, right-padding to the longest input.
@@ -82,6 +109,26 @@ impl OnnxEmbedder {
             .chunks(width)
             .map(|row| Embedding::new(row.to_vec()).truncated(self.dimensions))
             .collect())
+    }
+}
+
+fn session_builder(accelerator: Accelerator) -> ort::Result<SessionBuilder> {
+    let builder = Session::builder()?;
+    match accelerator {
+        Accelerator::Cpu => Ok(builder),
+        #[cfg(windows)]
+        Accelerator::DirectMl => Ok(builder
+            // DirectML supports neither memory patterns nor parallel execution.
+            .with_memory_pattern(false)?
+            .with_parallel_execution(false)?
+            .with_execution_providers([ort::ep::DirectML::default()
+                .with_performance_preference(
+                    ort::ep::directml::PerformancePreference::HighPerformance,
+                )
+                .build()
+                .error_on_failure()])?),
+        #[cfg(not(windows))]
+        Accelerator::DirectMl => Err(ort::Error::new("DirectML is only available on Windows")),
     }
 }
 
