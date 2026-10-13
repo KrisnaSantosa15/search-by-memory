@@ -36,3 +36,16 @@ fn default_order_on_windows_prefers_cuda_then_directml_then_cpu() {
 fn default_order_elsewhere_is_cpu_only() {
     assert_eq!(Accelerator::default_order(), [Accelerator::Cpu]);
 }
+
+#[test]
+fn accelerator_is_printed_by_its_command_line_name() {
+    for accelerator in [
+        Accelerator::Cpu,
+        Accelerator::Cuda,
+        Accelerator::DirectMl,
+        Accelerator::DirectMlDevice(1),
+    ] {
+        let name = accelerator.to_string();
+        assert_eq!(name.parse::<Accelerator>(), Ok(accelerator), "{name}");
+    }
+}

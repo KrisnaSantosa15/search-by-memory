@@ -44,6 +44,18 @@ impl Accelerator {
     }
 }
 
+impl std::fmt::Display for Accelerator {
+    /// Writes the command-line name that [`FromStr`](std::str::FromStr) parses.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Accelerator::Cpu => write!(f, "cpu"),
+            Accelerator::Cuda => write!(f, "cuda"),
+            Accelerator::DirectMl => write!(f, "directml"),
+            Accelerator::DirectMlDevice(device) => write!(f, "directml:{device}"),
+        }
+    }
+}
+
 impl std::str::FromStr for Accelerator {
     type Err = String;
 
