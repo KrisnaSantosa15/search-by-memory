@@ -1,8 +1,11 @@
 //! `sbm`: index folders and search them from the command line.
 //!
 //! Usage:
-//!   sbm index <folder>...
-//!   sbm search [--passages] <query>...
+//!   sbm index [--accelerator <name>] <folder>...
+//!   sbm search [--accelerator <name>] [--passages] <query>...
+//!
+//! `--accelerator` is cpu, cuda, directml, or directml:<index>; a GPU falls back
+//! to CPU. Without it, CUDA, then DirectML, then CPU are tried (GPUs on Windows only).
 //!
 //! Data lives in $SBM_DATA_DIR (default: see `AppDirs`); the
 //! EmbeddingGemma ONNX model in $SBM_MODEL_DIR.
@@ -11,7 +14,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use sbm_core::{AppDirs, Location, Result};
-use sbm_embed_onnx::{DEFAULT_MAX_TOKENS, OnnxEmbedder};
+use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
 use sbm_index::{MatchReason, SearchResult, View};
 
 /// Matryoshka dimensions: 256 scored as well as 512 and 768 on the Benchmark.
@@ -31,15 +34,16 @@ fn main() -> ExitCode {
 }
 
 fn run(args: &[String]) -> Result<()> {
+    let (accelerators, args) = sbm_cli::accelerator_option(args)?;
     let dirs = AppDirs::current();
     let data_dir = env_path("SBM_DATA_DIR", dirs.data);
     let model_dir = env_path(
         "SBM_MODEL_DIR",
         dirs.cache.join("models/embeddinggemma-2-onnx"),
     );
-    match args {
+    match args.as_slice() {
         [command, folders @ ..] if command == "index" && !folders.is_empty() => {
-            let embedder = OnnxEmbedder::load(&model_dir, DIMENSIONS, DEFAULT_MAX_TOKENS)?;
+            let embedder = load_embedder(&model_dir, &accelerators)?;
             for folder in folders {
                 let folder = std::fs::canonicalize(folder)?;
                 let report = sbm_cli::index_folder(&data_dir, &folder, &embedder)?;
@@ -69,15 +73,34 @@ fn run(args: &[String]) -> Result<()> {
             if words.is_empty() {
                 return Err("search needs a Query".into());
             }
-            let embedder = OnnxEmbedder::load(&model_dir, DIMENSIONS, DEFAULT_MAX_TOKENS)?;
+            let embedder = load_embedder(&model_dir, &accelerators)?;
             let results = sbm_cli::search(&data_dir, &words.join(" "), &embedder, view, RESULTS)?;
             for (rank, result) in results.iter().enumerate() {
                 print_result(rank + 1, result);
             }
             Ok(())
         }
-        _ => Err("usage: sbm index <folder>... | sbm search [--passages] <query>...".into()),
+        _ => Err("usage: sbm index [--accelerator <name>] <folder>... |                   sbm search [--accelerator <name>] [--passages] <query>..."
+            .into()),
     }
+}
+
+/// Loads the model on the first Accelerator that works and says which one, and why
+/// any before it were skipped, on stderr.
+fn load_embedder(
+    model_dir: &std::path::Path,
+    accelerators: &[Accelerator],
+) -> Result<OnnxEmbedder> {
+    let embedder =
+        OnnxEmbedder::load_first(model_dir, DIMENSIONS, DEFAULT_MAX_TOKENS, accelerators)?;
+    for (accelerator, reason) in embedder.skipped() {
+        eprintln!(
+            "sbm: skipped {accelerator}: {}",
+            sbm_cli::printable(reason.trim())
+        );
+    }
+    eprintln!("sbm: embedding on {}", embedder.accelerator());
+    Ok(embedder)
 }
 
 fn print_result(rank: usize, result: &SearchResult) {
