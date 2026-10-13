@@ -558,8 +558,6 @@ fn is_beneath(path: &str, folder: &str) -> bool {
             .is_some_and(|rest| rest.starts_with('/'))
 }
 
-/// The Query as FTS5 syntax: each word quoted, so user text is never parsed as
-/// operators, and the last word matched as a prefix because the user may still be typing it.
 /// One spelling per path, so the catalog has one row per file: on Windows,
 /// `C:/a/b.txt` and `\\?\C:\a\b.txt` both become `C:\a\b.txt`.
 fn normalized(path: &Path) -> PathBuf {
@@ -574,6 +572,8 @@ fn normalized(path: &Path) -> PathBuf {
         .collect()
 }
 
+/// The Query as FTS5 syntax: each word quoted, so user text is never parsed as
+/// operators, and the last word matched as a prefix because the user may still be typing it.
 fn fts_query(query: &str) -> Option<String> {
     let words: Vec<&str> = query
         .split(|c: char| !c.is_alphanumeric())
