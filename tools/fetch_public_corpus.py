@@ -16,6 +16,8 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
+import mwparserfromhell
+
 
 USER_AGENT = "search-by-memory-bench/0.1 (offline Benchmark corpus fetcher)"
 MANIFEST = Path(__file__).resolve().parent.parent / "benchmark/public/manifest.toml"
@@ -54,6 +56,12 @@ def download(url: str, sleep: Callable[[float], None], attempts: int = 5) -> byt
                 raise
             sleep(float(error.headers.get("Retry-After") or 30))
     raise AssertionError("unreachable")
+
+
+def wikitext_to_text(wikitext: str) -> str:
+    """Plain text of a Wikipedia article's wikitext, as a reader would save it."""
+    text = mwparserfromhell.parse(wikitext).strip_code()
+    return text.strip() + "\n"
 
 
 def main() -> None:
