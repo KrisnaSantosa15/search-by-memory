@@ -25,13 +25,14 @@
 - First 40 labelled Queries (24 en, 16 id); guard test checks Targets exist.
 - `retrieval_benchmark`: semantic-only File view over text, code, PDFs (pdftotext stand-in); embedding cache by file sha256.
 - First run (2,442 Chunks, 25 Queries scored): Recall@5 = 1.0 at every dim/precision, MRR 0.96–0.98; Location Accuracy only 0.28–0.44. Corpus too small to separate f16/i8 or 256/512/768.
+- Location-miss report: 14/25 misses, mostly right file wrong place (sibling code, similar Pasal, same deadline in another article), plus wikitext markup Chunks and generic file headers; 1 label fixed (en-004).
 
 ## In progress
 - —
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
-- Per-Query report of Location misses (low Location Accuracy: chunking vs label granularity).
+- Wikipedia corpus files are raw wikitext: infobox/caption Chunks win (id-009, en-102); replace with plain text.
 - Add distractor files and harder Queries so file-level metrics stop saturating.
 - Grow Benchmark to 50–100 Queries; more non-abstract PDF Targets.
 
