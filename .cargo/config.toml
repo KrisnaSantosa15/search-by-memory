@@ -1,0 +1,5 @@
+[env]
+# usearch 2.26.2 links NumKong statically, but NumKong's headers declare its
+# dispatch functions `__declspec(dllimport)` on Windows, so MSVC links against
+# `__imp_nk_*` symbols that do not exist. An empty NK_DYNAMIC keeps them plain.
+CXXFLAGS_x86_64_pc_windows_msvc = "/DNK_DYNAMIC="
