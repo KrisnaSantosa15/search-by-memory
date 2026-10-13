@@ -28,13 +28,15 @@
 - Location-miss report: 14/25 misses, mostly right file wrong place (sibling code, similar Pasal, same deadline in another article), plus wikitext markup Chunks and generic file headers; 1 label fixed (en-004).
 - Wikipedia files fetched as plain text (`convert = "wikitext"`, mwparserfromhell): Location Accuracy @256 0.44 → 0.52; en-102 label fixed.
 - 25 near-neighbour distractors (wiki, code, laws, Gothic tales) and 18 harder Queries (58 total).
+- Run with distractors (3,992 Chunks, 43 Queries scored): Recall@5 still 1.0, MRR 0.93–0.95; Location Accuracy 0.67 @256, 0.56 @512, 0.60 @768; i8 costs 0.02–0.07.
 
 ## In progress
-- Re-run `retrieval_benchmark` with distractors and harder Queries.
+—
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
-- Grow Benchmark to 50–100 Queries; more non-abstract PDF Targets.
+- File-level Recall still saturated: needs vaguer Queries or a much larger corpus (thousands of files).
+- More non-abstract PDF Targets.
 
 ## Deferred until development moves to Windows (RTX 4060 8 GB)
 - GPU throughput: CUDA and DirectML execution providers.
