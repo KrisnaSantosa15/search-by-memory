@@ -85,3 +85,19 @@ fn renamed_folder_is_reported_with_the_folder_it_left() {
         "{paths:?}"
     );
 }
+
+#[test]
+fn cursor_from_another_journal_means_the_history_is_lost() {
+    let folder = TempDir::new().unwrap();
+    let volume = SystemVolumes.volume_of(folder.path()).unwrap();
+
+    for foreign in ["0:0", "not a cursor", ""] {
+        let changes = UsnJournal
+            .changes_since(&volume.id, Some(&ChangeCursor(foreign.to_string())))
+            .unwrap();
+        assert!(
+            matches!(changes, Changes::Lost { .. }),
+            "{foreign}: {changes:?}"
+        );
+    }
+}
