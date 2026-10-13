@@ -90,6 +90,7 @@ impl TargetEntry {
                 end: parse_timestamp(end)?,
             },
             (_, Some([start, end]), _) => Location::Lines { start, end },
+            (Some(0), _, _) => return Err("pages start at 1".into()),
             (Some(page), _, _) => Location::Page(page),
             (None, None, None) => Location::WholeFile,
         })

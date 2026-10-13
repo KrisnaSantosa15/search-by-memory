@@ -96,3 +96,23 @@ fn target_without_location_means_the_whole_file_for_images() {
 
     assert_eq!(target.location, Location::WholeFile);
 }
+
+fn with_target(target: &str) -> String {
+    format!(
+        r#"
+        [[query]]
+        id = "en-900"
+        text = "a remembered passage"
+        language = "en"
+
+        [[query.target]]
+        file = "papers/paper.pdf"
+        {target}
+        "#
+    )
+}
+
+#[test]
+fn page_zero_is_rejected_because_pages_start_at_one() {
+    assert!(Benchmark::parse(&with_target("page = 0")).is_err());
+}
