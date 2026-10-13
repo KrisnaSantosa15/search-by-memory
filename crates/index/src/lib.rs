@@ -254,6 +254,7 @@ impl Index {
         embedder: &dyn EmbeddingProvider,
         store: &mut impl VectorStore,
     ) -> Result<()> {
+        let path = &normalized(path);
         let Some(extractor) = sbm_extract::extractor_for(path) else {
             return Ok(());
         };
