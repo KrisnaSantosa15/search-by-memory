@@ -147,3 +147,30 @@ fn copy_of_indexed_content_reuses_its_chunks_without_embedding() {
 
     assert_eq!(store.len(), vectors);
 }
+
+#[test]
+fn copies_are_one_result_in_file_view() {
+    let folder = TempDir::new().unwrap();
+    let text = "slow cooked beef in coconut milk and chili\n";
+    let original = write(folder.path(), "recipes/rendang.txt", text);
+    let copy = write(folder.path(), "backup/rendang (1).txt", text);
+    let mut index = Index::open_in_memory().unwrap();
+    let mut store = store();
+    index.scan(folder.path(), &[]).unwrap();
+    index
+        .index_content(&original, &BagOfWords, &mut store)
+        .unwrap();
+    index.index_content(&copy, &BagOfWords, &mut store).unwrap();
+
+    let results = index
+        .search("beef in coconut milk", &BagOfWords, &store, View::File, 20)
+        .unwrap();
+
+    assert_eq!(results.len(), 1);
+    let mut paths = vec![results[0].path.clone()];
+    paths.extend(results[0].copies.clone());
+    paths.sort();
+    let mut expected = vec![original, copy];
+    expected.sort();
+    assert_eq!(paths, expected);
+}

@@ -123,6 +123,8 @@ pub enum MatchReason {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SearchResult {
     pub path: PathBuf,
+    /// Other paths with byte-for-byte identical content.
+    pub copies: Vec<PathBuf>,
     /// Verbatim text of the best Content Match, if any.
     pub snippet: Option<String>,
     pub location: Option<Location>,
@@ -336,6 +338,7 @@ impl Index {
             .db
             .prepare("SELECT path FROM files WHERE content_hash = ?1")?;
         let mut results: Vec<SearchResult> = Vec::new();
+        let mut seen_contents: Vec<String> = Vec::new();
         for chunk_id in reciprocal_rank_fusion(&[&semantic, &keyword]) {
             let (hash, page, line_start, line_end, text): (
                 String,
@@ -352,21 +355,26 @@ impl Index {
                     row.get(4)?,
                 ))
             })?;
-            let paths: Vec<String> = files
-                .query_map(params![hash], |row| row.get(0))?
-                .collect::<rusqlite::Result<_>>()?;
-            for path in paths {
-                let path = PathBuf::from(path);
-                if results.iter().any(|result| result.path == path) {
-                    continue;
-                }
-                results.push(SearchResult {
-                    path,
-                    snippet: Some(text.clone()),
-                    location: Some(location_from_columns(page, line_start, line_end)),
-                    match_reason: MatchReason::Content,
-                });
+            if seen_contents.contains(&hash) {
+                continue;
             }
+            let mut paths: Vec<PathBuf> = files
+                .query_map(params![hash], |row| row.get::<_, String>(0))?
+                .map(|path| path.map(PathBuf::from))
+                .collect::<rusqlite::Result<_>>()?;
+            paths.sort();
+            if paths.is_empty() {
+                continue;
+            }
+            let path = paths.remove(0);
+            seen_contents.push(hash);
+            results.push(SearchResult {
+                path,
+                copies: paths,
+                snippet: Some(text),
+                location: Some(location_from_columns(page, line_start, line_end)),
+                match_reason: MatchReason::Content,
+            });
         }
         results.truncate(limit);
         Ok(results)
