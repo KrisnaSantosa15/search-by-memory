@@ -3,7 +3,17 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use sbm_core::Location;
+
 use crate::Query;
+
+/// One File-view Result: a file and the Location of the Snippet shown for it, if any.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FileResult {
+    pub file: PathBuf,
+    /// `None` when the file was found by name only.
+    pub snippet: Option<Location>,
+}
 
 /// Where a Query's Target files appear in a File-view result list.
 pub struct FileRanking {
@@ -14,13 +24,13 @@ pub struct FileRanking {
 }
 
 impl FileRanking {
-    /// Ranks `ranked_files`, the File-view Results most relevant first, against `query`.
-    pub fn new(query: &Query, ranked_files: &[PathBuf]) -> Self {
+    /// Ranks `results`, the File-view Results most relevant first, against `query`.
+    pub fn new(query: &Query, results: &[FileResult]) -> Self {
         let targets: HashSet<&PathBuf> = query.targets.iter().map(|target| &target.file).collect();
-        let target_ranks = ranked_files
+        let target_ranks = results
             .iter()
             .enumerate()
-            .filter(|(_, file)| targets.contains(file))
+            .filter(|(_, result)| targets.contains(&result.file))
             .map(|(index, _)| index + 1)
             .collect();
         Self {

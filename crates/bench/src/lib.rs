@@ -4,7 +4,7 @@ mod benchmark;
 mod metrics;
 
 pub use benchmark::{Benchmark, Query, Target};
-pub use metrics::{FileRanking, Scores};
+pub use metrics::{FileRanking, FileResult, Scores};
 
 use std::time::Duration;
 

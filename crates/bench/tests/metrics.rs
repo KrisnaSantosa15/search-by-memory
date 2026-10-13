@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use sbm_bench::{Benchmark, FileRanking, Query, Scores};
+use sbm_bench::{Benchmark, FileRanking, FileResult, Query, Scores};
 
 fn query_targeting(files: &[&str]) -> Query {
     let targets: String = files
@@ -11,8 +11,14 @@ fn query_targeting(files: &[&str]) -> Query {
     Benchmark::parse(&source).unwrap().queries()[0].clone()
 }
 
-fn ranked(files: &[&str]) -> Vec<PathBuf> {
-    files.iter().map(PathBuf::from).collect()
+fn ranked(files: &[&str]) -> Vec<FileResult> {
+    files
+        .iter()
+        .map(|file| FileResult {
+            file: PathBuf::from(file),
+            snippet: None,
+        })
+        .collect()
 }
 
 #[test]
