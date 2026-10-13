@@ -38,7 +38,7 @@
 - On-disk database with `user_version` migrations; newer schema refused.
 
 ## In progress
-- —
+- M2 extractors (`crates/extract`): text, PDF (pdf-extract), DOCX, failures, lock files; sliding-window chunker.
 
 ## Next (M1)
 - Finish CPU benchmark (512 tok, batch 32) and compare int8/q4 models.
