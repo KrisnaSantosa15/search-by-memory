@@ -737,6 +737,16 @@ mod commands {
             .map_err(|error| error.to_string())
     }
 
+    /// Turns every Default Exclusion back on.
+    #[tauri::command]
+    pub async fn restore_default_exclusions(running: State<'_, Running>) -> Result<(), String> {
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        engine
+            .restore_default_exclusions()
+            .map_err(|error| error.to_string())
+    }
+
     /// Stops indexing `path`; its files leave both indexes.
     #[tauri::command]
     pub async fn remove_indexed_folder(
@@ -1070,6 +1080,7 @@ pub fn run() {
             commands::remove_indexed_folder,
             commands::exclusions,
             commands::remove_exclusion,
+            commands::restore_default_exclusions,
             commands::pause_indexing,
             commands::resume_indexing,
             commands::open_file,

@@ -20,6 +20,7 @@ const settings = {
   removeFolder: (path: string) => invoke<void>("remove_indexed_folder", { path }),
   exclusions: () => invoke<ExclusionList>("exclusions"),
   removeExclusion: (row: ExclusionRow) => invoke<void>("remove_exclusion", { row }),
+  restoreDefaults: () => invoke<void>("restore_default_exclusions"),
   pause: () => invoke<void>("pause_indexing"),
   resume: () => invoke<void>("resume_indexing"),
 };

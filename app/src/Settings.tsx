@@ -46,6 +46,8 @@ type FoldersProps = {
   exclusions: () => Promise<ExclusionList>;
   /** Forgets one of the user's Exclusions, or turns off a default one. */
   removeExclusion: (row: ExclusionRow) => Promise<void>;
+  /** Turns every Default Exclusion back on. */
+  restoreDefaults: () => Promise<void>;
 };
 
 /** One Exclusion; see `ExclusionRow` in `src-tauri`. */
@@ -93,7 +95,7 @@ export function Settings(props: StatusProps & FoldersProps) {
 }
 
 function FoldersTab(props: FoldersProps) {
-  const { folders, addFolder, removeFolder, exclusions, removeExclusion } = props;
+  const { folders, addFolder, removeFolder } = props;
   const [list, setList] = useState<IndexedFolder[]>([]);
   // The folder whose removal waits for the user to confirm it.
   const [removing, setRemoving] = useState<string | null>(null);
@@ -173,15 +175,12 @@ function FoldersTab(props: FoldersProps) {
           </li>
         ))}
       </ul>
-      <Exclusions exclusions={exclusions} removeExclusion={removeExclusion} />
+      <Exclusions {...props} />
     </section>
   );
 }
 
-function Exclusions({
-  exclusions,
-  removeExclusion,
-}: Pick<FoldersProps, "exclusions" | "removeExclusion">) {
+function Exclusions({ exclusions, removeExclusion, restoreDefaults }: FoldersProps) {
   const [list, setList] = useState<ExclusionList>({ rows: [], defaultsTurnedOff: false });
 
   const refresh = useCallback(() => exclusions().then(setList), [exclusions]);
@@ -190,16 +189,28 @@ function Exclusions({
     refresh();
   }, [refresh]);
 
-  const remove = async (row: ExclusionRow) => {
-    await removeExclusion(row);
+  // Removes the row, or turns it off, or restores the defaults; then lists again.
+  const change = async (action: () => Promise<void>) => {
+    await action();
     await refresh();
   };
 
   return (
     <>
-      <h2 id="exclusions" className="mt-4 font-semibold">
-        Exclusions
-      </h2>
+      <div className="mt-4 flex items-center justify-between">
+        <h2 id="exclusions" className="font-semibold">
+          Exclusions
+        </h2>
+        {list.defaultsTurnedOff && (
+          <button
+            type="button"
+            onClick={() => change(restoreDefaults)}
+            className="rounded-lg border border-line bg-raised px-4 py-1.5 text-sm transition-colors hover:border-accent"
+          >
+            Restore defaults
+          </button>
+        )}
+      </div>
       <p className="text-sm text-muted">Files here are never opened or searched.</p>
       <ul
         aria-labelledby="exclusions"
@@ -220,7 +231,7 @@ function Exclusions({
             <button
               type="button"
               aria-label={`${isDefault(row) ? "Turn off" : "Remove"} ${label(row)}`}
-              onClick={() => remove(row)}
+              onClick={() => change(() => removeExclusion(row))}
               className="ml-auto shrink-0 rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
             >
               {isDefault(row) ? "Turn off" : "Remove"}

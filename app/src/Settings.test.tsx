@@ -32,6 +32,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     removeFolder: vi.fn(async (_path: string) => {}),
     exclusions: async (): Promise<ExclusionList> => ({ rows: [], defaultsTurnedOff: false }),
     removeExclusion: vi.fn(async (_row: ExclusionRow) => {}),
+    restoreDefaults: vi.fn(async () => {}),
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -236,5 +237,25 @@ describe("Settings", () => {
       expect(within(screen.getByRole("list", { name: "Exclusions" })).queryAllByRole("listitem"))
         .toHaveLength(0),
     );
+  });
+
+  it("restores the defaults once one is turned off", async () => {
+    let turnedOff = true;
+    const props = renderSettings({
+      exclusions: async () => ({
+        rows: turnedOff ? [] : [{ kind: "name", pattern: "node_modules", default: true }],
+        defaultsTurnedOff: turnedOff,
+      }),
+      restoreDefaults: vi.fn(async () => {
+        turnedOff = false;
+      }),
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Restore defaults" }));
+
+    expect(props.restoreDefaults).toHaveBeenCalled();
+    expect(await screen.findByText("node_modules")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Restore defaults" })).not.toBeInTheDocument();
   });
 });
