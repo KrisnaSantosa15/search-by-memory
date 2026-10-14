@@ -113,7 +113,9 @@
 - Engine (`crates/engine`): long-running indexing + search for the desktop app.
   - Done: background worker, `add_indexed_folder`, `search`, `status` (files, pending, last error), `pause`/`resume`, Live Updates polled every 2 s, `wait_until_idle`.
   - Done: `Index::open` waits instead of failing while another connection writes.
-  - Next: content progress ("files since … are ready"), failed files, remove folder/Exclusions, accelerator/model status; CLI on the Engine.
+  - Done: `failed_files` (with reason) and `failed` count; `remove_indexed_folder`; `add_exclusion`.
+  - Done: content progress: `indexed`, `pending`, `ready_since` (newest pending file's mtime; `Index::content_progress`).
+  - Next: accelerator/model status; CLI on the Engine.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
