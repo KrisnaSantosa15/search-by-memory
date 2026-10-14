@@ -118,6 +118,10 @@
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
 ## In progress
+- M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
+  - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
+  - Done: dark plum theme with magenta accent (VoiceStudio look, ideas only).
+  - Next: model download step with one progress bar and time left, then folders, hotkey, done; then the launcher.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
