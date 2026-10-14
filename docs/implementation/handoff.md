@@ -1,6 +1,6 @@
 # Handoff
 
-Snapshot for the next session or agent (2026-10-13, after commit `f0e3492`). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
+Snapshot for the next session or agent (2026-10-14, after the Engine was finished). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
 
 ## State
 - **Development moved to Windows** (RTX 4060 8 GB). The workspace builds and all tests pass on Windows; Linux paths are unchanged.
@@ -9,7 +9,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `f0e3492`). Pro
 - **GPU embedding**: `Accelerator` (`cpu`, `cuda`, `directml`, `directml:<n>`) with CPU fallback; CUDA and DirectML both pass the PyTorch parity gate. `sbm` tries CUDA → DirectML → CPU (`--accelerator <name>` overrides; a named GPU falls back to CPU) and prints the one in use plus why others were skipped.
 - **Volume-aware file catalog**: done (volume ID + relative path; Disconnected Drives flagged).
 - **M4 indexing core**: done (saved Indexed Folders and Exclusions, `index_jobs` queue: newest first, retries, resume).
-- **Engine** (`crates/engine`): in progress. Background worker + `search`, `status` (files, indexed, pending, `ready_since`, failed, last error, `ModelStatus`), `failed_files`, `remove_indexed_folder`, `add_exclusion`, `pause`/`resume`, Live Updates polled every 2 s. `start_loading` loads the model on its own thread: until it is ready, search is name-only (Passage view empty) and content waits. The desktop app will run on it. Still to do: move the CLI onto it.
+- **Engine** (`crates/engine`): done. Background worker + `search`, `status` (files, indexed, pending, `ready_since`, failed, last error, `ModelStatus`), `failed_files`, `remove_indexed_folder`, `add_exclusion`, `pause`/`resume`, Live Updates polled every 2 s. `start_loading` loads the model on its own thread: until it is ready, search is name-only (Passage view empty) and content waits. The desktop app will run on it. `sbm index` runs on it; `sbm search` / `folders` / `remove` / `exclude` read and write the index directly (no worker, no model load where none is needed).
 - **Setup** (`crates/setup`): done. Verified, resumable downloads (`download`, `Web`), pinned `embedding_model()` and `cuda_runtime()` manifests, `install_runtime`, `system_gpus` (DXGI), `speed_options` (recommendation).
 - **M4 Online-only Files**: done. `FileAvailability` adapter (`SystemFileAvailability`: Windows recall/offline attributes, never opens the file); Online-only Files are name-indexed only, and content-indexed once downloaded.
 - **M4 Live Updates**: done. `ChangeSource` trait, `Index::apply_changes`, `UsnJournal` adapter (`crates/change-usn`, no admin rights; ADR 0005); `sbm index` uses it.
@@ -100,7 +100,7 @@ Snapshot for the next session or agent (2026-10-13, after commit `f0e3492`). Pro
 - USN adapter: a delete or rename re-checks its whole parent folder (metadata walk only). Paths come back in the file system's true case, so an Indexed Folder saved in another case would not match them (`sbm` canonicalizes folders; only hand-made paths are affected). If the journal wraps during a read, `ERROR_JOURNAL_ENTRY_DELETED` surfaces as an error, and the next run reports Lost.
 - Volumes without a journal (FAT/exFAT USB, network shares) rescan on every `sbm index`.
 - UNC (`\\server\share`) paths are not normalized; only drive-letter verbatim paths are. Network shares have no volume GUID: their root is their ID. The loopback share `\\localhost\C$\` is reachable on this machine and stands in for a share in the `change-usn` tests.
-- `sbm index` prints only added/changed/removed counts; work resumed from an interrupted run is not reported.
+- `sbm index` prints files / with content indexed / pending / failed (Engine status), no longer added/changed/removed.
 - A corrupt PDF that panics pdf-extract prints the panic message once per try (3 times).
 - Unix `SystemVolumes` (mount point by device ID) compiles only on Unix and has not been run since the Windows move; an empty mount folder left behind by an unmounted drive counts as connected.
 
