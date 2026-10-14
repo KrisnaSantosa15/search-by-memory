@@ -274,7 +274,7 @@ fn location_label(location: &Location) -> Option<String> {
 /// What the window can call; thin wrappers over the functions above.
 mod commands {
     use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
 
@@ -683,6 +683,40 @@ mod commands {
         }
     }
 
+    /// Counts manual pauses and resumes, so a timed pause only ends itself
+    /// when nothing was chosen since.
+    static PAUSES: AtomicU64 = AtomicU64::new(0);
+
+    /// Pauses indexing until `duration` has passed or the user resumes it.
+    fn pause_for(app: &AppHandle, duration: Duration) {
+        if with_engine(app, Engine::pause).is_none() {
+            return;
+        }
+        let pause = PAUSES.fetch_add(1, Ordering::SeqCst) + 1;
+        let app = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(duration);
+            if PAUSES.load(Ordering::SeqCst) == pause {
+                with_engine(&app, Engine::resume);
+            }
+        });
+    }
+
+    fn resume_indexing(app: &AppHandle) {
+        PAUSES.fetch_add(1, Ordering::SeqCst);
+        with_engine(app, Engine::resume);
+    }
+
+    /// Runs `action` on the Engine, once onboarding has started it.
+    fn with_engine<T>(app: &AppHandle, action: impl FnOnce(&Engine) -> T) -> Option<T> {
+        app.state::<Running>()
+            .0
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(action)
+    }
+
     /// The tray icon: the way back to the hidden window, and out of the app.
     pub fn tray(app: &AppHandle) -> tauri::Result<()> {
         // Not clickable: says what indexing is doing, and why it waits.
@@ -693,6 +727,21 @@ mod commands {
                 &state,
                 &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "show", "Search", true, None::<&str>)?,
+                &MenuItem::with_id(
+                    app,
+                    "pause-1h",
+                    "Pause indexing for 1 hour",
+                    true,
+                    None::<&str>,
+                )?,
+                &MenuItem::with_id(
+                    app,
+                    "pause-8h",
+                    "Pause indexing for 8 hours",
+                    true,
+                    None::<&str>,
+                )?,
+                &MenuItem::with_id(app, "resume", "Resume indexing", true, None::<&str>)?,
                 &MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?,
             ],
         )?;
@@ -701,6 +750,9 @@ mod commands {
             .menu(&menu)
             .on_menu_event(|app, event| match event.id.as_ref() {
                 "show" => show(app),
+                "pause-1h" => pause_for(app, Duration::from_secs(60 * 60)),
+                "pause-8h" => pause_for(app, Duration::from_secs(8 * 60 * 60)),
+                "resume" => resume_indexing(app),
                 "quit" => app.exit(0),
                 _ => {}
             });
@@ -711,13 +763,7 @@ mod commands {
         let app = app.clone();
         std::thread::spawn(move || {
             loop {
-                let status = app
-                    .state::<Running>()
-                    .0
-                    .lock()
-                    .unwrap()
-                    .as_ref()
-                    .map(Engine::status);
+                let status = with_engine(&app, Engine::status);
                 if let Some(Ok(status)) = status {
                     let text = super::indexing_state(&status);
                     let _ = state.set_text(&text);
