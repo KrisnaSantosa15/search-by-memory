@@ -125,7 +125,8 @@
   - Done: download step: one progress bar, GB done, time left in plain words; `prepare` command emits throttled `setup-progress` events; stopped download offers "Try again" (resumes).
   - Done: folders step (personal folder picked, other drives offered; agreed with the user); follows a finished download; `start_indexing` starts the Engine (`start_loading` on the picked Accelerator, CPU fallback, USN Journal) and adds the folders. CUDA runtime folder put on `PATH` at startup.
   - Done: hotkey step (Alt + Space; says when another app uses it; records other keys), done step; `Settings` (`settings.json`: Accelerator, hotkey) saved on finish; next start resumes the Engine, registers the hotkey, starts hidden with a tray icon (Search, Quit); window shows a launcher placeholder.
-  - Next: the launcher. Cancel during download. Full onboarding not yet run through the GUI.
+  - Done: launcher slice 1: File-view Results as you type (name, Location, Match Reason, snippet, path); ↑/↓; Enter opens, Ctrl/Shift+Enter reveals, Ctrl+C copies path; Escape hides; Tab toggles Passage view; several Copies → Detail Panel to pick one (→ opens, ← closes); Disconnected Drive labelled, not opened; Query box focused on show. `search`, `open_file`, `reveal_file`, `hide_launcher` commands (`tauri-plugin-opener` 2.7.0); app honours `SBM_DATA_DIR`. Checked in the real window on a scratch index.
+  - Next (launcher slice 2): other Content Matches in the Detail Panel (needs an Index API); remember the chosen Copy; overlay window (borderless, centered, on top); search time in the footer. Cancel during download. Full onboarding not yet run through the GUI.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
