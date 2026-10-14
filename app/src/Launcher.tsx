@@ -120,9 +120,9 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
     if (event.key === "Escape") hide();
     else if (event.key === "ArrowDown") move(1);
     else if (event.key === "ArrowUp") move(-1);
-    else if (entry === FOLD && (event.key === "Enter" || (event.key === "ArrowRight" && caretAtEnd))) {
-      setUnfolded(true);
-    } else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
+    else if (entry === FOLD && event.key === "Enter") setUnfolded((unfolded) => !unfolded);
+    else if (entry === FOLD && event.key === "ArrowRight" && caretAtEnd) setUnfolded(true);
+    else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
     else if (event.key === "ArrowLeft" && copy !== null) setCopy(null);
     else if (event.key === "Enter") act(event.ctrlKey || event.shiftKey ? reveal : open);
     else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyFile, false);
@@ -207,6 +207,12 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
               onOpen={() => act(open)}
               onReveal={() => act(reveal)}
             />
+          ) : entry === FOLD ? (
+            <p className="pt-16 text-center text-sm leading-relaxed text-muted">
+              These files match less closely.
+              <br />
+              Press Enter to {unfolded ? "hide" : "show"} them.
+            </p>
           ) : (
             !query.trim() && (
               <p className="pt-16 text-center text-sm leading-relaxed text-muted">
