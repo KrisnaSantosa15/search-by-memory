@@ -34,8 +34,19 @@ pub fn speed_choices(gpus: &[Gpu]) -> Vec<SpeedChoice> {
         .collect()
 }
 
+/// What the window can call; thin wrappers over the functions above.
+mod commands {
+    use super::SpeedChoice;
+
+    #[tauri::command]
+    pub fn speed_choices() -> Vec<SpeedChoice> {
+        super::speed_choices(&sbm_setup::system_gpus())
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![commands::speed_choices])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
 }
