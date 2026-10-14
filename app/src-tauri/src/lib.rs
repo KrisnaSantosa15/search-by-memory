@@ -7,6 +7,9 @@ use sbm_embed_onnx::Accelerator;
 use sbm_index::{MatchReason, SearchResult};
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
+
+mod preview;
+pub use preview::{TextPreview, text_preview};
 use std::sync::atomic::Ordering;
 
 use tauri::{Manager, WindowEvent};
