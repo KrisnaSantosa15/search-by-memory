@@ -140,9 +140,9 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
               </span>
             </span>
             {result.snippet && <span className="line-clamp-2 text-sm">{result.snippet}</span>}
-            <span className="truncate text-xs text-muted">
-              {result.path}
-              {!result.connected && " · drive not connected"}
+            <span className="flex gap-1 text-xs text-muted">
+              <Path path={result.path} />
+              {!result.connected && <span className="shrink-0">· drive not connected</span>}
             </span>
             {index === selected && copy !== null && (
               <ul role="listbox" aria-label="Copies" className="mt-2 flex flex-col gap-0.5">
@@ -151,9 +151,9 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
                     key={path}
                     role="option"
                     aria-selected={index === copy}
-                    className="truncate rounded-lg px-3 py-1.5 text-sm aria-selected:bg-raised"
+                    className="flex rounded-lg px-3 py-1.5 text-sm aria-selected:bg-raised"
                   >
-                    {path}
+                    <Path path={path} />
                   </li>
                 ))}
               </ul>
@@ -162,6 +162,15 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** A path that, when too long, loses its start: the folder and name stay readable. */
+function Path({ path }: { path: string }) {
+  return (
+    <span className="min-w-0 truncate text-left [direction:rtl]">
+      <bdi>{path}</bdi>
+    </span>
   );
 }
 
