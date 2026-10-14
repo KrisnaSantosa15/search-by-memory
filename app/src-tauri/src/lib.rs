@@ -6,6 +6,8 @@ use sbm_core::AppDirs;
 use sbm_embed_onnx::Accelerator;
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
+use tauri::Manager;
+use tauri_plugin_global_shortcut::ShortcutState;
 
 /// One way to run the embedding model, as the onboarding speed step offers it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -118,9 +120,12 @@ mod commands {
         EMBEDDING_MODEL_DIR, Finished, Plan, Progress, TimeLeft, Web, prepare as install,
     };
     use serde::Serialize;
-    use tauri::{AppHandle, Emitter, State};
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::TrayIconBuilder;
+    use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-    use super::{FolderChoice, SpeedChoice};
+    use super::{FolderChoice, Settings, SpeedChoice};
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
     const DIMENSIONS: usize = 256;
@@ -212,6 +217,55 @@ mod commands {
         choice: String,
         folders: Vec<PathBuf>,
     ) -> Result<(), String> {
+        let engine = start_engine(&choice)?;
+        for folder in &folders {
+            engine
+                .add_indexed_folder(folder)
+                .map_err(|error| error.to_string())?;
+        }
+        *running.0.lock().unwrap() = Some(engine);
+        Ok(())
+    }
+
+    /// Registers `hotkey` for search in place of the one before; `false` when
+    /// another app already uses it (or it is not a shortcut).
+    #[tauri::command]
+    pub fn try_hotkey(app: AppHandle, hotkey: String) -> bool {
+        let shortcuts = app.global_shortcut();
+        let _ = shortcuts.unregister_all();
+        shortcuts.register(hotkey.as_str()).is_ok()
+    }
+
+    /// Saves what onboarding decided and hides the window until the hotkey.
+    #[tauri::command]
+    pub fn finish_onboarding(
+        window: WebviewWindow,
+        choice: String,
+        hotkey: String,
+    ) -> Result<(), String> {
+        let settings = Settings {
+            accelerator: choice,
+            hotkey,
+        };
+        settings
+            .save(&AppDirs::current().data)
+            .map_err(|error| error.to_string())?;
+        window.hide().map_err(|error| error.to_string())
+    }
+
+    /// Starts again from finished onboarding: the Engine on the saved
+    /// Accelerator, and the saved hotkey; the window stays hidden.
+    pub fn resume(app: &AppHandle, settings: &Settings) -> Result<(), String> {
+        let engine = start_engine(&settings.accelerator)?;
+        *app.state::<Running>().0.lock().unwrap() = Some(engine);
+        app.global_shortcut()
+            .register(settings.hotkey.as_str())
+            .map_err(|error| error.to_string())
+    }
+
+    /// The Engine on `choice`'s Accelerator, falling back to the processor:
+    /// names searchable at once, content once the model is loaded.
+    fn start_engine(choice: &str) -> Result<Engine, String> {
         let accelerator: Accelerator = choice.parse()?;
         let dirs = AppDirs::current();
         let model_dir = dirs.cache.join(EMBEDDING_MODEL_DIR);
@@ -232,14 +286,40 @@ mod commands {
                 device,
             })
         };
-        let engine = Engine::start_loading(&dirs.data, load, Box::new(UsnJournal))
-            .map_err(|error| error.to_string())?;
-        for folder in &folders {
-            engine
-                .add_indexed_folder(folder)
-                .map_err(|error| error.to_string())?;
+        Engine::start_loading(&dirs.data, load, Box::new(UsnJournal))
+            .map_err(|error| error.to_string())
+    }
+
+    /// Brings the window to the front, as the hotkey and the tray do.
+    pub fn show(app: &AppHandle) {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
         }
-        *running.0.lock().unwrap() = Some(engine);
+    }
+
+    /// The tray icon: the way back to the hidden window, and out of the app.
+    pub fn tray(app: &AppHandle) -> tauri::Result<()> {
+        let menu = Menu::with_items(
+            app,
+            &[
+                &MenuItem::with_id(app, "show", "Search", true, None::<&str>)?,
+                &MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?,
+            ],
+        )?;
+        let mut tray = TrayIconBuilder::new()
+            .tooltip("Search by Memory")
+            .menu(&menu)
+            .on_menu_event(|app, event| match event.id.as_ref() {
+                "show" => show(app),
+                "quit" => app.exit(0),
+                _ => {}
+            });
+        if let Some(icon) = app.default_window_icon() {
+            tray = tray.icon(icon.clone());
+        }
+        tray.build(app)?;
         Ok(())
     }
 }
@@ -247,12 +327,36 @@ mod commands {
 pub fn run() {
     put_cuda_runtime_on_path();
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        commands::show(app);
+                    }
+                })
+                .build(),
+        )
         .manage(commands::Running::default())
+        .setup(|app| {
+            commands::tray(app.handle())?;
+            if let Some(settings) = Settings::load(&AppDirs::current().data) {
+                if let Some(window) = app.get_webview_window("main") {
+                    window.hide()?;
+                }
+                if let Err(error) = commands::resume(app.handle(), &settings) {
+                    eprintln!("search could not start: {error}");
+                    commands::show(app.handle());
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::speed_choices,
             commands::prepare,
             commands::folder_choices,
-            commands::start_indexing
+            commands::start_indexing,
+            commands::try_hotkey,
+            commands::finish_onboarding
         ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
