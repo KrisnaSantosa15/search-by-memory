@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
+import { Launcher } from "./Launcher";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { FoldersStep, type FolderChoice } from "./onboarding/FoldersStep";
@@ -12,6 +13,8 @@ type DownloadProgress = { done: number; total: number; secondsLeft: number | nul
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
 
 export default function App() {
+  // Onboarding finished before: the hotkey brought up the window.
+  const [finished, setFinished] = useState(false);
   const [choices, setChoices] = useState<SpeedChoice[] | null>(null);
   const [choice, setChoice] = useState<string | null>(null);
   // Each attempt starts the download again; it resumes where the last one stopped.
@@ -27,7 +30,10 @@ export default function App() {
   const [hotkey, setHotkey] = useState<string | null>(null);
 
   useEffect(() => {
-    invoke<SpeedChoice[]>("speed_choices").then(setChoices);
+    invoke<object | null>("settings").then((settings) => {
+      if (settings) setFinished(true);
+      else invoke<SpeedChoice[]>("speed_choices").then(setChoices);
+    });
   }, []);
 
   useEffect(() => {
@@ -49,11 +55,14 @@ export default function App() {
   }, [choice, attempt]);
 
   const step = () => {
+    if (finished) return <Launcher />;
     if (hotkey) {
       return (
         <DoneStep
           hotkey={hotkey}
-          onFinish={() => invoke("finish_onboarding", { choice, hotkey })}
+          onFinish={() =>
+            invoke("finish_onboarding", { choice, hotkey }).then(() => setFinished(true))
+          }
         />
       );
     }

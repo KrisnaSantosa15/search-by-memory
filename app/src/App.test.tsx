@@ -25,6 +25,18 @@ describe("App", () => {
     expect(await screen.findByRole("radio", { name: /any computer/i })).toBeChecked();
   });
 
+  it("skips onboarding once it has finished", async () => {
+    mockIPC((command) => {
+      if (command === "settings") return { accelerator: "cpu", hotkey: "Alt+Space" };
+      if (command === "speed_choices") return cpuOnly;
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText(/searching is on its way/i)).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+  });
+
   it("downloads what the picked speed needs and shows its progress", async () => {
     const prepared: unknown[] = [];
     mockIPC(
