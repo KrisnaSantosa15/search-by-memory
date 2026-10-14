@@ -19,4 +19,12 @@ describe("FoldersStep", () => {
 
     expect(onContinue).toHaveBeenCalledWith(["C:\Users\ana", "D:\\"]);
   });
+
+  it("cannot continue with nothing picked", async () => {
+    render(<FoldersStep choices={choices} onContinue={() => {}} />);
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /your personal folders/i }));
+
+    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
+  });
 });
