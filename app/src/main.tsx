@@ -21,6 +21,7 @@ const settings = {
   exclusions: () => invoke<ExclusionList>("exclusions"),
   removeExclusion: (row: ExclusionRow) => invoke<void>("remove_exclusion", { row }),
   restoreDefaults: () => invoke<void>("restore_default_exclusions"),
+  excludeNames: (pattern: string) => invoke<void>("exclude_names", { pattern }),
   pause: () => invoke<void>("pause_indexing"),
   resume: () => invoke<void>("resume_indexing"),
 };

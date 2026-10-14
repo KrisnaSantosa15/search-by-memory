@@ -368,7 +368,7 @@ mod commands {
     use sbm_core::{AppDirs, SystemActivity};
     use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
     use sbm_engine::{Engine, LoadedModel};
-    use sbm_index::View;
+    use sbm_index::{Exclusion, View};
     use sbm_pdf::PdfPages;
     use sbm_setup::{
         EMBEDDING_MODEL_DIR, Finished, PDFIUM_DIR, Plan, Progress, TimeLeft, Web,
@@ -737,6 +737,16 @@ mod commands {
             .map_err(|error| error.to_string())
     }
 
+    /// Excludes files and folders whose name matches `pattern`.
+    #[tauri::command]
+    pub async fn exclude_names(running: State<'_, Running>, pattern: String) -> Result<(), String> {
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        engine
+            .add_exclusion(Exclusion::Name(pattern))
+            .map_err(|error| error.to_string())
+    }
+
     /// Turns every Default Exclusion back on.
     #[tauri::command]
     pub async fn restore_default_exclusions(running: State<'_, Running>) -> Result<(), String> {
@@ -1081,6 +1091,7 @@ pub fn run() {
             commands::exclusions,
             commands::remove_exclusion,
             commands::restore_default_exclusions,
+            commands::exclude_names,
             commands::pause_indexing,
             commands::resume_indexing,
             commands::open_file,

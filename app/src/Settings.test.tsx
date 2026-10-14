@@ -33,6 +33,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     exclusions: async (): Promise<ExclusionList> => ({ rows: [], defaultsTurnedOff: false }),
     removeExclusion: vi.fn(async (_row: ExclusionRow) => {}),
     restoreDefaults: vi.fn(async () => {}),
+    excludeNames: vi.fn(async (_pattern: string) => {}),
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -257,5 +258,24 @@ describe("Settings", () => {
     expect(props.restoreDefaults).toHaveBeenCalled();
     expect(await screen.findByText("node_modules")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Restore defaults" })).not.toBeInTheDocument();
+  });
+
+  it("excludes the names the user types", async () => {
+    let rows: ExclusionRow[] = [];
+    const props = renderSettings({
+      exclusions: async () => ({ rows, defaultsTurnedOff: false }),
+      excludeNames: vi.fn(async (pattern: string) => {
+        rows = [{ kind: "name", pattern, default: false }];
+      }),
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    const box = screen.getByRole("textbox", { name: "Exclude names like" });
+    expect(screen.getByRole("button", { name: "Exclude" })).toBeDisabled();
+    await userEvent.type(box, "  *.bak {Enter}");
+
+    expect(props.excludeNames).toHaveBeenCalledWith("*.bak");
+    expect(await screen.findByText("*.bak")).toBeInTheDocument();
+    expect(box).toHaveValue("");
   });
 });

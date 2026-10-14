@@ -48,6 +48,8 @@ type FoldersProps = {
   removeExclusion: (row: ExclusionRow) => Promise<void>;
   /** Turns every Default Exclusion back on. */
   restoreDefaults: () => Promise<void>;
+  /** Excludes files and folders whose name matches `pattern`; `*` stands for anything. */
+  excludeNames: (pattern: string) => Promise<void>;
 };
 
 /** One Exclusion; see `ExclusionRow` in `src-tauri`. */
@@ -180,8 +182,11 @@ function FoldersTab(props: FoldersProps) {
   );
 }
 
-function Exclusions({ exclusions, removeExclusion, restoreDefaults }: FoldersProps) {
+function Exclusions(props: FoldersProps) {
+  const { exclusions, removeExclusion, restoreDefaults, excludeNames } = props;
   const [list, setList] = useState<ExclusionList>({ rows: [], defaultsTurnedOff: false });
+  // A name pattern being typed, not yet excluded.
+  const [pattern, setPattern] = useState("");
 
   const refresh = useCallback(() => exclusions().then(setList), [exclusions]);
 
@@ -189,7 +194,7 @@ function Exclusions({ exclusions, removeExclusion, restoreDefaults }: FoldersPro
     refresh();
   }, [refresh]);
 
-  // Removes the row, or turns it off, or restores the defaults; then lists again.
+  // Changes the Exclusions, then lists them again.
   const change = async (action: () => Promise<void>) => {
     await action();
     await refresh();
@@ -239,6 +244,30 @@ function Exclusions({ exclusions, removeExclusion, restoreDefaults }: FoldersPro
           </li>
         ))}
       </ul>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const typed = pattern.trim();
+          setPattern("");
+          change(() => excludeNames(typed));
+        }}
+        className="flex items-center gap-2"
+      >
+        <input
+          aria-label="Exclude names like"
+          placeholder="Exclude names like *.bak or Old Projects"
+          value={pattern}
+          onChange={(event) => setPattern(event.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-line bg-panel px-3 py-1.5 text-sm placeholder:text-muted"
+        />
+        <button
+          type="submit"
+          disabled={!pattern.trim()}
+          className="rounded-lg border border-line bg-raised px-4 py-1.5 text-sm transition-colors hover:border-accent disabled:opacity-50 disabled:hover:border-line"
+        >
+          Exclude
+        </button>
+      </form>
     </>
   );
 }
