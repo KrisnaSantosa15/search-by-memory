@@ -385,7 +385,8 @@ mod commands {
     use tauri_plugin_opener::OpenerExt;
 
     use super::{
-        Dashboard, FileKind, FolderChoice, ResultRow, Settings, SpeedChoice, TextPreview, data_dir,
+        Dashboard, ExclusionList, FileKind, FolderChoice, ResultRow, Settings, SpeedChoice,
+        TextPreview, data_dir,
     };
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
@@ -713,6 +714,14 @@ mod commands {
             .add_indexed_folder(&folder)
             .map_err(|error| error.to_string())?;
         Ok(true)
+    }
+
+    #[tauri::command]
+    pub async fn exclusions(running: State<'_, Running>) -> Result<ExclusionList, String> {
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        let active = engine.exclusions().map_err(|error| error.to_string())?;
+        Ok(super::exclusion_list(&active))
     }
 
     /// Stops indexing `path`; its files leave both indexes.
@@ -1046,6 +1055,7 @@ pub fn run() {
             commands::indexed_folders,
             commands::pick_and_add_folder,
             commands::remove_indexed_folder,
+            commands::exclusions,
             commands::pause_indexing,
             commands::resume_indexing,
             commands::open_file,

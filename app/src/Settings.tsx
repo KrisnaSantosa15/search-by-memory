@@ -43,6 +43,18 @@ type FoldersProps = {
   addFolder: () => Promise<boolean>;
   /** Stops indexing `path`; its files leave both indexes. */
   removeFolder: (path: string) => Promise<void>;
+  exclusions: () => Promise<ExclusionList>;
+};
+
+/** One Exclusion; see `ExclusionRow` in `src-tauri`. */
+export type ExclusionRow =
+  | { kind: "name"; pattern: string; default: boolean }
+  | { kind: "folder"; path: string };
+
+export type ExclusionList = {
+  rows: ExclusionRow[];
+  /** Some Default Exclusion is off, so they can be restored. */
+  defaultsTurnedOff: boolean;
 };
 
 const TABS = ["Status", "Folders"] as const;
@@ -78,7 +90,7 @@ export function Settings(props: StatusProps & FoldersProps) {
   );
 }
 
-function FoldersTab({ folders, addFolder, removeFolder }: FoldersProps) {
+function FoldersTab({ folders, addFolder, removeFolder, exclusions }: FoldersProps) {
   const [list, setList] = useState<IndexedFolder[]>([]);
   // The folder whose removal waits for the user to confirm it.
   const [removing, setRemoving] = useState<string | null>(null);
@@ -158,8 +170,50 @@ function FoldersTab({ folders, addFolder, removeFolder }: FoldersProps) {
           </li>
         ))}
       </ul>
+      <Exclusions exclusions={exclusions} />
     </section>
   );
+}
+
+function Exclusions({ exclusions }: Pick<FoldersProps, "exclusions">) {
+  const [list, setList] = useState<ExclusionList>({ rows: [], defaultsTurnedOff: false });
+
+  useEffect(() => {
+    exclusions().then(setList);
+  }, [exclusions]);
+
+  return (
+    <>
+      <h2 id="exclusions" className="mt-4 font-semibold">
+        Exclusions
+      </h2>
+      <p className="text-sm text-muted">Files here are never opened or searched.</p>
+      <ul
+        aria-labelledby="exclusions"
+        className="flex flex-col divide-y divide-line rounded-xl border border-line bg-panel"
+      >
+        {list.rows.map((row) => (
+          <li key={label(row)} className="flex items-center gap-3 px-4 py-2 text-sm">
+            {row.kind === "folder" ? (
+              <Path path={row.path} />
+            ) : (
+              <span className="font-mono">{row.pattern}</span>
+            )}
+            {row.kind === "name" && row.default && (
+              <span className="shrink-0 rounded-full bg-raised px-2 py-0.5 text-xs text-muted">
+                Default
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** What an Exclusion row shows: its name pattern or folder. */
+function label(row: ExclusionRow): string {
+  return row.kind === "name" ? row.pattern : row.path;
 }
 
 function StatusTab({ dashboard, failedFiles, pause, resume }: StatusProps) {

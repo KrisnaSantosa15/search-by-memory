@@ -2,7 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { Settings, type Dashboard, type FailedFile, type IndexedFolder } from "./Settings";
+import {
+  Settings,
+  type Dashboard,
+  type ExclusionList,
+  type FailedFile,
+  type IndexedFolder,
+} from "./Settings";
 import "./index.css";
 
 const settings = {
@@ -11,6 +17,7 @@ const settings = {
   folders: () => invoke<IndexedFolder[]>("indexed_folders"),
   addFolder: () => invoke<boolean>("pick_and_add_folder"),
   removeFolder: (path: string) => invoke<void>("remove_indexed_folder", { path }),
+  exclusions: () => invoke<ExclusionList>("exclusions"),
   pause: () => invoke<void>("pause_indexing"),
   resume: () => invoke<void>("resume_indexing"),
 };

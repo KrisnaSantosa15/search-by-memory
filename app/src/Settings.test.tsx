@@ -1,7 +1,13 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Settings, type Dashboard, type FailedFile, type IndexedFolder } from "./Settings";
+import {
+  Settings,
+  type Dashboard,
+  type ExclusionList,
+  type FailedFile,
+  type IndexedFolder,
+} from "./Settings";
 
 // 15 March 2025, midday UTC: the same month in every time zone.
 const midMarch2025 = Date.UTC(2025, 2, 15, 12);
@@ -23,6 +29,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     folders: async () => [] as IndexedFolder[],
     addFolder: vi.fn(async () => false),
     removeFolder: vi.fn(async (_path: string) => {}),
+    exclusions: async (): Promise<ExclusionList> => ({ rows: [], defaultsTurnedOff: false }),
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -180,5 +187,29 @@ describe("Settings", () => {
 
     expect(props.removeFolder).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Remove D:\\Projects" })).toBeInTheDocument();
+  });
+
+  it("lists the Exclusions with the defaults marked", async () => {
+    renderSettings({
+      exclusions: async () => ({
+        rows: [
+          { kind: "name", pattern: "node_modules", default: true },
+          { kind: "name", pattern: "*.bak", default: false },
+          { kind: "folder", path: "C:\\Users\\ana\\private" },
+        ],
+        defaultsTurnedOff: false,
+      }),
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    const list = await screen.findByRole("list", { name: "Exclusions" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveTextContent("node_modules");
+    expect(items[0]).toHaveTextContent("Default");
+    expect(items[1]).toHaveTextContent("*.bak");
+    expect(items[1]).not.toHaveTextContent("Default");
+    expect(items[2]).toHaveTextContent("C:\\Users\\ana\\private");
+    expect(screen.queryByRole("button", { name: "Restore defaults" })).not.toBeInTheDocument();
   });
 });
