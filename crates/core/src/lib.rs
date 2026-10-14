@@ -4,9 +4,11 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+mod system_activity;
 mod system_file_availability;
 mod system_volumes;
 
+pub use system_activity::SystemActivity;
 pub use system_file_availability::SystemFileAvailability;
 pub use system_volumes::SystemVolumes;
 
