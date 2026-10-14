@@ -124,7 +124,8 @@
   - Done: `setup::Plan` (model + CUDA runtime for NVIDIA), `setup::prepare` (one progress over both), `setup::TimeLeft` (rate since start, none for the first 3 s).
   - Done: download step: one progress bar, GB done, time left in plain words; `prepare` command emits throttled `setup-progress` events; stopped download offers "Try again" (resumes).
   - Done: folders step (personal folder picked, other drives offered; agreed with the user); follows a finished download; `start_indexing` starts the Engine (`start_loading` on the picked Accelerator, CPU fallback, USN Journal) and adds the folders. CUDA runtime folder put on `PATH` at startup.
-  - Next: hotkey and done steps; remember onboarding is finished (settings); then the launcher. Cancel during download. Full onboarding not yet run through the GUI.
+  - Done: hotkey step (Alt + Space; says when another app uses it; records other keys), done step; `Settings` (`settings.json`: Accelerator, hotkey) saved on finish; next start resumes the Engine, registers the hotkey, starts hidden with a tray icon (Search, Quit); window shows a launcher placeholder.
+  - Next: the launcher. Cancel during download. Full onboarding not yet run through the GUI.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
