@@ -181,7 +181,7 @@ mod commands {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     use tauri_plugin_opener::OpenerExt;
 
-    use super::{FolderChoice, ResultRow, Settings, SpeedChoice};
+    use super::{FolderChoice, ResultRow, Settings, SpeedChoice, data_dir};
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
     const DIMENSIONS: usize = 256;
@@ -297,7 +297,7 @@ mod commands {
     /// What onboarding decided; `None` until it has finished.
     #[tauri::command]
     pub fn settings() -> Option<Settings> {
-        Settings::load(&AppDirs::current().data)
+        Settings::load(&data_dir())
     }
 
     /// Saves what onboarding decided and hides the window until the hotkey.
@@ -312,7 +312,7 @@ mod commands {
             hotkey,
         };
         settings
-            .save(&AppDirs::current().data)
+            .save(&data_dir())
             .map_err(|error| error.to_string())?;
         window.hide().map_err(|error| error.to_string())
     }
@@ -350,7 +350,7 @@ mod commands {
                 device,
             })
         };
-        Engine::start_loading(&dirs.data, load, Box::new(UsnJournal))
+        Engine::start_loading(&data_dir(), load, Box::new(UsnJournal))
             .map_err(|error| error.to_string())
     }
 
@@ -449,7 +449,7 @@ pub fn run() {
         .manage(commands::Running::default())
         .setup(|app| {
             commands::tray(app.handle())?;
-            if let Some(settings) = Settings::load(&AppDirs::current().data) {
+            if let Some(settings) = Settings::load(&data_dir()) {
                 if let Some(window) = app.get_webview_window("main") {
                     window.hide()?;
                 }
@@ -475,6 +475,14 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
+}
+
+/// Where the index and settings live: `$SBM_DATA_DIR`, as for `sbm`, or the
+/// platform's data directory.
+fn data_dir() -> PathBuf {
+    std::env::var_os("SBM_DATA_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| AppDirs::current().data)
 }
 
 /// ONNX Runtime's CUDA provider finds the CUDA and cuDNN DLLs on `PATH`.
