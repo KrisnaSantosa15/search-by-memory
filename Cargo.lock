@@ -3499,6 +3499,7 @@ dependencies = [
 name = "sbm-app"
 version = "0.1.0"
 dependencies = [
+ "sbm-core",
  "sbm-embed-onnx",
  "sbm-setup",
  "serde",

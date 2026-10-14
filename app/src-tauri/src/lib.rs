@@ -36,17 +36,80 @@ pub fn speed_choices(gpus: &[Gpu]) -> Vec<SpeedChoice> {
 
 /// What the window can call; thin wrappers over the functions above.
 mod commands {
+    use std::sync::atomic::AtomicBool;
+    use std::time::{Duration, Instant};
+
+    use sbm_core::AppDirs;
+    use sbm_embed_onnx::Accelerator;
+    use sbm_setup::{Finished, Plan, Progress, TimeLeft, Web, prepare as install};
+    use serde::Serialize;
+    use tauri::{AppHandle, Emitter};
+
     use super::SpeedChoice;
+
+    /// Progress events per second at most; the bar cannot show more.
+    const REPORT_EVERY: Duration = Duration::from_millis(200);
+
+    #[derive(Clone, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct DownloadProgress {
+        done: u64,
+        total: u64,
+        seconds_left: Option<u64>,
+    }
 
     #[tauri::command]
     pub fn speed_choices() -> Vec<SpeedChoice> {
         super::speed_choices(&sbm_setup::system_gpus())
     }
+
+    /// Downloads what `choice` needs, reporting `setup-progress` events.
+    #[tauri::command]
+    pub async fn prepare(app: AppHandle, choice: String) -> Result<bool, String> {
+        let accelerator: Accelerator = choice.parse()?;
+        tauri::async_runtime::spawn_blocking(move || {
+            let plan = Plan::for_accelerator(accelerator);
+            let started = Instant::now();
+            let (mut time_left, mut last_report) = (None, None::<Instant>);
+            let mut report = |progress: Progress| {
+                let time_left = *time_left.get_or_insert(TimeLeft::starting_at(progress.done));
+                let finished = progress.done == progress.total;
+                if !finished && last_report.is_some_and(|last| last.elapsed() < REPORT_EVERY) {
+                    return;
+                }
+                last_report = Some(Instant::now());
+                let _ = app.emit(
+                    "setup-progress",
+                    DownloadProgress {
+                        done: progress.done,
+                        total: progress.total,
+                        seconds_left: time_left
+                            .estimate(progress, started.elapsed())
+                            .map(|left| left.as_secs()),
+                    },
+                );
+            };
+            let finished = install(
+                &plan,
+                &AppDirs::current().cache,
+                &Web::new(),
+                &AtomicBool::new(false),
+                &mut report,
+            )
+            .map_err(|error| error.to_string())?;
+            Ok(finished == Finished::Complete)
+        })
+        .await
+        .map_err(|error| error.to_string())?
+    }
 }
 
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![commands::speed_choices])
+        .invoke_handler(tauri::generate_handler![
+            commands::speed_choices,
+            commands::prepare
+        ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
 }

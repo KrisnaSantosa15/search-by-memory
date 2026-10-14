@@ -11,6 +11,7 @@ name = "sbm_app"
 tauri-build = { version = "=2.7.0", features = [] }
 
 [dependencies]
+sbm-core = { path = "../../crates/core" }
 sbm-embed-onnx = { path = "../../crates/embed-onnx" }
 sbm-setup = { path = "../../crates/setup" }
 serde = { version = "=1.0.229", features = ["derive"] }
