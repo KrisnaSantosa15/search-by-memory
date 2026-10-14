@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 /** One Result, as the Rust side sends it. */
 export type ResultRow = {
@@ -34,6 +34,14 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   const [view, setView] = useState<View>("file");
   // The Copy picked in the open Detail Panel; `null` while it is closed.
   const [copy, setCopy] = useState<number | null>(null);
+  const box = useRef<HTMLInputElement>(null);
+
+  // The hotkey or the tray brought the window back: ready for a Query.
+  useEffect(() => {
+    const focus = () => box.current?.focus();
+    window.addEventListener("focus", focus);
+    return () => window.removeEventListener("focus", focus);
+  }, []);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -93,6 +101,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
       <div className="flex gap-2">
         <input
           type="search"
+          ref={box}
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}

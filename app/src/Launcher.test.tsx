@@ -166,6 +166,16 @@ describe("Launcher", () => {
     expect(act.reveal).not.toHaveBeenCalled();
   });
 
+  it("focuses the Query box whenever the window comes back", async () => {
+    render(<Launcher search={async () => []} {...actions()} />);
+    const box = screen.getByRole("searchbox");
+    box.blur();
+
+    window.dispatchEvent(new FocusEvent("focus"));
+
+    expect(box).toHaveFocus();
+  });
+
   it("hides with Escape", async () => {
     const act = actions();
     render(<Launcher search={async () => []} {...act} />);
