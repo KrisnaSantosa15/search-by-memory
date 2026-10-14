@@ -14,7 +14,8 @@ type DownloadProgress = { done: number; total: number; secondsLeft: number | nul
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
 
 const launcher = {
-  search: (query: string) => invoke<ResultRow[]>("search", { query, view: "file" }),
+  search: (query: string, onlyCode: boolean) =>
+    invoke<ResultRow[]>("search", { query, onlyCode }),
   open: (path: string) => invoke("open_file", { path }),
   reveal: (path: string) => invoke("reveal_file", { path }),
   copyFile: (path: string) => invoke("copy_file", { path }),

@@ -42,7 +42,8 @@ const GROUP_NAMES: Record<Kind, string> = {
 };
 
 type Props = {
-  search: (query: string) => Promise<ResultRow[]>;
+  /** Results for `query`, code files only when `onlyCode`. */
+  search: (query: string, onlyCode: boolean) => Promise<ResultRow[]>;
   open: (path: string) => void;
   reveal: (path: string) => void;
   copyFile: (path: string) => void;
@@ -52,7 +53,8 @@ type Props = {
 
 /** The search window: a Query box over its Results. */
 export function Launcher({ search, open, reveal, copyFile, hide, previewLines }: Props) {
-  const [query, setQuery] = useState("");
+  const [typed, setTyped] = useState("");
+  const { query, onlyCode } = scope(typed);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -77,7 +79,7 @@ export function Launcher({ search, open, reveal, copyFile, hide, previewLines }:
     // Only the newest Query's Results are shown, whichever answers last.
     let current = true;
     setSearching(true);
-    search(query).then((results) => {
+    search(query, onlyCode).then((results) => {
       if (!current) return;
       setSearching(false);
       setResults(inGroupOrder(results));
@@ -88,7 +90,7 @@ export function Launcher({ search, open, reveal, copyFile, hide, previewLines }:
     return () => {
       current = false;
     };
-  }, [search, query]);
+  }, [search, query, onlyCode]);
 
   const strong = results.filter((result) => !result.weaker);
   const faint = results.filter((result) => result.weaker);
@@ -138,13 +140,13 @@ export function Launcher({ search, open, reveal, copyFile, hide, previewLines }:
   return (
     <section className="flex h-full flex-col">
       <label data-tauri-drag-region className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-4">
-        <SearchIcon />
+        <SearchIcon code={onlyCode} />
         <input
           type="search"
           ref={box}
           autoFocus
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          value={typed}
+          onChange={(event) => setTyped(event.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Describe the file you remember"
           className="min-w-0 flex-1 bg-transparent font-display text-xl font-light outline-none placeholder:text-muted/70 [&::-webkit-search-cancel-button]:hidden"
@@ -246,13 +248,37 @@ export function Launcher({ search, open, reveal, copyFile, hide, previewLines }:
 }
 
 /** The magnifier in front of the Query box. */
-function SearchIcon() {
+function SearchIcon({ code }: { code: boolean }) {
   return (
-    <svg aria-hidden viewBox="0 0 24 24" className="size-6 shrink-0 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <circle cx="10.5" cy="10.5" r="6.5" />
-      <path d="m15.5 15.5 5 5" />
+    <svg
+      role="img"
+      aria-label={code ? "Searching code" : "Search"}
+      viewBox="0 0 24 24"
+      className="size-6 shrink-0 text-accent"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {code ? (
+        <path d="m8 7-5 5 5 5m8-10 5 5-5 5m-2.5-12-3 14" />
+      ) : (
+        <>
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m15.5 15.5 5 5" />
+        </>
+      )}
     </svg>
   );
+}
+
+/** What was typed, split into the Query and whether it asks for code only (`code: …`). */
+function scope(typed: string): { query: string; onlyCode: boolean } {
+  const code = /^\s*code:/i.exec(typed);
+  return code
+    ? { query: typed.slice(code[0].length).trim(), onlyCode: true }
+    : { query: typed, onlyCode: false };
 }
 
 /** One Result in the list: its name, Location, and snippet or folder. */

@@ -36,7 +36,7 @@ describe("Launcher", () => {
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     const result = await screen.findByRole("option", { name: /Q3 Report\.pdf/ });
-    expect(search).toHaveBeenLastCalledWith("profit");
+    expect(search).toHaveBeenLastCalledWith("profit", false);
     expect(result).toHaveTextContent("Page 14");
     expect(result).toHaveTextContent("net profit increased by 18%");
   });
@@ -387,6 +387,17 @@ describe("Launcher", () => {
     await userEvent.keyboard("{ArrowDown}");
     expect(within(preview).getByRole("heading")).toHaveTextContent("gone.ts");
     expect(preview).toHaveTextContent("net profit increased by 18%");
+  });
+
+  it("searches only code when the Query starts with code:", async () => {
+    const search = vi.fn(async () => [report]);
+    render(<Launcher search={search} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "Code: retry with backoff");
+
+    await screen.findByRole("option");
+    expect(search).toHaveBeenLastCalledWith("retry with backoff", true);
+    expect(screen.getByRole("img", { name: /searching code/i })).toBeInTheDocument();
   });
 
   it("hides with Escape", async () => {
