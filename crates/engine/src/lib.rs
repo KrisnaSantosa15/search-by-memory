@@ -10,7 +10,7 @@ use sbm_core::{
     Activity, ChangeSource, Embedding, EmbeddingProvider, Neighbor, Result, ThrottleReason,
     VectorId, VectorStore,
 };
-use sbm_index::{Exclusion, Index, MatchReason, SearchResult, View};
+use sbm_index::{Exclusion, Index, IndexedFolder, MatchReason, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 /// Name Matches looked at per Result asked for, when only some files are kept.
@@ -215,6 +215,11 @@ impl Engine {
             // Vectors are rebuilt from the Content Index once the model is loaded.
             None => index.remove_indexed_folder(folder, &mut NoVectors),
         }
+    }
+
+    /// The Indexed Folders, in the order they were added.
+    pub fn indexed_folders(&self) -> Result<Vec<IndexedFolder>> {
+        self.index.lock().unwrap().indexed_folders()
     }
 
     /// Remembers `exclusion`; files it matches leave both indexes.

@@ -420,3 +420,22 @@ fn status_reports_how_much_disk_the_indexes_take() {
     assert!(on_disk > 0);
     assert_eq!(engine.status().unwrap().size_on_disk, on_disk);
 }
+
+#[test]
+fn indexed_folders_are_listed_in_the_order_they_were_added() {
+    let (data, documents, photos) = (
+        TempDir::new().unwrap(),
+        TempDir::new().unwrap(),
+        TempDir::new().unwrap(),
+    );
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(documents.path()).unwrap();
+    engine.add_indexed_folder(photos.path()).unwrap();
+    engine.remove_indexed_folder(documents.path()).unwrap();
+
+    let folders = engine.indexed_folders().unwrap();
+
+    assert_eq!(folders.len(), 1);
+    assert_eq!(folders[0].path, photos.path());
+    assert!(folders[0].connected);
+}
