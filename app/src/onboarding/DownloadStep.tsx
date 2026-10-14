@@ -6,10 +6,12 @@ type Props = {
   secondsLeft: number | null;
   /** Set when the download stopped; offers to try again from where it stopped. */
   onRetry?: () => void;
+  /** Stops the download, keeping what is on disk, to pick another speed. */
+  onCancel: () => void;
 };
 
 /** Onboarding step that fetches what search needs, as one progress bar. */
-export function DownloadStep({ done, total, secondsLeft, onRetry }: Props) {
+export function DownloadStep({ done, total, secondsLeft, onRetry, onCancel }: Props) {
   const percent = total > 0 ? Math.floor((done / total) * 100) : 0;
 
   return (
@@ -35,6 +37,7 @@ export function DownloadStep({ done, total, secondsLeft, onRetry }: Props) {
           <span>{timeLeft(secondsLeft)}</span>
         </div>
       </div>
+      {!onRetry && <CancelButton onClick={onCancel} />}
       {onRetry && (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-accent bg-accent-soft p-4">
           <p className="text-sm">
@@ -49,7 +52,20 @@ export function DownloadStep({ done, total, secondsLeft, onRetry }: Props) {
           </button>
         </div>
       )}
+      {onRetry && <CancelButton onClick={onCancel} />}
     </section>
+  );
+}
+
+function CancelButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="self-start rounded-lg border border-line px-4 py-2 text-sm transition-colors hover:bg-raised"
+    >
+      Cancel
+    </button>
   );
 }
 

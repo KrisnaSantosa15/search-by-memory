@@ -295,8 +295,15 @@ mod commands {
 
     /// Downloads what `choice` needs, reporting `setup-progress` events.
     #[tauri::command]
-    pub async fn prepare(app: AppHandle, choice: String) -> Result<bool, String> {
+    pub async fn prepare(
+        app: AppHandle,
+        preparing: State<'_, Preparing>,
+        choice: String,
+    ) -> Result<bool, String> {
         let accelerator: Accelerator = choice.parse()?;
+        // A fresh flag each time, so an earlier Cancel cannot stop this one.
+        let cancel = Arc::new(AtomicBool::new(false));
+        *preparing.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = cancel.clone();
         tauri::async_runtime::spawn_blocking(move || {
             let plan = Plan::for_accelerator(accelerator);
             let started = Instant::now();
@@ -323,7 +330,7 @@ mod commands {
                 &plan,
                 &AppDirs::current().cache,
                 &Web::new(),
-                &AtomicBool::new(false),
+                &cancel,
                 &mut report,
             )
             .map_err(|error| error.to_string())?;
@@ -331,6 +338,18 @@ mod commands {
         })
         .await
         .map_err(|error| error.to_string())?
+    }
+
+    /// The cancel flag of the download `prepare` is running.
+    #[derive(Default)]
+    pub struct Preparing(Mutex<Arc<AtomicBool>>);
+
+    /// Stops the running download; `prepare` then returns `false`, keeping
+    /// what is on disk so the next `prepare` resumes it.
+    #[tauri::command]
+    pub fn cancel_prepare(preparing: State<'_, Preparing>) {
+        let cancel = preparing.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        cancel.store(true, Ordering::SeqCst);
     }
 
     #[tauri::command]
@@ -662,6 +681,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(commands::Running::default())
         .manage(commands::Launching::default())
+        .manage(commands::Preparing::default())
         .on_window_event(|window, event| {
             let launching = window
                 .state::<commands::Launching>()
@@ -688,6 +708,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::speed_choices,
             commands::prepare,
+            commands::cancel_prepare,
             commands::folder_choices,
             commands::start_indexing,
             commands::settings,

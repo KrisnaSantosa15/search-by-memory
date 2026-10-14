@@ -64,6 +64,8 @@ export default function App() {
       invoke<boolean>("prepare", { choice })
         .then((complete) => {
           if (complete) return invoke<FolderChoice[]>("folder_choices").then(setFolders);
+          // Cancelled: what was downloaded stays, and picking again resumes it.
+          backToSpeeds();
         })
         .catch(() => setStopped(true));
       return unlisten;
@@ -72,6 +74,12 @@ export default function App() {
       unlisten.then((stop) => stop());
     };
   }, [choice, attempt]);
+
+  const backToSpeeds = () => {
+    setChoice(null);
+    setStopped(false);
+    setProgress({ done: 0, total: 0, secondsLeft: null });
+  };
 
   const step = () => {
     if (hotkey) {
@@ -107,6 +115,7 @@ export default function App() {
                 }
               : undefined
           }
+          onCancel={() => (stopped ? backToSpeeds() : invoke("cancel_prepare"))}
         />
       );
     }

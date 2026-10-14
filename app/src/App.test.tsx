@@ -95,6 +95,26 @@ describe("App", () => {
     expect(screen.queryByText(/download stopped/i)).not.toBeInTheDocument();
   });
 
+  it("goes back to the speed choices when the download is cancelled", async () => {
+    let stop: (complete: boolean) => void = () => {};
+    mockIPC(
+      (command) => {
+        if (command === "speed_choices") return cpuOnly;
+        if (command === "prepare") return new Promise((finished) => (stop = finished));
+        // The download notices, keeps what it has, and reports it did not finish.
+        if (command === "cancel_prepare") stop(false);
+      },
+      { shouldMockEvents: true },
+    );
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
+
+    await userEvent.click(await screen.findByRole("button", { name: /cancel/i }));
+
+    expect(await screen.findByRole("radio", { name: /any computer/i })).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
   it("asks which folders to search once the download is done, then starts indexing them", async () => {
     const started: unknown[] = [];
     mockIPC(
