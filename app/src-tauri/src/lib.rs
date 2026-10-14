@@ -317,11 +317,15 @@ mod commands {
     use serde::Serialize;
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
     use tauri::tray::TrayIconBuilder;
-    use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
+    use tauri::{
+        AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    };
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     use tauri_plugin_opener::OpenerExt;
 
-    use super::{FileKind, FolderChoice, ResultRow, Settings, SpeedChoice, TextPreview, data_dir};
+    use super::{
+        Dashboard, FileKind, FolderChoice, ResultRow, Settings, SpeedChoice, TextPreview, data_dir,
+    };
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
     const DIMENSIONS: usize = 256;
@@ -574,6 +578,15 @@ mod commands {
         Ok(results.into_iter().map(super::result_row).collect())
     }
 
+    /// What the Status tab shows; an error before the Engine has started.
+    #[tauri::command]
+    pub async fn dashboard(running: State<'_, Running>) -> Result<Dashboard, String> {
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        let status = engine.status().map_err(|error| error.to_string())?;
+        Ok(super::dashboard(&status))
+    }
+
     /// The lines of `path` around `lineStart`–`lineEnd`, or its first lines.
     #[tauri::command]
     pub async fn preview_lines(
@@ -709,6 +722,29 @@ mod commands {
         }
     }
 
+    /// Brings up the Settings window, opening it the first time.
+    pub fn open_settings(app: &AppHandle) {
+        if let Some(window) = app.get_webview_window("settings") {
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+            return;
+        }
+        let window = WebviewWindowBuilder::new(
+            app,
+            "settings",
+            WebviewUrl::App("index.html?view=settings".into()),
+        )
+        .title("Search by Memory Settings")
+        .inner_size(720.0, 560.0)
+        .min_inner_size(520.0, 400.0)
+        .background_color(tauri::window::Color(0x1d, 0x22, 0x30, 0xff))
+        .center()
+        .build();
+        if let Err(error) = window {
+            eprintln!("the Settings window could not be opened: {error}");
+        }
+    }
+
     /// Counts manual pauses and resumes, so a timed pause only ends itself
     /// when nothing was chosen since.
     static PAUSES: AtomicU64 = AtomicU64::new(0);
@@ -753,6 +789,7 @@ mod commands {
                 &state,
                 &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "show", "Search", true, None::<&str>)?,
+                &MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?,
                 &MenuItem::with_id(
                     app,
                     "pause-1h",
@@ -776,6 +813,7 @@ mod commands {
             .menu(&menu)
             .on_menu_event(|app, event| match event.id.as_ref() {
                 "show" => show(app),
+                "settings" => open_settings(app),
                 "pause-1h" => pause_for(app, Duration::from_secs(60 * 60)),
                 "pause-8h" => pause_for(app, Duration::from_secs(8 * 60 * 60)),
                 "resume" => resume_indexing(app),
@@ -823,7 +861,9 @@ pub fn run() {
                 .state::<commands::Launching>()
                 .0
                 .load(Ordering::Relaxed);
-            if launching && matches!(event, WindowEvent::Focused(false)) {
+            // Only the launcher hides on blur; the Settings window stays open.
+            if launching && window.label() == "main" && matches!(event, WindowEvent::Focused(false))
+            {
                 let _ = window.hide();
             }
         })
@@ -851,6 +891,7 @@ pub fn run() {
             commands::try_hotkey,
             commands::finish_onboarding,
             commands::search,
+            commands::dashboard,
             commands::open_file,
             commands::reveal_file,
             commands::copy_file,
