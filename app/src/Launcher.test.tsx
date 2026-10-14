@@ -348,6 +348,30 @@ describe("Launcher", () => {
     expect(within(lines[1]).getByText("retry", { selector: "mark" })).toBeInTheDocument();
   });
 
+  it("shows a text document's lines around the match on the page", async () => {
+    const notes = {
+      ...report,
+      name: "notes.md",
+      path: "D:\\notes.md",
+      snippet: "net profit rose",
+      location: "Line 2",
+      lineStart: 2,
+      lineEnd: 2,
+    };
+    const previewLines = vi.fn(async () => ({
+      firstLine: 1,
+      lines: ["# Q3", "net profit rose", "costs stayed flat"],
+    }));
+    render(<Launcher search={async () => [notes]} {...actions()} previewLines={previewLines} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+
+    const page = await screen.findByRole("list", { name: "Lines" });
+    const lines = within(page).getAllByRole("listitem");
+    expect(lines.map((line) => line.textContent)).toEqual(["# Q3", "net profit rose", "costs stayed flat"]);
+    expect(lines.map((line) => line.getAttribute("aria-current"))).toEqual([null, "true", null]);
+    expect(screen.getByRole("region", { name: /preview/i })).toHaveTextContent("Line 2");
+  });
+
   it("hides with Escape", async () => {
     const spies = actions();
     render(<Launcher search={async () => []} {...spies} />);

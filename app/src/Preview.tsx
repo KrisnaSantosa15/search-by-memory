@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import type { ResultRow } from "./Launcher";
-import { CodeLines, type LoadLines, type TextPreview } from "./Lines";
+import { CodeLines, type LoadLines, PageLines, type TextPreview } from "./Lines";
 import { Marked } from "./Marked";
 import { Path } from "./Path";
 
@@ -34,12 +34,18 @@ export function Preview({ result, query, loadLines, copy, onOpen, onReveal }: Pr
 
   return (
     <section aria-label="Preview" className="flex min-w-0 flex-col gap-4">
-      {result.kind === "code" && lines ? (
+      {lines && result.kind === "code" ? (
         <CodeLines preview={lines} query={query} matched={matched} />
+      ) : lines ? (
+        <Page location={result.location}>
+          <PageLines preview={lines} query={query} matched={matched} />
+        </Page>
       ) : (
         result.snippet && (
           <Page location={result.location}>
-            <Marked text={result.snippet} query={query} />
+            <blockquote className="line-clamp-[9]">
+              <Marked text={result.snippet} query={query} />
+            </blockquote>
           </Page>
         )
       )}
@@ -121,7 +127,7 @@ function useLines(result: ResultRow, loadLines: LoadLines): TextPreview | null {
 function Page(props: { location: string | null; children: ReactNode }) {
   return (
     <figure className="page relative rounded-md bg-ink px-5 pt-4 pb-9 text-[13px] leading-relaxed text-canvas shadow-lg shadow-black/30">
-      <blockquote className="line-clamp-[9]">{props.children}</blockquote>
+      {props.children}
       {props.location && (
         <figcaption className="absolute bottom-2.5 left-3 rounded bg-canvas/80 px-1.5 text-xs text-ink">
           {props.location}

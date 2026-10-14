@@ -58,3 +58,31 @@ export function CodeLines({ preview, query, matched }: Props) {
     </ol>
   );
 }
+
+/** Lines of a text document, as on paper: the matched ones in full ink, the rest faded. */
+export function PageLines({ preview, query, matched }: Props) {
+  const firstMatched = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    firstMatched.current?.scrollIntoView?.({ block: "nearest" });
+  }, [preview]);
+
+  return (
+    <ol aria-label="Lines" className="max-h-60 overflow-auto">
+      {preview.lines.map((line, offset) => {
+        const number = preview.firstLine + offset;
+        const lit = matched !== null && number >= matched[0] && number <= matched[1];
+        return (
+          <li
+            key={number}
+            aria-current={lit || undefined}
+            ref={lit && number === matched[0] ? firstMatched : undefined}
+            className="min-h-[1lh] whitespace-pre-wrap opacity-55 aria-[current]:opacity-100"
+          >
+            <Marked text={line} query={query} />
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
