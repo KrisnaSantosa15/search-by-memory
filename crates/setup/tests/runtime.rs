@@ -131,3 +131,48 @@ fn cuda_runtime_manifest_matches_the_archives_that_passed_the_parity_gate() {
         }
     }
 }
+
+/// A gzipped tar archive holding `files` as (path, content).
+fn tgz(files: &[(&str, &[u8])]) -> Vec<u8> {
+    let gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    let mut tar = tar::Builder::new(gzip);
+    for (path, content) in files {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(content.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        tar.append_data(&mut header, path, *content).unwrap();
+    }
+    tar.into_inner().unwrap().finish().unwrap()
+}
+
+#[test]
+fn tgz_runtime_unpacks_its_dlls_and_keeps_its_licenses() {
+    let dir = TempDir::new().unwrap();
+    let http = FakeHttp::default();
+    let archives = [http.serve(
+        "https://example.test/pdfium-win-x64.tgz",
+        "pdfium-win-x64.tgz",
+        &tgz(&[
+            ("bin/pdfium.dll", b"pdfium"),
+            ("include/fpdfview.h", b"header"),
+            ("licenses/pdfium.txt", b"BSD"),
+        ]),
+    )];
+
+    let finished = install_runtime(
+        &archives,
+        dir.path(),
+        &http,
+        &AtomicBool::new(false),
+        &mut |_| {},
+    )
+    .unwrap();
+
+    assert_eq!(finished, Finished::Complete);
+    assert_eq!(names_in(dir.path()), ["licenses", "pdfium.dll"]);
+    assert_eq!(
+        std::fs::read(dir.path().join("licenses/pdfium.txt")).unwrap(),
+        b"BSD"
+    );
+}

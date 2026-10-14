@@ -291,8 +291,8 @@ pub fn cuda_runtime() -> Vec<RemoteFile> {
     .collect()
 }
 
-/// Installs a GPU runtime into `dir`: downloads the zip `archives` and unpacks
-/// the DLLs in their `bin` folders.
+/// Installs a runtime into `dir`: downloads the `archives` (zip, or gzipped
+/// tar ending in `.tgz`) and unpacks the DLLs in their `bin` folders.
 pub fn install_runtime(
     archives: &[RemoteFile],
     dir: &Path,
@@ -322,7 +322,12 @@ pub fn install_runtime(
         return Ok(Finished::Cancelled);
     }
     for archive in archives {
-        unpack_dlls(&downloads.join(&archive.path), dir)?;
+        let path = downloads.join(&archive.path);
+        if archive.path.ends_with(".tgz") {
+            unpack_tgz(&path, dir)?;
+        } else {
+            unpack_dlls(&path, dir)?;
+        }
     }
     std::fs::remove_dir_all(&downloads)?;
     std::fs::write(&marker, installed)?;
@@ -350,6 +355,31 @@ fn unpack_dlls(archive: &Path, dir: &Path) -> Result<()> {
         if let (true, true, Some(name)) = (in_bin, is_dll, path.file_name()) {
             std::io::copy(&mut entry, &mut File::create(dir.join(name))?)?;
         }
+    }
+    Ok(())
+}
+
+/// Copies the DLLs in the `bin` folder of the gzipped tar `archive` into `dir`,
+/// and the notices in its `licenses` folder into `dir/licenses`.
+fn unpack_tgz(archive: &Path, dir: &Path) -> Result<()> {
+    let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(File::open(archive)?));
+    for entry in tar.entries()? {
+        let mut entry = entry?;
+        let path = entry.path()?.into_owned();
+        let mut parts = path.components().map(|part| part.as_os_str());
+        let (Some(folder), Some(name), None) = (parts.next(), parts.next(), parts.next()) else {
+            continue;
+        };
+        // Only the file name is kept, so nothing lands outside `dir`.
+        let target = if folder == "bin" && path.extension().is_some_and(|e| e == "dll") {
+            dir.join(name)
+        } else if folder == "licenses" {
+            std::fs::create_dir_all(dir.join("licenses"))?;
+            dir.join("licenses").join(name)
+        } else {
+            continue;
+        };
+        std::io::copy(&mut entry, &mut File::create(target)?)?;
     }
     Ok(())
 }

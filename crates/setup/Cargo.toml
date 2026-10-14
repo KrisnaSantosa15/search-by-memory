@@ -10,6 +10,10 @@ sbm-embed-onnx = { path = "../embed-onnx" }
 sha2 = "=0.11.0"
 zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }
 ureq = { version = "=3.4.2", default-features = false, features = ["rustls"] }
+flate2 = "=1.1.10"
+tar = { version = "=0.4.46", default-features = false }
 
 [dev-dependencies]
 tempfile = "=3.27.0"
+flate2 = "=1.1.10"
+tar = { version = "=0.4.46", default-features = false }
