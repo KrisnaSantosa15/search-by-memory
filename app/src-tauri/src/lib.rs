@@ -186,8 +186,23 @@ pub fn indexing_state(status: &Status) -> String {
         Some(ThrottleReason::FullScreen) => "Indexing waits while a full-screen app is open".into(),
         Some(ThrottleReason::Battery) => "Indexing waits until the computer is plugged in".into(),
         Some(ThrottleReason::Busy) => "Indexing waits while the computer is busy".into(),
-        None => String::new(),
+        None if status.pending == 0 => "All files are indexed".into(),
+        None if status.pending == 1 => "Indexing: 1 file to go".into(),
+        None => format!("Indexing: {} files to go", thousands(status.pending)),
     }
+}
+
+/// `12345` as `12,345`.
+fn thousands(number: usize) -> String {
+    let digits = number.to_string();
+    let mut grouped = String::new();
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    grouped
 }
 
 pub fn result_row(result: SearchResult) -> ResultRow {

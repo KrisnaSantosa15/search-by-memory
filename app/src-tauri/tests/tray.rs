@@ -25,3 +25,15 @@ fn held_back_indexing_says_why() {
         "Indexing waits while the computer is busy"
     );
 }
+
+#[test]
+fn running_indexing_says_how_many_files_are_left_or_that_all_are_done() {
+    let pending = |pending| Status {
+        pending,
+        ..Status::default()
+    };
+
+    assert_eq!(indexing_state(&pending(1)), "Indexing: 1 file to go");
+    assert_eq!(indexing_state(&pending(12_345)), "Indexing: 12,345 files to go");
+    assert_eq!(indexing_state(&pending(0)), "All files are indexed");
+}
