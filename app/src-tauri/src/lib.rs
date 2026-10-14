@@ -168,6 +168,9 @@ pub struct ResultRow {
     pub snippet: Option<String>,
     /// Where the snippet is, e.g. `Page 14`; `None` for the whole file or a Name Match.
     pub location: Option<String>,
+    /// The matched lines (1-based, inclusive), when the Location is lines.
+    pub line_start: Option<u32>,
+    pub line_end: Option<u32>,
     /// `name`, `content`, or `both`.
     pub match_reason: String,
     /// A Weaker Match, folded away below the others.
@@ -199,6 +202,14 @@ pub fn result_row(result: SearchResult) -> ResultRow {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default(),
         location: result.location.as_ref().and_then(location_label),
+        line_start: match result.location {
+            Some(Location::Lines { start, .. }) => Some(start),
+            _ => None,
+        },
+        line_end: match result.location {
+            Some(Location::Lines { end, .. }) => Some(end),
+            _ => None,
+        },
         match_reason: match result.match_reason {
             MatchReason::Name => "name",
             MatchReason::Content => "content",

@@ -37,6 +37,8 @@ fn content_match_row_names_the_file_its_page_and_why_it_matched() {
             modified: None,
             snippet: Some("net profit increased by 18%".into()),
             location: Some("Page 14".into()),
+            line_start: None,
+            line_end: None,
             match_reason: "both".into(),
             weaker: false,
         }
@@ -128,4 +130,16 @@ fn row_carries_whether_it_is_a_weaker_match() {
     });
 
     assert!(row.weaker);
+}
+
+#[test]
+fn row_carries_the_matched_line_numbers() {
+    let lines = result_row(result(
+        Some(Location::Lines { start: 8, end: 47 }),
+        MatchReason::Content,
+    ));
+    let page = result_row(result(Some(Location::Page(4)), MatchReason::Content));
+
+    assert_eq!((lines.line_start, lines.line_end), (Some(8), Some(47)));
+    assert_eq!((page.line_start, page.line_end), (None, None));
 }
