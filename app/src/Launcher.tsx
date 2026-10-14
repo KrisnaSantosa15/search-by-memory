@@ -27,7 +27,7 @@ type Props = {
 const MATCH_REASONS = { name: "name", content: "content", both: "name + content" };
 
 /** The search window: a Query box over its Results. */
-export function Launcher({ search, open, reveal }: Props) {
+export function Launcher({ search, open, reveal, copyPath }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
@@ -49,7 +49,9 @@ export function Launcher({ search, open, reveal }: Props) {
     };
   }, [search, query]);
 
-  const onKeyDown = (event: KeyboardEvent) => {
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const box = event.currentTarget;
+    const textSelected = box.selectionStart !== box.selectionEnd;
     const last = results.length - 1;
     const result = results[selected];
     if (event.key === "ArrowDown") setSelected((index) => Math.min(index + 1, last));
@@ -57,6 +59,8 @@ export function Launcher({ search, open, reveal }: Props) {
     else if (event.key === "Enter" && result) {
       if (event.ctrlKey || event.shiftKey) reveal(result.path);
       else open(result.path);
+    } else if (event.key === "c" && event.ctrlKey && !textSelected && result) {
+      copyPath(result.path);
     }
     else return;
     event.preventDefault();

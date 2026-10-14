@@ -74,4 +74,27 @@ describe("Launcher", () => {
     expect(act.reveal).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
     expect(act.open).not.toHaveBeenCalled();
   });
+
+  it("copies the selected file's path with Ctrl + C", async () => {
+    const act = actions();
+    render(<Launcher search={async () => [report]} {...act} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option");
+
+    await userEvent.keyboard("{Control>}c{/Control}");
+
+    expect(act.copyPath).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+  });
+
+  it("leaves Ctrl + C to copy Query text that is selected", async () => {
+    const act = actions();
+    render(<Launcher search={async () => [report]} {...act} />);
+    const box = screen.getByRole("searchbox");
+    await userEvent.type(box, "profit");
+    await screen.findByRole("option");
+
+    await userEvent.keyboard("{Control>}a{/Control}{Control>}c{/Control}");
+
+    expect(act.copyPath).not.toHaveBeenCalled();
+  });
 });
