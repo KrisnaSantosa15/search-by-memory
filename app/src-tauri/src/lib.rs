@@ -238,7 +238,7 @@ fn location_label(location: &Location) -> Option<String> {
 
 /// What the window can call; thin wrappers over the functions above.
 mod commands {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
@@ -258,7 +258,7 @@ mod commands {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     use tauri_plugin_opener::OpenerExt;
 
-    use super::{FolderChoice, ResultRow, Settings, SpeedChoice, TextPreview, data_dir};
+    use super::{FileKind, FolderChoice, ResultRow, Settings, SpeedChoice, TextPreview, data_dir};
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
     const DIMENSIONS: usize = 256;
@@ -454,25 +454,22 @@ mod commands {
             .map_err(|error| error.to_string())
     }
 
-    /// Results for `query` in `view` (`file` or `passage`), best first; none
-    /// before the Engine has started.
+    /// Results for `query` in File view, best first, code only when asked;
+    /// none before the Engine has started.
     #[tauri::command]
     pub async fn search(
         running: State<'_, Running>,
         query: String,
-        view: String,
+        only_code: Option<bool>,
     ) -> Result<Vec<ResultRow>, String> {
-        let view = if view == "passage" {
-            View::Passage
-        } else {
-            View::File
-        };
         let running = running.0.lock().unwrap();
         let Some(engine) = running.as_ref() else {
             return Ok(Vec::new());
         };
+        let keep =
+            |path: &Path| !only_code.unwrap_or(false) || FileKind::of(path) == FileKind::Code;
         let results = engine
-            .search(&query, view, RESULTS)
+            .search_where(&query, View::File, RESULTS, &keep)
             .map_err(|error| error.to_string())?;
         Ok(results.into_iter().map(super::result_row).collect())
     }
