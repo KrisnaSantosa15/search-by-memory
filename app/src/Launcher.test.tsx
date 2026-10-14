@@ -81,6 +81,36 @@ describe("Launcher", () => {
     expect(screen.getByRole("option", { name: /lease\.pdf/ })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("folds Weaker Matches into one row that Enter unfolds", async () => {
+    const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
+    const fainter = { ...report, name: "fainter.txt", path: "D:\\fainter.txt", weaker: true };
+    render(<Launcher search={async () => [report, faint, fainter]} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+
+    const fold = await screen.findByRole("option", { name: "2 weaker matches" });
+    expect(screen.queryByRole("option", { name: /faint\.txt/ })).not.toBeInTheDocument();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(fold).toHaveAttribute("aria-selected", "true");
+    await userEvent.keyboard("{Enter}{ArrowDown}");
+
+    expect(screen.getByRole("option", { name: /faint\.txt/ })).toHaveAttribute("aria-selected", "true");
+    expect(within(screen.getByRole("region", { name: /preview/i })).getByRole("heading")).toHaveTextContent(
+      "faint.txt",
+    );
+  });
+
+  it("unfolds Weaker Matches with Arrow Right or a click", async () => {
+    const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
+    render(<Launcher search={async () => [report, faint]} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    const fold = await screen.findByRole("option", { name: "1 weaker match" });
+
+    await userEvent.keyboard("{ArrowDown}{ArrowRight}");
+    expect(screen.getByRole("option", { name: /faint\.txt/ })).toBeInTheDocument();
+    await userEvent.click(fold);
+    expect(screen.queryByRole("option", { name: /faint\.txt/ })).not.toBeInTheDocument();
+  });
+
   it("opens the selected file with Enter", async () => {
     const spies = actions();
     render(<Launcher search={async () => [report]} {...spies} />);

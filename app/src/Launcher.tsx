@@ -53,6 +53,7 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
   const [searching, setSearching] = useState(false);
   // The Copy being picked in the Preview Pane; `null` while none is being picked.
   const [copy, setCopy] = useState<number | null>(null);
+  const [unfolded, setUnfolded] = useState(false);
   const box = useRef<HTMLInputElement>(null);
 
   // The hotkey or the tray brought the window back: ready for a Query.
@@ -77,13 +78,23 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
       setResults(inGroupOrder(results));
       setSelected(0);
       setCopy(null);
+      setUnfolded(false);
     });
     return () => {
       current = false;
     };
   }, [search, query]);
 
-  const result = results[selected];
+  const strong = results.filter((result) => !result.weaker);
+  const faint = results.filter((result) => result.weaker);
+  // What ↑/↓ move through, in the order on screen; FOLD is the "weaker matches" row.
+  const entries: (ResultRow | typeof FOLD)[] = [
+    ...strong,
+    ...(faint.length > 0 ? [FOLD] : []),
+    ...(unfolded ? faint : []),
+  ];
+  const entry = entries[selected];
+  const result = entry === FOLD ? undefined : entry;
   const paths = result ? [result.path, ...result.copies] : [];
   // The file an action applies to; none while the user has yet to pick a Copy.
   const target = copy !== null ? paths[copy] : paths.length === 1 ? paths[0] : undefined;
@@ -104,12 +115,14 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
     const caretAtEnd = !textSelected && box.selectionStart === box.value.length;
     const move = (step: number) => {
       if (copy !== null) setCopy(clamp(copy + step, paths.length));
-      else setSelected((index) => clamp(index + step, results.length));
+      else setSelected((index) => clamp(index + step, entries.length));
     };
     if (event.key === "Escape") hide();
     else if (event.key === "ArrowDown") move(1);
     else if (event.key === "ArrowUp") move(-1);
-    else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
+    else if (entry === FOLD && (event.key === "Enter" || (event.key === "ArrowRight" && caretAtEnd))) {
+      setUnfolded(true);
+    } else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
     else if (event.key === "ArrowLeft" && copy !== null) setCopy(null);
     else if (event.key === "Enter") act(event.ctrlKey || event.shiftKey ? reveal : open);
     else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyFile, false);
@@ -138,7 +151,7 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
           aria-label="Results"
           className="flex flex-col gap-3 overflow-y-auto border-r border-line p-2"
         >
-          {groups(results).map(({ kind, first, members }) => (
+          {groups(strong).map(({ kind, first, members }) => (
             <div key={kind} role="group" aria-label={GROUP_NAMES[kind]} className="flex flex-col gap-0.5">
               <p aria-hidden className="px-3 pt-1 text-xs font-medium text-muted">
                 {GROUP_NAMES[kind]}
@@ -154,6 +167,36 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
               ))}
             </div>
           ))}
+          {faint.length > 0 && (
+            <div className="flex flex-col gap-0.5">
+              <div
+                role="option"
+                aria-selected={entry === FOLD}
+                aria-expanded={unfolded}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setSelected(strong.length);
+                  setUnfolded((unfolded) => !unfolded);
+                }}
+                className="flex cursor-default items-center gap-2 rounded-md border-l-2 border-transparent px-3 py-2 text-sm text-muted aria-selected:border-accent aria-selected:bg-accent-soft"
+              >
+                <span aria-hidden className={unfolded ? "rotate-90" : ""}>
+                  ›
+                </span>
+                {faint.length === 1 ? "1 weaker match" : `${faint.length} weaker matches`}
+              </div>
+              {unfolded &&
+                faint.map((result, offset) => (
+                  <Row
+                    key={`${result.path}#weaker`}
+                    result={result}
+                    query={query}
+                    selected={strong.length + 1 + offset === selected}
+                    onSelect={() => setSelected(strong.length + 1 + offset)}
+                  />
+                ))}
+            </div>
+          )}
         </div>
         <div className="min-h-0 overflow-y-auto p-5">
           {result ? (
@@ -233,9 +276,19 @@ function Row(props: { result: ResultRow; query: string; selected: boolean; onSel
   );
 }
 
-/** `results` with each kind kept together, kinds in the order of their best Result. */
+/** The "weaker matches" row, among the Results that ↑/↓ move through. */
+const FOLD = "fold" as const;
+
+/**
+ * `results` with each kind kept together, kinds in the order of their best
+ * Result; Weaker Matches last, as they came.
+ */
 function inGroupOrder(results: ResultRow[]): ResultRow[] {
-  return groups(results).flatMap((group) => group.members);
+  const strong = results.filter((result) => !result.weaker);
+  return [
+    ...groups(strong).flatMap((group) => group.members),
+    ...results.filter((result) => result.weaker),
+  ];
 }
 
 /** Runs of Results of one kind; `first` is the index of a group's first Result. */
