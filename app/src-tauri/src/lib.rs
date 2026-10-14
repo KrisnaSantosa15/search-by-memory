@@ -414,6 +414,25 @@ mod commands {
             .map_err(|error| error.to_string())
     }
 
+    /// Puts the file itself on the clipboard, to paste in a folder or a chat.
+    #[tauri::command]
+    pub fn copy_file(path: PathBuf) -> Result<(), String> {
+        #[cfg(windows)]
+        {
+            use clipboard_win::{Clipboard, Setter, formats::FileList, raw};
+            let path = path.to_string_lossy();
+            let _open = Clipboard::new_attempts(10).map_err(|error| error.to_string())?;
+            raw::empty().map_err(|error| error.to_string())?;
+            FileList
+                .write_clipboard(&[path.as_ref()])
+                .map_err(|error| error.to_string())
+        }
+        #[cfg(not(windows))]
+        {
+            Err(format!("copying files is not supported here: {}", path.display()))
+        }
+    }
+
     /// Hides the launcher; indexing goes on.
     #[tauri::command]
     pub fn hide_launcher(window: WebviewWindow) -> Result<(), String> {
@@ -492,6 +511,7 @@ pub fn run() {
             commands::search,
             commands::open_file,
             commands::reveal_file,
+            commands::copy_file,
             commands::hide_launcher
         ])
         .run(tauri::generate_context!())
