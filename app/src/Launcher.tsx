@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import type { LoadLines } from "./Lines";
 import { Marked } from "./Marked";
 import { Path } from "./Path";
 import { Preview } from "./Preview";
@@ -20,6 +21,9 @@ export type ResultRow = {
   snippet: string | null;
   /** Where the snippet is, e.g. `Page 14`. */
   location: string | null;
+  /** The matched lines, 1-based and inclusive, when the Location is lines. */
+  lineStart: number | null;
+  lineEnd: number | null;
   matchReason: "name" | "content" | "both";
   kind: Kind;
   /** A Weaker Match, folded away below the others. */
@@ -42,11 +46,12 @@ type Props = {
   open: (path: string) => void;
   reveal: (path: string) => void;
   copyFile: (path: string) => void;
+  previewLines: LoadLines;
   hide: () => void;
 };
 
 /** The search window: a Query box over its Results. */
-export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
+export function Launcher({ search, open, reveal, copyFile, hide, previewLines }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
@@ -203,6 +208,7 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
             <Preview
               result={result}
               query={query}
+              loadLines={previewLines}
               copy={copy}
               onOpen={() => act(open)}
               onReveal={() => act(reveal)}

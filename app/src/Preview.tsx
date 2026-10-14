@@ -1,4 +1,6 @@
+import { type ReactNode, useEffect, useState } from "react";
 import type { ResultRow } from "./Launcher";
+import { CodeLines, type LoadLines, type TextPreview } from "./Lines";
 import { Marked } from "./Marked";
 import { Path } from "./Path";
 
@@ -8,18 +10,23 @@ const MATCH_REASONS = {
   both: "Name and contents match",
 };
 
-/** The selected Result in full: its Content Match, where it lives, and why it matched. */
 type Props = {
   result: ResultRow;
   query: string;
+  loadLines: LoadLines;
   /** The Copy being picked; `null` while none is being picked. */
   copy: number | null;
   onOpen: () => void;
   onReveal: () => void;
 };
 
-export function Preview({ result, query, copy, onOpen, onReveal }: Props) {
+/** The selected Result in full: its Content Match, where it lives, and why it matched. */
+export function Preview({ result, query, loadLines, copy, onOpen, onReveal }: Props) {
   const paths = [result.path, ...result.copies];
+  const lines = useLines(result, loadLines);
+  const { lineStart, lineEnd } = result;
+  const matched: [number, number] | null =
+    lineStart !== null && lineEnd !== null ? [lineStart, lineEnd] : null;
   const facts = [
     result.size !== null && size(result.size),
     result.modified !== null && `changed ${date(result.modified)}`,
@@ -27,17 +34,14 @@ export function Preview({ result, query, copy, onOpen, onReveal }: Props) {
 
   return (
     <section aria-label="Preview" className="flex min-w-0 flex-col gap-4">
-      {result.snippet && (
-        <figure className="page relative rounded-md bg-ink px-5 pt-4 pb-9 text-[13px] leading-relaxed text-canvas shadow-lg shadow-black/30">
-          <blockquote className="line-clamp-[9]">
+      {result.kind === "code" && lines ? (
+        <CodeLines preview={lines} query={query} matched={matched} />
+      ) : (
+        result.snippet && (
+          <Page location={result.location}>
             <Marked text={result.snippet} query={query} />
-          </blockquote>
-          {result.location && (
-            <figcaption className="absolute bottom-2.5 left-3 rounded bg-canvas/80 px-1.5 text-xs text-ink">
-              {result.location}
-            </figcaption>
-          )}
-        </figure>
+          </Page>
+        )
       )}
       <div className="flex flex-col gap-0.5">
         <h2 className="truncate font-display text-lg font-semibold">{result.name}</h2>
@@ -85,6 +89,45 @@ export function Preview({ result, query, copy, onOpen, onReveal }: Props) {
         )
       )}
     </section>
+  );
+}
+
+/**
+ * The lines to preview of a text file on a connected drive; `null` until they
+ * are read, and for other files.
+ */
+function useLines(result: ResultRow, loadLines: LoadLines): TextPreview | null {
+  const [lines, setLines] = useState<TextPreview | null>(null);
+  const textual =
+    result.kind === "code" || (result.kind === "document" && result.lineStart !== null);
+  const readable = textual && result.connected;
+  const { path, lineStart, lineEnd } = result;
+
+  useEffect(() => {
+    setLines(null);
+    if (!readable) return;
+    // Only the selected Result's lines are shown, whichever answers last.
+    let current = true;
+    loadLines(path, lineStart, lineEnd).then((lines) => current && setLines(lines));
+    return () => {
+      current = false;
+    };
+  }, [loadLines, path, lineStart, lineEnd, readable]);
+
+  return lines;
+}
+
+/** Text on a sheet of paper, where the highlighter marks show best. */
+function Page(props: { location: string | null; children: ReactNode }) {
+  return (
+    <figure className="page relative rounded-md bg-ink px-5 pt-4 pb-9 text-[13px] leading-relaxed text-canvas shadow-lg shadow-black/30">
+      <blockquote className="line-clamp-[9]">{props.children}</blockquote>
+      {props.location && (
+        <figcaption className="absolute bottom-2.5 left-3 rounded bg-canvas/80 px-1.5 text-xs text-ink">
+          {props.location}
+        </figcaption>
+      )}
+    </figure>
   );
 }
 

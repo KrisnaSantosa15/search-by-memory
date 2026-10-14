@@ -15,6 +15,8 @@ const report: ResultRow = {
   weaker: false,
   snippet: "net profit increased by 18%",
   location: "Page 14",
+  lineStart: null,
+  lineEnd: null,
   matchReason: "both",
 };
 
@@ -23,6 +25,7 @@ const actions = () => ({
   reveal: vi.fn(),
   copyFile: vi.fn(),
   hide: vi.fn(),
+  previewLines: vi.fn(async () => null),
 });
 
 describe("Launcher", () => {
@@ -317,6 +320,32 @@ describe("Launcher", () => {
     await userEvent.type(screen.getByRole("searchbox"), "zebra");
 
     expect(await screen.findByRole("status")).toHaveTextContent("Nothing matches yet");
+  });
+
+  it("previews code with line numbers, marking the matched lines and the Query's words", async () => {
+    const retry = {
+      ...report,
+      name: "retry.ts",
+      path: "D:\\code\\retry.ts",
+      kind: "code" as const,
+      snippet: "export async function retry",
+      location: "Lines 8–9",
+      lineStart: 8,
+      lineEnd: 9,
+    };
+    const previewLines = vi.fn(async () => ({
+      firstLine: 7,
+      lines: [" */", "export async function retry<T>(", "  fn: () => Promise<T>,", "): Promise<T> {"],
+    }));
+    render(<Launcher search={async () => [retry]} {...actions()} previewLines={previewLines} />);
+    await userEvent.type(screen.getByRole("searchbox"), "retry");
+
+    const code = await screen.findByRole("list", { name: "Lines" });
+    expect(previewLines).toHaveBeenCalledWith("D:\\code\\retry.ts", 8, 9);
+    const lines = within(code).getAllByRole("listitem");
+    expect(lines.map((line) => line.getAttribute("value"))).toEqual(["7", "8", "9", "10"]);
+    expect(lines.map((line) => line.getAttribute("aria-current"))).toEqual([null, "true", "true", null]);
+    expect(within(lines[1]).getByText("retry", { selector: "mark" })).toBeInTheDocument();
   });
 
   it("hides with Escape", async () => {

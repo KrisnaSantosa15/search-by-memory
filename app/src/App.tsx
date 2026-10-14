@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { Launcher, type ResultRow } from "./Launcher";
+import type { TextPreview } from "./Lines";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { FoldersStep, type FolderChoice } from "./onboarding/FoldersStep";
@@ -18,6 +19,8 @@ const launcher = {
   reveal: (path: string) => invoke("reveal_file", { path }),
   copyFile: (path: string) => invoke("copy_file", { path }),
   hide: () => invoke("hide_launcher"),
+  previewLines: (path: string, lineStart: number | null, lineEnd: number | null) =>
+    invoke<TextPreview | null>("preview_lines", { path, lineStart, lineEnd }),
 };
 
 export default function App() {
