@@ -121,7 +121,7 @@ impl ContentExtractor for DocxExtractor {
         let mut lines = 0;
         let mut in_text = false;
         loop {
-            match reader.read_event_into(&mut buffer).map_err(damaged)? {
+            match reader.read_event_into(&mut buffer).map_err(xml_error)? {
                 Event::Start(tag) if tag.name().as_ref() == "w:t" => in_text = true,
                 Event::End(tag) if tag.name().as_ref() == "w:t" => in_text = false,
                 Event::Text(content) if in_text => text.push_str(&content),
@@ -154,6 +154,19 @@ impl ContentExtractor for DocxExtractor {
 /// A file that is not valid in its format.
 fn damaged(error: impl std::fmt::Display) -> ExtractError {
     ExtractError::new(Unreadable::Damaged, error)
+}
+
+/// An error reading a document's XML: the reason of the read beneath it (such
+/// as too large), else damaged.
+fn xml_error(error: quick_xml::Error) -> ExtractError {
+    let reason = match &error {
+        quick_xml::Error::Io(io) => Unreadable::of(io.as_ref()),
+        _ => Unreadable::Other,
+    };
+    match reason {
+        Unreadable::Other => damaged(error),
+        reason => ExtractError::new(reason, error),
+    }
 }
 
 /// Extensions of plain text, Markdown, and source code files (FR-03).
