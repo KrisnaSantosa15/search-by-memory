@@ -42,7 +42,7 @@
 - Bad files never crash indexing: pdf-extract panics caught; text and DOCX capped at 50 MB decompressed (zip bomb).
 - `extractor_for`: picks by extension; Office `~$` lock files and unsupported formats skipped.
 - Sliding-window chunker: whole lines, overlap, line/page Locations kept, blank Chunks dropped.
-- Known gap: pdf-extract/lopdf return no text for the OCR layer of UU 27/2022 (pdftotext reads it).
+- Known gap: pdf-extract/lopdf return no text for the OCR layer of UU 27/2022 (pdftotext reads it); closed by PDFium (ADR 0006).
 
 ### M2 — Content Index, hybrid search, CLI (`crates/index`, `crates/cli`)
 - Chunks keyed by BLAKE3 content hash (ADR 0004); Copies and moved files reuse Chunks; edited files re-chunked; unreferenced content removed with its vectors.
@@ -135,7 +135,8 @@
   - Done: a PDF page scrolls to the first of the Query's words.
   - Done: asking which Copy starts on the one picked last time (WebView `localStorage`, still confirmed with Enter).
   - Done: Cancel on the download step (`cancel_prepare`): back to the speed choices, download kept for resuming.
-  - Next: run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark; try PDFium for text extraction (scanned PDFs).
+  - Done: PDF text read with PDFium where installed, pdf-extract as fallback (ADR 0006); scans' invisible OCR layers now indexed.
+  - Next: run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
