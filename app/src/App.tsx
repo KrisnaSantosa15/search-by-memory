@@ -1,11 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
+import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { FoldersStep, type FolderChoice } from "./onboarding/FoldersStep";
+import { HotkeyStep } from "./onboarding/HotkeyStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 
 type DownloadProgress = { done: number; total: number; secondsLeft: number | null };
+
+const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
 
 export default function App() {
   const [choices, setChoices] = useState<SpeedChoice[] | null>(null);
@@ -19,6 +23,8 @@ export default function App() {
     secondsLeft: null,
   });
   const [folders, setFolders] = useState<FolderChoice[] | null>(null);
+  const [indexing, setIndexing] = useState(false);
+  const [hotkey, setHotkey] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<SpeedChoice[]>("speed_choices").then(setChoices);
@@ -43,11 +49,22 @@ export default function App() {
   }, [choice, attempt]);
 
   const step = () => {
+    if (hotkey) {
+      return (
+        <DoneStep
+          hotkey={hotkey}
+          onFinish={() => invoke("finish_onboarding", { choice, hotkey })}
+        />
+      );
+    }
+    if (indexing) return <HotkeyStep tryHotkey={tryHotkey} onContinue={setHotkey} />;
     if (folders) {
       return (
         <FoldersStep
           choices={folders}
-          onContinue={(paths) => invoke("start_indexing", { choice, folders: paths })}
+          onContinue={(paths) =>
+            invoke("start_indexing", { choice, folders: paths }).then(() => setIndexing(true))
+          }
         />
       );
     }

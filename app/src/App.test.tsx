@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { emit } from "@tauri-apps/api/event";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
@@ -90,5 +90,32 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(started).toEqual([{ choice: "cpu", folders: ["C:\\Users\\ana"] }]);
+  });
+
+  it("sets the search keys after the folders, then finishing saves what onboarding decided", async () => {
+    const finished: unknown[] = [];
+    mockIPC(
+      (command, payload) => {
+        if (command === "speed_choices") return cpuOnly;
+        if (command === "prepare") return true;
+        if (command === "folder_choices") {
+          return [{ path: "C:\\Users\\ana", kind: "personal", picked: true }];
+        }
+        if (command === "try_hotkey") return true;
+        if (command === "finish_onboarding") finished.push(payload);
+      },
+      { shouldMockEvents: true },
+    );
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
+    await screen.findByRole("checkbox", { name: /your personal folders/i });
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    await screen.findByText("Alt + Space");
+    await waitFor(() => expect(screen.getByRole("button", { name: /continue/i })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /start searching/i }));
+
+    expect(finished).toEqual([{ choice: "cpu", hotkey: "Alt+Space" }]);
   });
 });

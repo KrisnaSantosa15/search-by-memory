@@ -90,7 +90,7 @@ function shortcut(event: KeyboardEvent): string | null {
 }
 
 /** `Ctrl+Shift+KeyK` as people read it: `Ctrl + Shift + K`. */
-function spoken(hotkey: string): string {
+export function spoken(hotkey: string): string {
   return hotkey
     .split("+")
     .map((key) => key.replace(/^(Key|Digit)/, ""))
