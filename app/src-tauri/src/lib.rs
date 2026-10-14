@@ -593,6 +593,24 @@ mod commands {
         Ok(super::dashboard(&status))
     }
 
+    /// A file whose content could not be indexed, and why.
+    #[derive(Serialize)]
+    pub struct FailedFile {
+        path: PathBuf,
+        reason: String,
+    }
+
+    #[tauri::command]
+    pub async fn failed_files(running: State<'_, Running>) -> Result<Vec<FailedFile>, String> {
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        let failed = engine.failed_files().map_err(|error| error.to_string())?;
+        Ok(failed
+            .into_iter()
+            .map(|(path, reason)| FailedFile { path, reason })
+            .collect())
+    }
+
     /// The lines of `path` around `lineStart`–`lineEnd`, or its first lines.
     #[tauri::command]
     pub async fn preview_lines(
@@ -906,6 +924,7 @@ pub fn run() {
             commands::finish_onboarding,
             commands::search,
             commands::dashboard,
+            commands::failed_files,
             commands::pause_indexing,
             commands::resume_indexing,
             commands::open_file,

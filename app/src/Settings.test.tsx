@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Settings, type Dashboard } from "./Settings";
+import { Settings, type Dashboard, type FailedFile } from "./Settings";
 
 // 15 March 2025, midday UTC: the same month in every time zone.
 const midMarch2025 = Date.UTC(2025, 2, 15, 12);
@@ -18,6 +18,7 @@ const running: Dashboard = {
 function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {}) {
   const props = {
     dashboard: async () => running,
+    failedFiles: async () => [] as FailedFile[],
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -63,6 +64,21 @@ describe("Settings", () => {
     expect(
       await screen.findByText("Indexing waits while a full-screen app is open"),
     ).toBeInTheDocument();
+  });
+
+  it("lists the files whose content could not be indexed, and why", async () => {
+    renderSettings({
+      failedFiles: async () => [
+        {
+          path: "C:\\Users\\ana\\Documents\\locked.pdf",
+          reason: "the PDF is password-protected",
+        },
+      ],
+    });
+
+    expect(await screen.findByText("1 file could not be read")).toBeInTheDocument();
+    expect(screen.getByText("locked.pdf")).toBeInTheDocument();
+    expect(screen.getByText("the PDF is password-protected")).toBeInTheDocument();
   });
 
   it("pauses indexing, then offers to resume it", async () => {
