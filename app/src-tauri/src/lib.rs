@@ -2,10 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use sbm_core::{AppDirs, Location, ThrottleReason};
+use sbm_core::{AppDirs, Location, ThrottleReason, Unreadable};
 use sbm_embed_onnx::Accelerator;
 use sbm_engine::Status;
-use sbm_index::{Exclusion, MatchReason, SearchResult};
+use sbm_index::{Exclusion, FailedFile, MatchReason, SearchResult};
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
 
@@ -281,6 +281,32 @@ pub fn exclusion_list(active: &[Exclusion]) -> ExclusionList {
     }
 }
 
+/// A file that could not be read, as the Status tab lists it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FailedRow {
+    pub path: PathBuf,
+    /// Which plain-language reason the window shows.
+    pub reason: &'static str,
+    /// The underlying error message, behind Details.
+    pub detail: String,
+}
+
+pub fn failed_row(failed: FailedFile) -> FailedRow {
+    FailedRow {
+        path: failed.path,
+        reason: match failed.reason {
+            Unreadable::PasswordProtected => "passwordProtected",
+            Unreadable::TooLarge => "tooLarge",
+            Unreadable::Damaged => "damaged",
+            Unreadable::InUse => "inUse",
+            Unreadable::NoAccess => "noAccess",
+            Unreadable::Gone => "gone",
+            Unreadable::Other => "other",
+        },
+        detail: failed.detail,
+    }
+}
+
 /// `12345` as `12,345`.
 fn thousands(number: usize) -> String {
     let digits = number.to_string();
@@ -385,8 +411,8 @@ mod commands {
     use tauri_plugin_opener::OpenerExt;
 
     use super::{
-        Dashboard, ExclusionList, ExclusionRow, FileKind, FolderChoice, ResultRow, Settings,
-        SpeedChoice, TextPreview, data_dir,
+        Dashboard, ExclusionList, ExclusionRow, FailedRow, FileKind, FolderChoice, ResultRow,
+        Settings, SpeedChoice, TextPreview, data_dir, failed_row,
     };
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
@@ -649,25 +675,12 @@ mod commands {
         Ok(super::dashboard(&status))
     }
 
-    /// A file whose content could not be indexed, and why.
-    #[derive(Serialize)]
-    pub struct FailedFile {
-        path: PathBuf,
-        reason: String,
-    }
-
     #[tauri::command]
-    pub async fn failed_files(running: State<'_, Running>) -> Result<Vec<FailedFile>, String> {
+    pub async fn failed_files(running: State<'_, Running>) -> Result<Vec<FailedRow>, String> {
         let running = running.0.lock().unwrap();
         let engine = running.as_ref().ok_or("search has not started yet")?;
         let failed = engine.failed_files().map_err(|error| error.to_string())?;
-        Ok(failed
-            .into_iter()
-            .map(|failed| FailedFile {
-                path: failed.path,
-                reason: failed.detail,
-            })
-            .collect())
+        Ok(failed.into_iter().map(failed_row).collect())
     }
 
     /// A folder whose files are indexed, as the Folders tab lists it.
