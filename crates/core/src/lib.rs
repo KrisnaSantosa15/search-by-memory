@@ -60,6 +60,8 @@ pub enum Unreadable {
     Damaged,
     /// Another program had it open and would not share it.
     InUse,
+    /// Moved or deleted before it was read.
+    Gone,
     /// None of the above, or not known.
     Other,
 }
@@ -87,9 +89,11 @@ impl Unreadable {
 
     fn of_io(error: &std::io::Error) -> Self {
         if is_sharing_violation(error) {
-            Unreadable::InUse
-        } else {
-            Unreadable::Other
+            return Unreadable::InUse;
+        }
+        match error.kind() {
+            std::io::ErrorKind::NotFound => Unreadable::Gone,
+            _ => Unreadable::Other,
         }
     }
 }

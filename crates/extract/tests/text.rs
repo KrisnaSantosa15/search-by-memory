@@ -79,3 +79,13 @@ fn text_file_another_program_has_open_is_reported_as_in_use() {
 
     assert_eq!(Unreadable::of(error.as_ref()), Unreadable::InUse);
 }
+
+#[test]
+fn text_file_deleted_before_it_is_read_is_reported_as_gone() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("deleted.txt");
+
+    let error = TextExtractor.extract(&path).unwrap_err();
+
+    assert_eq!(Unreadable::of(error.as_ref()), Unreadable::Gone);
+}
