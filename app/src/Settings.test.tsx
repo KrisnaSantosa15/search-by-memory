@@ -96,19 +96,39 @@ describe("Settings", () => {
     ).toBeInTheDocument();
   });
 
-  it("lists the files whose content could not be indexed, and why", async () => {
+  it("lists the files whose content could not be indexed, and why in plain words", async () => {
     renderSettings({
       failedFiles: async () => [
         {
           path: "C:\\Users\\ana\\Documents\\locked.pdf",
-          reason: "the PDF is password-protected",
+          reason: "passwordProtected",
+          detail: "PDF is protected by a password",
         },
       ],
     });
 
     expect(await screen.findByText("1 file could not be read")).toBeInTheDocument();
     expect(screen.getByText("locked.pdf")).toBeInTheDocument();
-    expect(screen.getByText("the PDF is password-protected")).toBeInTheDocument();
+    expect(screen.getByText("Protected by a password")).toBeInTheDocument();
+  });
+
+  it("shows the underlying error of a failed file only when asked", async () => {
+    renderSettings({
+      failedFiles: async () => [
+        {
+          path: "C:\\Users\\ana\\Documents\\report.docx",
+          reason: "damaged",
+          detail: "invalid Zip archive: Could not find EOCD",
+        },
+      ],
+    });
+
+    const details = await screen.findByRole("button", { name: "Details" });
+    expect(screen.queryByText("invalid Zip archive: Could not find EOCD")).toBeNull();
+
+    await userEvent.click(details);
+
+    expect(screen.getByText("invalid Zip archive: Could not find EOCD")).toBeInTheDocument();
   });
 
   it("pauses indexing, then offers to resume it", async () => {

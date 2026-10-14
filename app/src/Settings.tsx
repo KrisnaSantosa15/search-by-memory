@@ -18,7 +18,28 @@ export type Dashboard = {
 };
 
 /** A file whose content could not be indexed. */
-export type FailedFile = { path: string; reason: string };
+export type FailedFile = { path: string; reason: Unreadable; detail: string };
+
+/** Why a file could not be read, as the index reports it. */
+export type Unreadable =
+  | "passwordProtected"
+  | "tooLarge"
+  | "damaged"
+  | "inUse"
+  | "noAccess"
+  | "gone"
+  | "other";
+
+/** Each reason in words someone who never saw the error can act on. */
+const UNREADABLE: Record<Unreadable, string> = {
+  passwordProtected: "Protected by a password",
+  tooLarge: "Too large to read (more than 50 MB of text)",
+  damaged: "The file seems damaged",
+  inUse: "Another program had it open",
+  noAccess: "Windows didn't allow reading it",
+  gone: "Moved or deleted before it could be read",
+  other: "Couldn't be read",
+};
 
 /** How often the status is asked again while the window is open. */
 const REFRESH_EVERY_MS = 2_000;
@@ -335,17 +356,35 @@ function FailedFiles({ files }: { files: FailedFile[] }) {
     <div className="mt-4 flex flex-col gap-2">
       <h2 className="font-semibold">{count} could not be read</h2>
       <ul className="flex flex-col divide-y divide-line rounded-xl border border-line bg-panel">
-        {files.map(({ path, reason }) => (
-          <li key={path} className="flex flex-col gap-0.5 px-4 py-2 text-sm">
-            <span className="font-medium">{fileName(path)}</span>
-            <span className="flex text-xs text-muted">
-              <Path path={folderOf(path)} />
-            </span>
-            <span className="text-muted">{reason}</span>
-          </li>
+        {files.map((file) => (
+          <FailedFileRow key={file.path} file={file} />
         ))}
       </ul>
     </div>
+  );
+}
+
+function FailedFileRow({ file: { path, reason, detail } }: { file: FailedFile }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li className="flex flex-col gap-0.5 px-4 py-2 text-sm">
+      <span className="font-medium">{fileName(path)}</span>
+      <span className="flex text-xs text-muted">
+        <Path path={folderOf(path)} />
+      </span>
+      <span className="flex items-baseline gap-2 text-muted">
+        {UNREADABLE[reason] ?? UNREADABLE.other}
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className="text-xs underline-offset-2 transition-colors hover:text-ink hover:underline"
+        >
+          Details
+        </button>
+      </span>
+      {open && <span className="font-mono text-xs break-all text-muted">{detail}</span>}
+    </li>
   );
 }
 
