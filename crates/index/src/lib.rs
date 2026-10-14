@@ -805,6 +805,20 @@ impl Index {
         view: View,
         limit: usize,
     ) -> Result<Vec<SearchResult>> {
+        self.search_where(query, embedder, store, view, limit, &|_| true)
+    }
+
+    /// Like `search`, over only the files `keep` accepts (e.g. code): up to
+    /// `limit` of them, with Weaker Matches judged among them alone.
+    pub fn search_where(
+        &self,
+        query: &str,
+        embedder: &dyn EmbeddingProvider,
+        store: &impl VectorStore,
+        view: View,
+        limit: usize,
+        keep: &dyn Fn(&Path) -> bool,
+    ) -> Result<Vec<SearchResult>> {
         let candidates = limit * CANDIDATES_PER_RESULT;
         let neighbors = store.search(&embedder.embed_query(query)?, candidates)?;
         let semantic: Vec<i64> = neighbors
@@ -871,6 +885,7 @@ impl Index {
                     self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?)
                 })?
                 .collect::<rusqlite::Result<_>>()?;
+            paths.retain(|(path, _)| keep(path));
             paths.sort();
             if paths.is_empty() {
                 continue;
@@ -894,7 +909,8 @@ impl Index {
             });
         }
         if view == View::File {
-            let names = self.search_names(query, candidates)?;
+            let mut names = self.search_names(query, candidates)?;
+            names.retain(|name| keep(&name.path));
             results = fuse_name_matches(results, &names);
         }
         mark_weaker_matches(&mut results, &similarities, &by_keyword);
