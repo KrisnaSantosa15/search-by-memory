@@ -1,7 +1,7 @@
 //! The Engine: keeps the indexes and the embedding model loaded, indexes in a
 //! background thread, and answers Queries while it does.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -28,6 +28,8 @@ pub struct Status {
     pub files: usize,
     /// Files whose content is still to be indexed.
     pub pending: usize,
+    /// Files whose content could not be indexed; see [`Engine::failed_files`].
+    pub failed: usize,
     /// Why the last indexing pass stopped early, if it did.
     pub error: Option<String>,
 }
@@ -125,8 +127,14 @@ impl Engine {
         Ok(Status {
             files: index.file_count()?,
             pending: index.pending_jobs()?,
+            failed: index.failed_files()?.len(),
             error: self.shared.work.lock().unwrap().error.clone(),
         })
+    }
+
+    /// Files whose content could not be indexed, with the reason.
+    pub fn failed_files(&self) -> Result<Vec<(PathBuf, String)>> {
+        self.index.lock().unwrap().failed_files()
     }
 
     pub fn search(&self, query: &str, view: View, limit: usize) -> Result<Vec<SearchResult>> {

@@ -103,3 +103,20 @@ fn file_created_after_indexing_becomes_searchable_without_asking() {
     let results = engine.search("beef coconut", View::Passage, 20).unwrap();
     assert_eq!(results.first().map(|r| &r.path), Some(&recipe));
 }
+
+#[test]
+fn file_that_cannot_be_indexed_is_listed_with_the_reason() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "good.txt", "notes about the garden fence\n");
+    let broken = write(folder.path(), "broken.docx", "not really a zip archive");
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    let failed = engine.failed_files().unwrap();
+    assert_eq!(failed.len(), 1, "{failed:?}");
+    assert_eq!(failed[0].0, broken);
+    assert!(!failed[0].1.is_empty());
+    assert_eq!(engine.status().unwrap().failed, 1);
+}
