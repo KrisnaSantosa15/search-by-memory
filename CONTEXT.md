@@ -64,6 +64,10 @@ _Avoid_: Full scan, bootstrap, backfill
 Indexing of a file created or changed after Initial Indexing began; it is processed ahead of any remaining Initial Indexing work.
 _Avoid_: Incremental index, delta, refresh
 
+**Throttling**:
+Holding Initial Indexing back while a full-screen app is open, the computer runs on battery, or other work keeps it busy, and for a quiet period after; Live Updates go on.
+_Avoid_: Sleep, idle mode, backoff
+
 ### Searching
 
 **Query**:
