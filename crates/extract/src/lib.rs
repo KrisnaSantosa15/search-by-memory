@@ -95,10 +95,12 @@ struct Limited<R> {
 impl<R: std::io::Read> std::io::Read for Limited<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let read = self.inner.read(buf)?;
-        self.remaining = self
-            .remaining
-            .checked_sub(read as u64)
-            .ok_or_else(|| std::io::Error::other("content too large to index"))?;
+        self.remaining = self.remaining.checked_sub(read as u64).ok_or_else(|| {
+            std::io::Error::other(ExtractError::new(
+                Unreadable::TooLarge,
+                "content too large to index",
+            ))
+        })?;
         Ok(read)
     }
 }

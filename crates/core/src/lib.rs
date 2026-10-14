@@ -54,6 +54,8 @@ pub struct Section {
 pub enum Unreadable {
     /// Encrypted; it opens only with a password.
     PasswordProtected,
+    /// More content than the extractors read from one file.
+    TooLarge,
     /// Not a valid file of its format, or cut short.
     Damaged,
     /// None of the above, or not known.
@@ -68,7 +70,11 @@ impl Unreadable {
             if let Some(extract) = error.downcast_ref::<ExtractError>() {
                 return extract.reason;
             }
-            next = error.source();
+            // An I/O error's `source` skips the error it wraps.
+            next = match error.downcast_ref::<std::io::Error>() {
+                Some(io) => io.get_ref().map(|inner| inner as _),
+                None => error.source(),
+            };
         }
         Unreadable::Other
     }

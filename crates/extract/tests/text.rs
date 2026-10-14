@@ -1,6 +1,6 @@
 use std::fs;
 
-use sbm_core::{ContentExtractor, Location, Section};
+use sbm_core::{ContentExtractor, Location, Section, Unreadable};
 use sbm_extract::TextExtractor;
 use tempfile::TempDir;
 
@@ -31,7 +31,7 @@ fn empty_text_file_has_no_sections() {
 }
 
 #[test]
-fn text_file_beyond_the_size_limit_is_refused() {
+fn text_file_beyond_the_size_limit_is_refused_as_too_large() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("huge.log");
     fs::File::create(&path)
@@ -42,6 +42,7 @@ fn text_file_beyond_the_size_limit_is_refused() {
     let error = TextExtractor.extract(&path).unwrap_err();
 
     assert!(error.to_string().contains("too large"), "{error}");
+    assert_eq!(Unreadable::of(error.as_ref()), Unreadable::TooLarge);
 }
 
 #[test]

@@ -190,6 +190,7 @@ pub struct FailedFile {
 fn reason_name(reason: Unreadable) -> &'static str {
     match reason {
         Unreadable::PasswordProtected => "password_protected",
+        Unreadable::TooLarge => "too_large",
         Unreadable::Damaged => "damaged",
         Unreadable::Other => "other",
     }
@@ -199,6 +200,7 @@ fn reason_name(reason: Unreadable) -> &'static str {
 fn reason_named(name: &str) -> Unreadable {
     match name {
         "password_protected" => Unreadable::PasswordProtected,
+        "too_large" => Unreadable::TooLarge,
         "damaged" => Unreadable::Damaged,
         _ => Unreadable::Other,
     }
