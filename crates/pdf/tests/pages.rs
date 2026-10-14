@@ -44,3 +44,21 @@ fn page_is_rendered_as_a_picture_of_the_width_asked_for() {
     assert_eq!(width, 400);
     assert!(height > 0);
 }
+
+#[test]
+fn words_found_on_the_page_are_marked_where_they_sit() {
+    let Some(pdfium) = pdfium() else { return };
+
+    let page = pdfium
+        .page(&fixture("two-pages.pdf"), 2, 400, &["Bank", "rent"])
+        .expect("page 2");
+
+    // "bank" is on page 2, in any case; "rent" is only on page 1.
+    assert_eq!(page.marks.len(), 1, "{:?}", page.marks);
+    let mark = page.marks[0];
+    let inside = |start: f32, length: f32| start >= 0.0 && length > 0.0 && start + length <= 1.0;
+    assert!(
+        inside(mark.left, mark.width) && inside(mark.top, mark.height),
+        "{mark:?}"
+    );
+}

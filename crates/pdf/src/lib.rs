@@ -5,8 +5,8 @@ use std::sync::OnceLock;
 
 use pdfium_render::prelude::*;
 
-/// PDFium, loaded once per process: its bindings are global.
-static PDFIUM: OnceLock<Pdfium> = OnceLock::new();
+/// PDFium, loaded once per process (its bindings are global), or why it failed.
+static PDFIUM: OnceLock<Result<Pdfium, String>> = OnceLock::new();
 
 /// Renders PDF pages with PDFium.
 pub struct PdfPages(&'static Pdfium);
@@ -31,12 +31,12 @@ pub struct Area {
 impl PdfPages {
     /// PDFium from the folder `dir` holding its library.
     pub fn load(dir: &Path) -> Result<Self, String> {
-        if let Some(pdfium) = PDFIUM.get() {
-            return Ok(Self(pdfium));
-        }
-        let bindings = Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(dir))
-            .map_err(|error| error.to_string())?;
-        Ok(Self(PDFIUM.get_or_init(|| Pdfium::new(bindings))))
+        let loaded = PDFIUM.get_or_init(|| {
+            let library = Pdfium::pdfium_platform_library_name_at_path(dir);
+            let bindings = Pdfium::bind_to_library(library).map_err(|error| error.to_string())?;
+            Ok(Pdfium::new(bindings))
+        });
+        loaded.as_ref().map(Self).map_err(Clone::clone)
     }
 
     /// Page `number` (1-based) of the PDF `path`, `width` pixels wide, with the
@@ -46,7 +46,7 @@ impl PdfPages {
         path: &Path,
         number: u32,
         width: u32,
-        _words: &[&str],
+        words: &[&str],
     ) -> Option<RenderedPage> {
         let document = self.0.load_pdf_from_file(path, None).ok()?;
         let index = PdfPageIndex::try_from(number.checked_sub(1)?).ok()?;
@@ -60,9 +60,36 @@ impl PdfPages {
         )?;
         Some(RenderedPage {
             png,
-            marks: Vec::new(),
+            marks: marks(&page, words),
         })
     }
+}
+
+/// Where each of `words` appears on `page`, as whole words in any case.
+fn marks(page: &PdfPage, words: &[&str]) -> Vec<Area> {
+    let (width, height) = (page.width().value, page.height().value);
+    let Ok(text) = page.text() else {
+        return Vec::new();
+    };
+    let options = PdfSearchOptions::new().match_whole_word(true);
+    let mut marks = Vec::new();
+    for word in words {
+        let Ok(search) = text.search(word, &options) else {
+            continue;
+        };
+        while let Some(found) = search.find_next() {
+            for segment in found.iter() {
+                let bounds = segment.bounds();
+                marks.push(Area {
+                    left: bounds.left().value / width,
+                    top: (height - bounds.top().value) / height,
+                    width: bounds.width().value / width,
+                    height: bounds.height().value / height,
+                });
+            }
+        }
+    }
+    marks
 }
 
 fn encode_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
