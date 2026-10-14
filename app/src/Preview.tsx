@@ -26,15 +26,24 @@ export function Preview({ result, query, copy, onOpen, onReveal }: Props) {
   ].filter(Boolean);
 
   return (
-    <section aria-label="Preview" className="flex min-w-0 flex-col gap-3">
+    <section aria-label="Preview" className="flex min-w-0 flex-col gap-4">
       {result.snippet && (
-        <blockquote className="rounded-lg border border-line bg-raised p-4 text-sm leading-relaxed">
-          <Marked text={result.snippet} query={query} />
-        </blockquote>
+        <figure className="page relative rounded-md bg-ink px-5 pt-4 pb-9 text-[13px] leading-relaxed text-canvas shadow-lg shadow-black/30">
+          <blockquote className="line-clamp-[9]">
+            <Marked text={result.snippet} query={query} />
+          </blockquote>
+          {result.location && (
+            <figcaption className="absolute bottom-2.5 left-3 rounded bg-canvas/80 px-1.5 text-xs text-ink">
+              {result.location}
+            </figcaption>
+          )}
+        </figure>
       )}
       <div className="flex flex-col gap-0.5">
-        <h2 className="truncate text-base font-semibold">{result.name}</h2>
-        <p className="truncate text-sm text-muted">{result.folder}</p>
+        <h2 className="truncate font-display text-lg font-semibold">{result.name}</h2>
+        <p className="flex text-sm text-muted">
+          <Path path={result.folder} />
+        </p>
         {facts.length > 0 && <p className="text-sm text-muted">{facts.join(", ")}</p>}
       </div>
       <p className="text-sm">

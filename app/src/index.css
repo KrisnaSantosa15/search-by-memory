@@ -56,3 +56,8 @@ mark {
     transition: none !important;
   }
 }
+
+/* On the paper page the highlighter is stronger, as ink on paper takes it. */
+.page mark {
+  background: rgb(227 166 70 / 0.55);
+}
