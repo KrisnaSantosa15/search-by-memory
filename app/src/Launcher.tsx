@@ -14,10 +14,8 @@ export type ResultRow = {
   matchReason: "name" | "content" | "both";
 };
 
-export type View = "file" | "passage";
-
 type Props = {
-  search: (query: string, view: View) => Promise<ResultRow[]>;
+  search: (query: string) => Promise<ResultRow[]>;
   open: (path: string) => void;
   reveal: (path: string) => void;
   copyPath: (path: string) => void;
@@ -31,7 +29,6 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
-  const [view, setView] = useState<View>("file");
   // The Copy picked in the open Detail Panel; `null` while it is closed.
   const [copy, setCopy] = useState<number | null>(null);
   const box = useRef<HTMLInputElement>(null);
@@ -50,7 +47,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
     }
     // Only the newest Query's Results are shown, whichever answers last.
     let current = true;
-    search(query, view).then((results) => {
+    search(query).then((results) => {
       if (!current) return;
       setResults(results);
       setSelected(0);
@@ -59,7 +56,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
     return () => {
       current = false;
     };
-  }, [search, query, view]);
+  }, [search, query]);
 
   const result = results[selected];
   const paths = result ? [result.path, ...result.copies] : [];
@@ -85,7 +82,6 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
       else setSelected((index) => clamp(index + step, results.length));
     };
     if (event.key === "Escape") hide();
-    else if (event.key === "Tab") setView((view) => (view === "file" ? "passage" : "file"));
     else if (event.key === "ArrowDown") move(1);
     else if (event.key === "ArrowUp") move(-1);
     else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
@@ -109,20 +105,6 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
           placeholder="Type what you remember about the file…"
           className="min-w-0 flex-1 rounded-xl border border-line bg-panel px-4 py-3 text-lg outline-none focus:border-accent"
         />
-        <div className="flex shrink-0 overflow-hidden rounded-xl border border-line text-sm">
-          {(["file", "passage"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              tabIndex={-1}
-              aria-pressed={view === option}
-              onClick={() => setView(option)}
-              className="px-3 text-muted aria-pressed:bg-accent-soft aria-pressed:text-ink"
-            >
-              {option === "file" ? "Files" : "Passages"}
-            </button>
-          ))}
-        </div>
       </div>
       <ul role="listbox" aria-label="Results" className="flex flex-col gap-1">
         {results.map((result, index) => (

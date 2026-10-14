@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
-import { Launcher, type ResultRow, type View } from "./Launcher";
+import { Launcher, type ResultRow } from "./Launcher";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { FoldersStep, type FolderChoice } from "./onboarding/FoldersStep";
@@ -13,7 +13,7 @@ type DownloadProgress = { done: number; total: number; secondsLeft: number | nul
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
 
 const launcher = {
-  search: (query: string, view: View) => invoke<ResultRow[]>("search", { query, view }),
+  search: (query: string) => invoke<ResultRow[]>("search", { query, view: "file" }),
   open: (path: string) => invoke("open_file", { path }),
   reveal: (path: string) => invoke("reveal_file", { path }),
   copyPath: (path: string) => navigator.clipboard.writeText(path),

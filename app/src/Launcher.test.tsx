@@ -28,7 +28,7 @@ describe("Launcher", () => {
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     const result = await screen.findByRole("option", { name: /Q3 Report\.pdf/ });
-    expect(search).toHaveBeenLastCalledWith("profit", "file");
+    expect(search).toHaveBeenLastCalledWith("profit");
     expect(result).toHaveTextContent("Page 14");
     expect(result).toHaveTextContent("name + content");
     expect(result).toHaveTextContent("net profit increased by 18%");
@@ -96,24 +96,6 @@ describe("Launcher", () => {
     await userEvent.keyboard("{Control>}a{/Control}{Control>}c{/Control}");
 
     expect(act.copyPath).not.toHaveBeenCalled();
-  });
-
-  it("switches between File view and Passage view with Tab", async () => {
-    const search = vi.fn(async () => [report, { ...report, location: "Page 20" }]);
-    render(<Launcher search={search} {...actions()} />);
-    await userEvent.type(screen.getByRole("searchbox"), "profit");
-
-    await userEvent.keyboard("{Tab}");
-
-    expect(search).toHaveBeenLastCalledWith("profit", "passage");
-    expect(screen.getByRole("button", { name: /passages/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(await screen.findAllByRole("option")).toHaveLength(2);
-    expect(screen.getByRole("searchbox")).toHaveFocus();
-    await userEvent.keyboard("{Tab}");
-    expect(search).toHaveBeenLastCalledWith("profit", "file");
   });
 
   it("asks which Copy to open when a Result has several, and opens the one picked", async () => {
