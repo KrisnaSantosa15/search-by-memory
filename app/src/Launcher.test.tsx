@@ -135,6 +135,24 @@ describe("Launcher", () => {
     expect(act.open).toHaveBeenCalledWith("E:\\Backup\\Q3 Report.pdf");
   });
 
+  it("opens the Detail Panel with Arrow Right and closes it with Arrow Left", async () => {
+    const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
+    const notes = { ...report, name: "notes.md", path: "D:\\notes.md" };
+    render(<Launcher search={async () => [copied, notes]} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findAllByRole("option");
+
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("listbox", { name: /copies/i })).toBeInTheDocument();
+    await userEvent.keyboard("{ArrowLeft}{ArrowDown}");
+
+    expect(screen.queryByRole("listbox", { name: /copies/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /notes\.md/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
   it("hides with Escape", async () => {
     const act = actions();
     render(<Launcher search={async () => []} {...act} />);

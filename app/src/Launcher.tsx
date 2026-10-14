@@ -67,6 +67,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const box = event.currentTarget;
     const textSelected = box.selectionStart !== box.selectionEnd;
+    const caretAtEnd = !textSelected && box.selectionStart === box.value.length;
     const move = (step: number) => {
       if (copy !== null) setCopy(clamp(copy + step, paths.length));
       else setSelected((index) => clamp(index + step, results.length));
@@ -75,6 +76,8 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
     else if (event.key === "Tab") setView((view) => (view === "file" ? "passage" : "file"));
     else if (event.key === "ArrowDown") move(1);
     else if (event.key === "ArrowUp") move(-1);
+    else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
+    else if (event.key === "ArrowLeft" && copy !== null) setCopy(null);
     else if (event.key === "Enter") act(event.ctrlKey || event.shiftKey ? reveal : open);
     else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyPath);
     else return;
