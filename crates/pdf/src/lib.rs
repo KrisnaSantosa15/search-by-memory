@@ -42,6 +42,17 @@ impl PdfPages {
         loaded.as_ref().map(Self).map_err(Clone::clone)
     }
 
+    /// The text of each page of the PDF `path`, lines ending in `\n`, including
+    /// invisible text such as a scan's OCR layer; `None` when it cannot be read.
+    pub fn text(&self, path: &Path) -> Option<Vec<String>> {
+        let document = self.0.load_pdf_from_file(path, None).ok()?;
+        document
+            .pages()
+            .iter()
+            .map(|page| Some(page.text().ok()?.all().replace("\r\n", "\n")))
+            .collect()
+    }
+
     /// Page `number` (1-based) of the PDF `path`, `width` pixels wide, with the
     /// places of `words` on it; `None` when the file or page cannot be read.
     pub fn page(

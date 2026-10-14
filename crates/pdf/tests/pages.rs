@@ -69,3 +69,13 @@ fn page_that_is_not_there_has_no_picture() {
     assert_eq!(pdfium.page(&fixture("two-pages.pdf"), 3, 400, &[]), None);
     assert_eq!(pdfium.page(&fixture("gone.pdf"), 1, 400, &[]), None);
 }
+
+#[test]
+fn text_is_read_page_by_page() {
+    let Some(pdfium) = pdfium() else { return };
+
+    let pages = pdfium.text(&fixture("two-pages.pdf")).unwrap();
+
+    let pages: Vec<&str> = pages.iter().map(|page| page.trim()).collect();
+    assert_eq!(pages, ["Invoice for March rent", "Paid by bank transfer"]);
+}
