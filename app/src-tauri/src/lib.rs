@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use sbm_core::{AppDirs, Location, ThrottleReason};
 use sbm_embed_onnx::Accelerator;
 use sbm_engine::Status;
-use sbm_index::{MatchReason, SearchResult};
+use sbm_index::{Exclusion, MatchReason, SearchResult};
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
 
@@ -227,6 +227,57 @@ pub fn dashboard(status: &Status) -> Dashboard {
             .ready_since
             .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|since| since.as_millis() as u64),
+    }
+}
+
+/// One Exclusion as the Folders tab lists it, and as it comes back to be removed.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum ExclusionRow {
+    Name {
+        pattern: String,
+        /// A Default Exclusion, which can be turned off and restored.
+        #[serde(default)]
+        default: bool,
+    },
+    Folder {
+        path: PathBuf,
+    },
+}
+
+impl From<ExclusionRow> for Exclusion {
+    fn from(row: ExclusionRow) -> Self {
+        match row {
+            ExclusionRow::Name { pattern, .. } => Exclusion::Name(pattern),
+            ExclusionRow::Folder { path } => Exclusion::Folder(path),
+        }
+    }
+}
+
+/// The Exclusions the Folders tab shows.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExclusionList {
+    pub rows: Vec<ExclusionRow>,
+    /// Some Default Exclusion is off, so they can be restored.
+    pub defaults_turned_off: bool,
+}
+
+/// `active` (the Default Exclusions still on, then the user's) as the Folders tab lists them.
+pub fn exclusion_list(active: &[Exclusion]) -> ExclusionList {
+    let defaults = Exclusion::defaults();
+    ExclusionList {
+        defaults_turned_off: defaults.iter().any(|default| !active.contains(default)),
+        rows: active
+            .iter()
+            .map(|exclusion| match exclusion {
+                Exclusion::Name(pattern) => ExclusionRow::Name {
+                    pattern: pattern.clone(),
+                    default: defaults.contains(exclusion),
+                },
+                Exclusion::Folder(path) => ExclusionRow::Folder { path: path.clone() },
+            })
+            .collect(),
     }
 }
 
