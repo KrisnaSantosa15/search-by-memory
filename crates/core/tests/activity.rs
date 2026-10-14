@@ -2,9 +2,13 @@
 #![cfg(windows)]
 
 use std::process::{Child, Command};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use sbm_core::{Activity, SystemActivity, ThrottleReason};
+
+/// The tests load the CPU on purpose, so they take turns.
+static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
 
 /// Busy loops in other processes, one per core; killed when dropped.
 struct Spinners(Vec<Child>);
@@ -48,10 +52,49 @@ fn watch(activity: &SystemActivity, until: impl Fn(Option<ThrottleReason>) -> bo
 
 #[test]
 fn other_processes_keeping_every_core_busy_make_the_computer_busy() {
+    let _turn = ONE_AT_A_TIME
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let activity = SystemActivity::default();
     activity.throttle_reason();
 
     let _spinners = Spinners::on_every_core();
 
     assert!(watch(&activity, |reason| reason == Some(ThrottleReason::Busy)));
+}
+
+#[test]
+fn this_process_keeping_every_core_busy_does_not_make_the_computer_busy() {
+    let _turn = ONE_AT_A_TIME
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let activity = SystemActivity::default();
+    activity.throttle_reason();
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let cores = std::thread::available_parallelism().unwrap().get();
+    let spinners: Vec<_> = (0..cores)
+        .map(|_| {
+            let stop = stop.clone();
+            std::thread::spawn(move || {
+                while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                    std::hint::spin_loop();
+                }
+            })
+        })
+        .collect();
+
+    let mut reasons = Vec::new();
+    for _ in 0..3 {
+        std::thread::sleep(Duration::from_millis(1100));
+        reasons.push(activity.throttle_reason());
+    }
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    spinners
+        .into_iter()
+        .for_each(|spinner| spinner.join().unwrap());
+
+    assert!(
+        !reasons.contains(&Some(ThrottleReason::Busy)),
+        "{reasons:?}"
+    );
 }
