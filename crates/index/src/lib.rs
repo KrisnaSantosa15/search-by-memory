@@ -96,7 +96,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 10] = [
+const MIGRATIONS: [&str; 11] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -171,6 +171,8 @@ const MIGRATIONS: [&str; 10] = [
     // Live Updates go ahead of Initial Indexing work (FR-04).
     "ALTER TABLE index_jobs ADD COLUMN live INTEGER NOT NULL DEFAULT 0;",
     "ALTER TABLE files ADD COLUMN is_online_only INTEGER NOT NULL DEFAULT 0;",
+    // Default Exclusions the user turned off; defaults added later still apply (FR-03).
+    "CREATE TABLE turned_off_defaults (pattern TEXT PRIMARY KEY);",
 ];
 
 /// Chunk size in characters: about 256 tokens of prose.
@@ -415,6 +417,12 @@ impl Index {
                     "DELETE FROM exclusions WHERE pattern = ?1",
                     params![pattern],
                 )?;
+                if DEFAULT_EXCLUDED_NAMES.contains(&pattern.as_str()) {
+                    tx.execute(
+                        "INSERT OR IGNORE INTO turned_off_defaults (pattern) VALUES (?1)",
+                        params![pattern],
+                    )?;
+                }
                 tx.execute("DELETE FROM change_cursors", [])?;
                 tx.commit()?;
             }
@@ -437,14 +445,22 @@ impl Index {
         Ok(())
     }
 
-    /// The Default Exclusions followed by the user's.
+    /// The Default Exclusions the user has not turned off, followed by the user's.
     pub fn exclusions(&self) -> Result<Vec<Exclusion>> {
         let saved: Vec<(Option<String>, Option<String>, Option<String>)> = self
             .db
             .prepare("SELECT pattern, volume_id, relative_path FROM exclusions ORDER BY id")?
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
             .collect::<rusqlite::Result<_>>()?;
-        let mut exclusions = Exclusion::defaults();
+        let turned_off: Vec<String> = self
+            .db
+            .prepare("SELECT pattern FROM turned_off_defaults")?
+            .query_map([], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut exclusions: Vec<Exclusion> = Exclusion::defaults()
+            .into_iter()
+            .filter(|default| !matches!(default, Exclusion::Name(pattern) if turned_off.contains(pattern)))
+            .collect();
         for row in saved {
             exclusions.push(match row {
                 (Some(pattern), _, _) => Exclusion::Name(pattern),
