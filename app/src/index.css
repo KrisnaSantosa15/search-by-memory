@@ -22,42 +22,45 @@
   --color-mark: rgb(227 166 70 / 0.32);
 }
 
-/* The window is see-through; the glass is drawn by the page so the OS blur shows. */
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  background: transparent;
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  color-scheme: dark;
-  -webkit-font-smoothing: antialiased;
-}
-
-mark {
-  background: var(--color-mark);
-  color: inherit;
-  border-radius: 2px;
-  padding: 0 1px;
-}
-
-::selection {
-  background: var(--color-mark);
-}
-
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
+/* Base rules sit in a layer, so Tailwind utilities (e.g. `outline-none`) override them. */
+@layer base {
+  /* The window is see-through; the glass is drawn by the page so the OS blur shows. */
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    background: transparent;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
   }
-}
 
-/* On the paper page the highlighter is stronger, as ink on paper takes it. */
-.page mark {
-  background: rgb(227 166 70 / 0.55);
+  mark {
+    background: var(--color-mark);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  ::selection {
+    background: var(--color-mark);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+
+  /* On the paper page the highlighter is stronger, as ink on paper takes it. */
+  .page mark {
+    background: rgb(227 166 70 / 0.55);
+  }
 }
