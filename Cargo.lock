@@ -1433,6 +1433,7 @@ dependencies = [
  "sbm-change-usn",
  "sbm-core",
  "sbm-embed-onnx",
+ "sbm-engine",
  "sbm-index",
  "sbm-store-usearch",
  "tempfile",

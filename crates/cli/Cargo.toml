@@ -12,6 +12,7 @@ path = "src/main.rs"
 sbm-change-usn = { path = "../change-usn" }
 sbm-core = { path = "../core" }
 sbm-embed-onnx = { path = "../embed-onnx" }
+sbm-engine = { path = "../engine" }
 sbm-index = { path = "../index" }
 sbm-store-usearch = { path = "../store-usearch" }
 

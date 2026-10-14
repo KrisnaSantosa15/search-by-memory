@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 use sbm_change_usn::UsnJournal;
 use sbm_cli::{accelerator_option, exclude, folders, index, remove_folder, search};
@@ -61,8 +62,8 @@ fn indexed_folder_is_searchable_from_a_later_run() {
     index(
         data.path(),
         &[folder.path().to_path_buf()],
-        &BagOfWords,
-        &UsnJournal,
+        Arc::new(BagOfWords),
+        Box::new(UsnJournal),
     )
     .unwrap();
     let results = search(
@@ -100,8 +101,8 @@ fn unreadable_file_is_reported_and_the_rest_still_indexed() {
     let report = index(
         data.path(),
         &[folder.path().to_path_buf()],
-        &BagOfWords,
-        &UsnJournal,
+        Arc::new(BagOfWords),
+        Box::new(UsnJournal),
     )
     .unwrap();
     let results = search(
@@ -187,16 +188,16 @@ fn indexed_folders_are_rescanned_by_later_runs_without_naming_them() {
     index(
         data.path(),
         &[folder.path().to_path_buf()],
-        &BagOfWords,
-        &UsnJournal,
+        Arc::new(BagOfWords),
+        Box::new(UsnJournal),
     )
     .unwrap();
     let later = write(folder.path(), "garage/b.txt", "change the engine oil\n");
 
-    let report = index(data.path(), &[], &BagOfWords, &UsnJournal).unwrap();
+    let report = index(data.path(), &[], Arc::new(BagOfWords), Box::new(UsnJournal)).unwrap();
     let results = search(data.path(), "engine oil", &BagOfWords, View::File, 20).unwrap();
 
-    assert_eq!(report.changes.added, [later.clone()]);
+    assert_eq!((report.status.files, report.status.indexed), (2, 2));
     assert_eq!(results[0].path, later);
 }
 
@@ -211,8 +212,8 @@ fn removed_folder_is_no_longer_listed_or_searched() {
     index(
         data.path(),
         &[folder.path().to_path_buf()],
-        &BagOfWords,
-        &UsnJournal,
+        Arc::new(BagOfWords),
+        Box::new(UsnJournal),
     )
     .unwrap();
     assert_eq!(folders(data.path()).unwrap().len(), 1);
@@ -235,8 +236,8 @@ fn excluded_files_leave_the_results_on_the_next_index_run() {
     index(
         data.path(),
         &[folder.path().to_path_buf()],
-        &BagOfWords,
-        &UsnJournal,
+        Arc::new(BagOfWords),
+        Box::new(UsnJournal),
     )
     .unwrap();
 
@@ -245,7 +246,7 @@ fn excluded_files_leave_the_results_on_the_next_index_run() {
         Exclusion::Folder(folder.path().join("private")),
     )
     .unwrap();
-    index(data.path(), &[], &BagOfWords, &UsnJournal).unwrap();
+    index(data.path(), &[], Arc::new(BagOfWords), Box::new(UsnJournal)).unwrap();
 
     let results = search(data.path(), "diary coconut", &BagOfWords, View::File, 20).unwrap();
     assert_eq!(results, []);

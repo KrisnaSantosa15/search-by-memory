@@ -1,56 +1,48 @@
 //! Command-line indexing and search over the Name Index and Content Index (M2).
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use sbm_core::{ChangeSource, EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
-use sbm_index::{Exclusion, Index, IndexedFolder, ScanChanges, SearchResult, View};
+use sbm_engine::{Engine, Status};
+use sbm_index::{Exclusion, Index, IndexedFolder, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 const DATABASE: &str = "index.sqlite";
 const VECTORS: &str = "vectors.usearch";
 
-/// What indexing a folder did.
+/// What an index run left behind.
 #[derive(Debug, Default)]
 pub struct IndexReport {
-    pub changes: ScanChanges,
+    pub status: Status,
     /// Files whose content could not be indexed, with the reason; they stay in the Name Index.
     pub failed: Vec<(PathBuf, String)>,
 }
 
-/// Files indexed between saves of the vector index, so an interrupted run
-/// loses little work.
-const FILES_PER_SAVE: usize = 100;
-
 /// Adds `new_folders` to the Indexed Folders in `data_dir`, applies what
 /// `changes` reports since the last run (a rescan where its history is lost),
-/// and indexes the content of added and changed files: Live Updates first, then
-/// newest first. Work left by an interrupted run is resumed. Files that fail to
-/// index are reported, not fatal.
+/// and indexes the content of added and changed files through the Engine: Live
+/// Updates first, then newest first. Work left by an interrupted run is resumed.
+/// Files that fail to index are reported, not fatal.
 pub fn index(
     data_dir: &Path,
     new_folders: &[PathBuf],
-    embedder: &dyn EmbeddingProvider,
-    changes: &dyn ChangeSource,
+    embedder: Arc<dyn EmbeddingProvider + Send + Sync>,
+    changes: Box<dyn ChangeSource + Send>,
 ) -> Result<IndexReport> {
-    std::fs::create_dir_all(data_dir)?;
-    let mut index = Index::open(&data_dir.join(DATABASE))?;
-    let mut store = UsearchStore::new(embedder.dimensions(), Precision::F16)?;
-    index.rebuild_vectors(&mut store)?;
+    let engine = Engine::start(data_dir, embedder, changes)?;
     for folder in new_folders {
-        index.add_indexed_folder(folder)?;
+        engine.add_indexed_folder(folder)?;
     }
-    let changes = index.apply_changes(changes)?;
-    loop {
-        let done = index.run_jobs(embedder, &mut store, FILES_PER_SAVE)?;
-        store.save(&data_dir.join(VECTORS))?;
-        if done < FILES_PER_SAVE {
-            break;
-        }
+    engine.wait_until_idle();
+    let status = engine.status()?;
+    if let Some(error) = &status.error {
+        return Err(error.clone().into());
     }
     Ok(IndexReport {
-        changes,
-        failed: index.failed_files()?,
+        failed: engine.failed_files()?,
+        status,
     })
 }
 

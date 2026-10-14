@@ -18,6 +18,7 @@
 
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use sbm_change_usn::UsnJournal;
 use sbm_core::{AppDirs, Location, Result};
@@ -61,13 +62,16 @@ fn run(args: &[String]) -> Result<()> {
                 .iter()
                 .map(std::fs::canonicalize)
                 .collect::<std::io::Result<Vec<_>>>()?;
-            let report = sbm_cli::index(&data_dir, &folders, &embedder, &UsnJournal)?;
-            let changes = &report.changes;
+            let report = sbm_cli::index(
+                &data_dir,
+                &folders,
+                Arc::new(embedder),
+                Box::new(UsnJournal),
+            )?;
+            let status = &report.status;
             println!(
-                "{} added, {} changed, {} removed",
-                changes.added.len(),
-                changes.changed.len(),
-                changes.removed.len()
+                "{} files, {} with content indexed, {} pending, {} failed",
+                status.files, status.indexed, status.pending, status.failed
             );
             for (path, error) in &report.failed {
                 eprintln!(
