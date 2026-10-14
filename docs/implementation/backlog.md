@@ -130,10 +130,9 @@
 - Folders tab: Indexed Folders (Disconnected Drives labelled), add with the folder picker (`tauri-plugin-dialog` 2.8.0), remove after confirming.
 - Exclusions: defaults marked; remove the user's, turn off defaults (`turned_off_defaults` table), Restore defaults; exclude typed names or a picked folder. `Index`/`Engine::remove_exclusion`, `restore_default_exclusions`.
 - Checked in the real window on a scratch index.
-- Not yet: failed-file reasons are raw extractor messages, not plain language.
+- Failed files say why in plain words (`Unreadable`: password, damaged, too large, in use, no access, gone, other; stored per job, migration 12); raw message under Details.
 
 ## In progress
-- Plain-language reasons for failed files (FR-08): `Unreadable` kinds in core, stored per job, worded in Settings with the raw message under Details.
 - M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
   - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
   - Done: dark plum theme with magenta accent (VoiceStudio look, ideas only).
