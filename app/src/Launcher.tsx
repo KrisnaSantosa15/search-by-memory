@@ -31,6 +31,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
+  const [view, setView] = useState<View>("file");
 
   useEffect(() => {
     if (!query.trim()) {
@@ -39,7 +40,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
     }
     // Only the newest Query's Results are shown, whichever answers last.
     let current = true;
-    search(query, "file").then((results) => {
+    search(query, view).then((results) => {
       if (!current) return;
       setResults(results);
       setSelected(0);
@@ -47,7 +48,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
     return () => {
       current = false;
     };
-  }, [search, query]);
+  }, [search, query, view]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const box = event.currentTarget;
@@ -55,6 +56,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
     const last = results.length - 1;
     const result = results[selected];
     if (event.key === "Escape") hide();
+    else if (event.key === "Tab") setView((view) => (view === "file" ? "passage" : "file"));
     else if (event.key === "ArrowDown") setSelected((index) => Math.min(index + 1, last));
     else if (event.key === "ArrowUp") setSelected((index) => Math.max(index - 1, 0));
     else if (event.key === "Enter" && result) {
@@ -62,26 +64,41 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
       else open(result.path);
     } else if (event.key === "c" && event.ctrlKey && !textSelected && result) {
       copyPath(result.path);
-    }
-    else return;
+    } else return;
     event.preventDefault();
   };
 
   return (
     <section className="flex flex-col gap-3">
-      <input
-        type="search"
-        autoFocus
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="Type what you remember about the file…"
-        className="rounded-xl border border-line bg-panel px-4 py-3 text-lg outline-none focus:border-accent"
-      />
+      <div className="flex gap-2">
+        <input
+          type="search"
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Type what you remember about the file…"
+          className="min-w-0 flex-1 rounded-xl border border-line bg-panel px-4 py-3 text-lg outline-none focus:border-accent"
+        />
+        <div className="flex shrink-0 overflow-hidden rounded-xl border border-line text-sm">
+          {(["file", "passage"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              tabIndex={-1}
+              aria-pressed={view === option}
+              onClick={() => setView(option)}
+              className="px-3 text-muted aria-pressed:bg-accent-soft aria-pressed:text-ink"
+            >
+              {option === "file" ? "Files" : "Passages"}
+            </button>
+          ))}
+        </div>
+      </div>
       <ul role="listbox" aria-label="Results" className="flex flex-col gap-1">
         {results.map((result, index) => (
           <li
-            key={result.path}
+            key={`${result.path}#${index}`}
             role="option"
             aria-selected={index === selected}
             className="flex flex-col gap-0.5 rounded-xl border border-transparent p-3 aria-selected:border-accent aria-selected:bg-accent-soft"

@@ -98,6 +98,24 @@ describe("Launcher", () => {
     expect(act.copyPath).not.toHaveBeenCalled();
   });
 
+  it("switches between File view and Passage view with Tab", async () => {
+    const search = vi.fn(async () => [report, { ...report, location: "Page 20" }]);
+    render(<Launcher search={search} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+
+    await userEvent.keyboard("{Tab}");
+
+    expect(search).toHaveBeenLastCalledWith("profit", "passage");
+    expect(screen.getByRole("button", { name: /passages/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(await screen.findAllByRole("option")).toHaveLength(2);
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+    await userEvent.keyboard("{Tab}");
+    expect(search).toHaveBeenLastCalledWith("profit", "file");
+  });
+
   it("hides with Escape", async () => {
     const act = actions();
     render(<Launcher search={async () => []} {...act} />);
