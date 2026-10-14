@@ -21,6 +21,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     dashboard: async () => running,
     failedFiles: async () => [] as FailedFile[],
     folders: async () => [] as IndexedFolder[],
+    addFolder: vi.fn(async () => false),
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -126,5 +127,22 @@ describe("Settings", () => {
     expect(items[0]).not.toHaveTextContent("not connected");
     expect(items[1]).toHaveTextContent("E:\\Photos");
     expect(items[1]).toHaveTextContent("Drive not connected");
+  });
+
+  it("adds a folder the user picks and lists it", async () => {
+    let list: IndexedFolder[] = [];
+    const props = renderSettings({
+      folders: async () => list,
+      addFolder: vi.fn(async () => {
+        list = [{ path: "D:\\Projects", connected: true }];
+        return true;
+      }),
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Add folder…" }));
+
+    expect(props.addFolder).toHaveBeenCalled();
+    expect(await screen.findByText("D:\\Projects")).toBeInTheDocument();
   });
 });

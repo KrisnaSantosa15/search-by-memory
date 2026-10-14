@@ -329,6 +329,7 @@ mod commands {
     use tauri::{
         AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     };
+    use tauri_plugin_dialog::DialogExt;
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     use tauri_plugin_opener::OpenerExt;
 
@@ -639,6 +640,30 @@ mod commands {
             .collect())
     }
 
+    /// Asks the user for a folder and indexes it; false when they picked none.
+    #[tauri::command]
+    pub async fn pick_and_add_folder(
+        window: WebviewWindow,
+        running: State<'_, Running>,
+    ) -> Result<bool, String> {
+        let picked = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("Choose a folder to search")
+            .blocking_pick_folder();
+        let Some(folder) = picked else {
+            return Ok(false);
+        };
+        let folder = folder.into_path().map_err(|error| error.to_string())?;
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        engine
+            .add_indexed_folder(&folder)
+            .map_err(|error| error.to_string())?;
+        Ok(true)
+    }
+
     /// The lines of `path` around `lineStart`–`lineEnd`, or its first lines.
     #[tauri::command]
     pub async fn preview_lines(
@@ -913,6 +938,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(commands::Running::default())
         .manage(commands::Launching::default())
         .manage(commands::Preparing::default())
@@ -954,6 +980,7 @@ pub fn run() {
             commands::dashboard,
             commands::failed_files,
             commands::indexed_folders,
+            commands::pick_and_add_folder,
             commands::pause_indexing,
             commands::resume_indexing,
             commands::open_file,

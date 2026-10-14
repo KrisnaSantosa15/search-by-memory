@@ -39,6 +39,8 @@ type StatusProps = {
 
 type FoldersProps = {
   folders: () => Promise<IndexedFolder[]>;
+  /** Asks the user for a folder and indexes it; false when they picked none. */
+  addFolder: () => Promise<boolean>;
 };
 
 const TABS = ["Status", "Folders"] as const;
@@ -74,18 +76,33 @@ export function Settings(props: StatusProps & FoldersProps) {
   );
 }
 
-function FoldersTab({ folders }: FoldersProps) {
+function FoldersTab({ folders, addFolder }: FoldersProps) {
   const [list, setList] = useState<IndexedFolder[]>([]);
 
+  const refresh = useCallback(() => folders().then(setList), [folders]);
+
   useEffect(() => {
-    folders().then(setList);
-  }, [folders]);
+    refresh();
+  }, [refresh]);
+
+  const add = async () => {
+    if (await addFolder()) await refresh();
+  };
 
   return (
     <section className="flex flex-col gap-2 p-6">
-      <h2 id="indexed-folders" className="font-semibold">
-        Indexed Folders
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 id="indexed-folders" className="font-semibold">
+          Indexed Folders
+        </h2>
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-canvas transition-colors hover:bg-accent-hover"
+        >
+          Add folder…
+        </button>
+      </div>
       <ul
         aria-labelledby="indexed-folders"
         className="flex flex-col divide-y divide-line rounded-xl border border-line bg-panel"

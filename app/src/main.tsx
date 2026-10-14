@@ -9,6 +9,7 @@ const settings = {
   dashboard: () => invoke<Dashboard>("dashboard"),
   failedFiles: () => invoke<FailedFile[]>("failed_files"),
   folders: () => invoke<IndexedFolder[]>("indexed_folders"),
+  addFolder: () => invoke<boolean>("pick_and_add_folder"),
   pause: () => invoke<void>("pause_indexing"),
   resume: () => invoke<void>("resume_indexing"),
 };
