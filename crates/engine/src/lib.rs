@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use sbm_core::{
     ChangeSource, Embedding, EmbeddingProvider, Neighbor, Result, VectorId, VectorStore,
@@ -26,8 +26,13 @@ type Embedder = Arc<dyn EmbeddingProvider + Send + Sync>;
 pub struct Status {
     /// Files in the Name Index.
     pub files: usize,
+    /// Files whose content is indexed.
+    pub indexed: usize,
     /// Files whose content is still to be indexed.
     pub pending: usize,
+    /// Every file modified after this time has its content indexed; `None` when
+    /// nothing is pending.
+    pub ready_since: Option<SystemTime>,
     /// Files whose content could not be indexed; see [`Engine::failed_files`].
     pub failed: usize,
     /// Why the last indexing pass stopped early, if it did.
@@ -139,9 +144,12 @@ impl Engine {
 
     pub fn status(&self) -> Result<Status> {
         let index = self.index.lock().unwrap();
+        let progress = index.content_progress()?;
         Ok(Status {
             files: index.file_count()?,
-            pending: index.pending_jobs()?,
+            indexed: progress.indexed,
+            pending: progress.pending,
+            ready_since: progress.ready_since,
             failed: index.failed_files()?.len(),
             error: self.shared.work.lock().unwrap().error.clone(),
         })

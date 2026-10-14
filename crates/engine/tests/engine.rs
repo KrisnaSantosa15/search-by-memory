@@ -164,3 +164,26 @@ fn files_beneath_a_new_exclusion_leave_the_indexes() {
     assert!(results.iter().all(|r| r.path != diary), "{results:?}");
     assert_eq!(engine.status().unwrap().files, 1);
 }
+
+#[test]
+fn status_states_how_far_back_content_is_ready() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let recipe = write(
+        folder.path(),
+        "recipe.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.pause();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+    let paused = engine.status().unwrap();
+
+    engine.resume();
+    engine.wait_until_idle();
+    let resumed = engine.status().unwrap();
+
+    let modified = std::fs::metadata(&recipe).unwrap().modified().unwrap();
+    assert_eq!((paused.indexed, paused.ready_since), (0, Some(modified)));
+    assert_eq!((resumed.indexed, resumed.ready_since), (1, None));
+}
