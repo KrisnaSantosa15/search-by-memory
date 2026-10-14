@@ -133,6 +133,7 @@
 - Not yet: failed-file reasons are raw extractor messages, not plain language.
 
 ## In progress
+- Plain-language reasons for failed files (FR-08): `Unreadable` kinds in core, stored per job, worded in Settings with the raw message under Details.
 - M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
   - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
   - Done: dark plum theme with magenta accent (VoiceStudio look, ideas only).
