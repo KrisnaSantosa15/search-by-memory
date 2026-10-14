@@ -32,6 +32,8 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
   const [view, setView] = useState<View>("file");
+  // The Copy picked in the open Detail Panel; `null` while it is closed.
+  const [copy, setCopy] = useState<number | null>(null);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -44,27 +46,38 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
       if (!current) return;
       setResults(results);
       setSelected(0);
+      setCopy(null);
     });
     return () => {
       current = false;
     };
   }, [search, query, view]);
 
+  const result = results[selected];
+  const paths = result ? [result.path, ...result.copies] : [];
+  // The file an action applies to; none while the user has yet to pick a Copy.
+  const target = copy !== null ? paths[copy] : paths.length === 1 ? paths[0] : undefined;
+
+  /** Runs `action` on the target, or opens the Detail Panel to pick a Copy. */
+  const act = (action: (path: string) => void) => {
+    if (target) action(target);
+    else if (result) setCopy(0);
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const box = event.currentTarget;
     const textSelected = box.selectionStart !== box.selectionEnd;
-    const last = results.length - 1;
-    const result = results[selected];
+    const move = (step: number) => {
+      if (copy !== null) setCopy(clamp(copy + step, paths.length));
+      else setSelected((index) => clamp(index + step, results.length));
+    };
     if (event.key === "Escape") hide();
     else if (event.key === "Tab") setView((view) => (view === "file" ? "passage" : "file"));
-    else if (event.key === "ArrowDown") setSelected((index) => Math.min(index + 1, last));
-    else if (event.key === "ArrowUp") setSelected((index) => Math.max(index - 1, 0));
-    else if (event.key === "Enter" && result) {
-      if (event.ctrlKey || event.shiftKey) reveal(result.path);
-      else open(result.path);
-    } else if (event.key === "c" && event.ctrlKey && !textSelected && result) {
-      copyPath(result.path);
-    } else return;
+    else if (event.key === "ArrowDown") move(1);
+    else if (event.key === "ArrowUp") move(-1);
+    else if (event.key === "Enter") act(event.ctrlKey || event.shiftKey ? reveal : open);
+    else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyPath);
+    else return;
     event.preventDefault();
   };
 
@@ -112,9 +125,28 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
             </span>
             {result.snippet && <span className="line-clamp-2 text-sm">{result.snippet}</span>}
             <span className="truncate text-xs text-muted">{result.path}</span>
+            {index === selected && copy !== null && (
+              <ul role="listbox" aria-label="Copies" className="mt-2 flex flex-col gap-0.5">
+                {paths.map((path, index) => (
+                  <li
+                    key={path}
+                    role="option"
+                    aria-selected={index === copy}
+                    className="truncate rounded-lg px-3 py-1.5 text-sm aria-selected:bg-raised"
+                  >
+                    {path}
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
       </ul>
     </section>
   );
+}
+
+/** `index` kept within a list of `length` items. */
+function clamp(index: number, length: number): number {
+  return Math.max(0, Math.min(index, length - 1));
 }

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Launcher, type ResultRow } from "./Launcher";
@@ -114,6 +114,25 @@ describe("Launcher", () => {
     expect(screen.getByRole("searchbox")).toHaveFocus();
     await userEvent.keyboard("{Tab}");
     expect(search).toHaveBeenLastCalledWith("profit", "file");
+  });
+
+  it("asks which Copy to open when a Result has several, and opens the one picked", async () => {
+    const act = actions();
+    const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
+    render(<Launcher search={async () => [copied]} {...act} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option");
+
+    await userEvent.keyboard("{Enter}");
+    expect(act.open).not.toHaveBeenCalled();
+    const copies = screen.getByRole("listbox", { name: /copies/i });
+    expect(within(copies).getAllByRole("option").map((copy) => copy.textContent)).toEqual([
+      "D:\\Work\\Q3 Report.pdf",
+      "E:\\Backup\\Q3 Report.pdf",
+    ]);
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+
+    expect(act.open).toHaveBeenCalledWith("E:\\Backup\\Q3 Report.pdf");
   });
 
   it("hides with Escape", async () => {
