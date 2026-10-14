@@ -698,22 +698,45 @@ mod commands {
         window: WebviewWindow,
         running: State<'_, Running>,
     ) -> Result<bool, String> {
-        let picked = window
-            .dialog()
-            .file()
-            .set_parent(&window)
-            .set_title("Choose a folder to search")
-            .blocking_pick_folder();
-        let Some(folder) = picked else {
+        let Some(folder) = pick_folder(&window, "Choose a folder to search")? else {
             return Ok(false);
         };
-        let folder = folder.into_path().map_err(|error| error.to_string())?;
         let running = running.0.lock().unwrap();
         let engine = running.as_ref().ok_or("search has not started yet")?;
         engine
             .add_indexed_folder(&folder)
             .map_err(|error| error.to_string())?;
         Ok(true)
+    }
+
+    /// Asks the user for a folder and excludes it; false when they picked none.
+    #[tauri::command]
+    pub async fn pick_and_exclude_folder(
+        window: WebviewWindow,
+        running: State<'_, Running>,
+    ) -> Result<bool, String> {
+        let Some(folder) = pick_folder(&window, "Choose a folder to leave out")? else {
+            return Ok(false);
+        };
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        engine
+            .add_exclusion(Exclusion::Folder(folder))
+            .map_err(|error| error.to_string())?;
+        Ok(true)
+    }
+
+    /// The folder the user picks in the system's folder picker over `window`.
+    fn pick_folder(window: &WebviewWindow, title: &str) -> Result<Option<PathBuf>, String> {
+        let picked = window
+            .dialog()
+            .file()
+            .set_parent(window)
+            .set_title(title)
+            .blocking_pick_folder();
+        picked
+            .map(|folder| folder.into_path().map_err(|error| error.to_string()))
+            .transpose()
     }
 
     #[tauri::command]
@@ -1092,6 +1115,7 @@ pub fn run() {
             commands::remove_exclusion,
             commands::restore_default_exclusions,
             commands::exclude_names,
+            commands::pick_and_exclude_folder,
             commands::pause_indexing,
             commands::resume_indexing,
             commands::open_file,

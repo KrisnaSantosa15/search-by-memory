@@ -22,6 +22,7 @@ const settings = {
   removeExclusion: (row: ExclusionRow) => invoke<void>("remove_exclusion", { row }),
   restoreDefaults: () => invoke<void>("restore_default_exclusions"),
   excludeNames: (pattern: string) => invoke<void>("exclude_names", { pattern }),
+  excludeFolder: () => invoke<boolean>("pick_and_exclude_folder"),
   pause: () => invoke<void>("pause_indexing"),
   resume: () => invoke<void>("resume_indexing"),
 };

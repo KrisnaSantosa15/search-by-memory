@@ -50,6 +50,8 @@ type FoldersProps = {
   restoreDefaults: () => Promise<void>;
   /** Excludes files and folders whose name matches `pattern`; `*` stands for anything. */
   excludeNames: (pattern: string) => Promise<void>;
+  /** Asks the user for a folder and excludes it; false when they picked none. */
+  excludeFolder: () => Promise<boolean>;
 };
 
 /** One Exclusion; see `ExclusionRow` in `src-tauri`. */
@@ -183,7 +185,7 @@ function FoldersTab(props: FoldersProps) {
 }
 
 function Exclusions(props: FoldersProps) {
-  const { exclusions, removeExclusion, restoreDefaults, excludeNames } = props;
+  const { exclusions, removeExclusion, restoreDefaults, excludeNames, excludeFolder } = props;
   const [list, setList] = useState<ExclusionList>({ rows: [], defaultsTurnedOff: false });
   // A name pattern being typed, not yet excluded.
   const [pattern, setPattern] = useState("");
@@ -266,6 +268,15 @@ function Exclusions(props: FoldersProps) {
           className="rounded-lg border border-line bg-raised px-4 py-1.5 text-sm transition-colors hover:border-accent disabled:opacity-50 disabled:hover:border-line"
         >
           Exclude
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            if (await excludeFolder()) await refresh();
+          }}
+          className="rounded-lg border border-line bg-raised px-4 py-1.5 text-sm transition-colors hover:border-accent"
+        >
+          Exclude a folder…
         </button>
       </form>
     </>

@@ -34,6 +34,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     removeExclusion: vi.fn(async (_row: ExclusionRow) => {}),
     restoreDefaults: vi.fn(async () => {}),
     excludeNames: vi.fn(async (_pattern: string) => {}),
+    excludeFolder: vi.fn(async () => false),
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -277,5 +278,22 @@ describe("Settings", () => {
     expect(props.excludeNames).toHaveBeenCalledWith("*.bak");
     expect(await screen.findByText("*.bak")).toBeInTheDocument();
     expect(box).toHaveValue("");
+  });
+
+  it("excludes a folder the user picks", async () => {
+    let rows: ExclusionRow[] = [];
+    const props = renderSettings({
+      exclusions: async () => ({ rows, defaultsTurnedOff: false }),
+      excludeFolder: vi.fn(async () => {
+        rows = [{ kind: "folder", path: "C:\\Users\\ana\\private" }];
+        return true;
+      }),
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Exclude a folder…" }));
+
+    expect(props.excludeFolder).toHaveBeenCalled();
+    expect(await screen.findByText("C:\\Users\\ana\\private")).toBeInTheDocument();
   });
 });
