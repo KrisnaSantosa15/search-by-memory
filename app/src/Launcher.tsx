@@ -58,10 +58,14 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   // The file an action applies to; none while the user has yet to pick a Copy.
   const target = copy !== null ? paths[copy] : paths.length === 1 ? paths[0] : undefined;
 
+  // A Disconnected Drive's file can be named but not opened or shown.
+  const reachable = target !== undefined && (target !== result?.path || result.connected);
+
   /** Runs `action` on the target, or opens the Detail Panel to pick a Copy. */
-  const act = (action: (path: string) => void) => {
-    if (target) action(target);
-    else if (result) setCopy(0);
+  const act = (action: (path: string) => void, needsDrive = true) => {
+    if (!target) {
+      if (result) setCopy(0);
+    } else if (reachable || !needsDrive) action(target);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -79,7 +83,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
     else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
     else if (event.key === "ArrowLeft" && copy !== null) setCopy(null);
     else if (event.key === "Enter") act(event.ctrlKey || event.shiftKey ? reveal : open);
-    else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyPath);
+    else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyPath, false);
     else return;
     event.preventDefault();
   };
@@ -127,7 +131,10 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
               </span>
             </span>
             {result.snippet && <span className="line-clamp-2 text-sm">{result.snippet}</span>}
-            <span className="truncate text-xs text-muted">{result.path}</span>
+            <span className="truncate text-xs text-muted">
+              {result.path}
+              {!result.connected && " · drive not connected"}
+            </span>
             {index === selected && copy !== null && (
               <ul role="listbox" aria-label="Copies" className="mt-2 flex flex-col gap-0.5">
                 {paths.map((path, index) => (

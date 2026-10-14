@@ -153,6 +153,19 @@ describe("Launcher", () => {
     );
   });
 
+  it("says when a Result's drive is not connected and does not try to open it", async () => {
+    const act = actions();
+    const away = { ...report, connected: false };
+    render(<Launcher search={async () => [away]} {...act} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+
+    expect(await screen.findByRole("option")).toHaveTextContent(/drive not connected/i);
+    await userEvent.keyboard("{Enter}{Control>}{Enter}{/Control}");
+
+    expect(act.open).not.toHaveBeenCalled();
+    expect(act.reveal).not.toHaveBeenCalled();
+  });
+
   it("hides with Escape", async () => {
     const act = actions();
     render(<Launcher search={async () => []} {...act} />);
