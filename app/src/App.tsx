@@ -20,6 +20,7 @@ const launcher = {
   reveal: (path: string) => invoke("reveal_file", { path }),
   copyFile: (path: string) => invoke("copy_file", { path }),
   hide: () => invoke("hide_launcher"),
+  thumbnail: (path: string) => invoke<string | null>("thumbnail", { path }),
   previewLines: (path: string, lineStart: number | null, lineEnd: number | null) =>
     invoke<TextPreview | null>("preview_lines", { path, lineStart, lineEnd }),
 };

@@ -1,8 +1,9 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { LoadLines } from "./Lines";
 import { Marked } from "./Marked";
 import { Path } from "./Path";
 import { Preview } from "./Preview";
+import { cachedThumbnails, type LoadThumbnail, Thumbnail } from "./Thumbnail";
 
 /** One Result, as the Rust side sends it. */
 export type ResultRow = {
@@ -30,7 +31,7 @@ export type ResultRow = {
   weaker: boolean;
 };
 
-type Kind = "document" | "code" | "image" | "audio" | "video" | "other";
+export type Kind = "document" | "code" | "image" | "audio" | "video" | "other";
 
 const GROUP_NAMES: Record<Kind, string> = {
   document: "Documents",
@@ -48,11 +49,14 @@ type Props = {
   reveal: (path: string) => void;
   copyFile: (path: string) => void;
   previewLines: LoadLines;
+  thumbnail: LoadThumbnail;
   hide: () => void;
 };
 
 /** The search window: a Query box over its Results. */
-export function Launcher({ search, open, reveal, copyFile, hide, previewLines }: Props) {
+export function Launcher(props: Props) {
+  const { search, open, reveal, copyFile, hide, previewLines } = props;
+  const thumbnails = useMemo(() => cachedThumbnails(props.thumbnail), [props.thumbnail]);
   const [typed, setTyped] = useState("");
   const { query, onlyCode } = scope(typed);
   const [results, setResults] = useState<ResultRow[]>([]);
@@ -170,6 +174,7 @@ export function Launcher({ search, open, reveal, copyFile, hide, previewLines }:
                   query={query}
                   selected={first + offset === selected}
                   onSelect={() => setSelected(first + offset)}
+                  thumbnails={thumbnails}
                 />
               ))}
             </div>
@@ -200,6 +205,7 @@ export function Launcher({ search, open, reveal, copyFile, hide, previewLines }:
                     query={query}
                     selected={strong.length + 1 + offset === selected}
                     onSelect={() => setSelected(strong.length + 1 + offset)}
+                    thumbnails={thumbnails}
                   />
                 ))}
             </div>
@@ -282,7 +288,13 @@ function scope(typed: string): { query: string; onlyCode: boolean } {
 }
 
 /** One Result in the list: its name, Location, and snippet or folder. */
-function Row(props: { result: ResultRow; query: string; selected: boolean; onSelect: () => void }) {
+function Row(props: {
+  result: ResultRow;
+  query: string;
+  selected: boolean;
+  onSelect: () => void;
+  thumbnails: LoadThumbnail;
+}) {
   const { result, query } = props;
   return (
     <div
@@ -290,26 +302,34 @@ function Row(props: { result: ResultRow; query: string; selected: boolean; onSel
       aria-selected={props.selected}
       onMouseDown={(event) => event.preventDefault()}
       onClick={props.onSelect}
-      className="flex cursor-default flex-col gap-0.5 rounded-md border-l-2 border-transparent px-3 py-2 aria-selected:border-accent aria-selected:bg-accent-soft"
+      className="flex cursor-default items-center gap-3 rounded-md border-l-2 border-transparent px-3 py-2 aria-selected:border-accent aria-selected:bg-accent-soft"
     >
-      <span className="flex min-w-0 items-baseline gap-2">
-        <span className="truncate font-medium">{result.name}</span>
-        {result.location && (
-          <span className="shrink-0 rounded bg-raised px-1.5 text-xs text-muted">
-            {result.location}
+      <Thumbnail
+        path={result.path}
+        kind={result.kind}
+        connected={result.connected}
+        load={props.thumbnails}
+      />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="truncate font-medium">{result.name}</span>
+          {result.location && (
+            <span className="shrink-0 rounded bg-raised px-1.5 text-xs text-muted">
+              {result.location}
+            </span>
+          )}
+        </span>
+        {result.snippet ? (
+          <span className="truncate text-sm text-muted">
+            <Marked text={result.snippet} query={query} />
+          </span>
+        ) : (
+          <span className="flex text-sm text-muted">
+            <Path path={result.folder} />
           </span>
         )}
+        {!result.connected && <span className="text-xs text-accent">Drive not connected</span>}
       </span>
-      {result.snippet ? (
-        <span className="truncate text-sm text-muted">
-          <Marked text={result.snippet} query={query} />
-        </span>
-      ) : (
-        <span className="flex text-sm text-muted">
-          <Path path={result.folder} />
-        </span>
-      )}
-      {!result.connected && <span className="text-xs text-accent">Drive not connected</span>}
     </div>
   );
 }

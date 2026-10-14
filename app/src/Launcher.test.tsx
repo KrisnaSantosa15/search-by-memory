@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Launcher, type ResultRow } from "./Launcher";
@@ -26,6 +26,7 @@ const actions = () => ({
   copyFile: vi.fn(),
   hide: vi.fn(),
   previewLines: vi.fn(async () => null),
+  thumbnail: vi.fn(async () => null),
 });
 
 describe("Launcher", () => {
@@ -398,6 +399,22 @@ describe("Launcher", () => {
     await screen.findByRole("option");
     expect(search).toHaveBeenLastCalledWith("retry with backoff", true);
     expect(screen.getByRole("img", { name: /searching code/i })).toBeInTheDocument();
+  });
+
+  it("shows a file's thumbnail in its row, or an icon for its kind without one", async () => {
+    const photo = { ...report, name: "holiday.jpg", path: "D:\\holiday.jpg", kind: "image" as const };
+    const thumbnail = vi.fn(async (path: string) =>
+      path === photo.path ? "data:image/png;base64,AAAA" : null,
+    );
+    render(<Launcher search={async () => [report, photo]} {...actions()} thumbnail={thumbnail} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+
+    const photoRow = await screen.findByRole("option", { name: /holiday\.jpg/ });
+    await waitFor(() =>
+      expect(photoRow.querySelector("img")).toHaveAttribute("src", "data:image/png;base64,AAAA"),
+    );
+    const reportRow = screen.getByRole("option", { name: /Q3 Report\.pdf/ });
+    expect(within(reportRow).getByRole("img", { name: "Document" })).toBeInTheDocument();
   });
 
   it("hides with Escape", async () => {
