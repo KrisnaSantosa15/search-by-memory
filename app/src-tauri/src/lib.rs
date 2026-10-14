@@ -182,6 +182,9 @@ pub struct ResultRow {
 
 /// What indexing is doing, as the tray says it.
 pub fn indexing_state(status: &Status) -> String {
+    if status.paused {
+        return "Indexing is paused".into();
+    }
     match status.throttled {
         Some(ThrottleReason::FullScreen) => "Indexing waits while a full-screen app is open".into(),
         Some(ThrottleReason::Battery) => "Indexing waits until the computer is plugged in".into(),

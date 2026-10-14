@@ -40,3 +40,15 @@ fn running_indexing_says_how_many_files_are_left_or_that_all_are_done() {
     );
     assert_eq!(indexing_state(&pending(0)), "All files are indexed");
 }
+
+#[test]
+fn paused_indexing_says_so_whatever_else_holds_it_back() {
+    let paused = Status {
+        pending: 10,
+        paused: true,
+        throttled: Some(ThrottleReason::Battery),
+        ..Status::default()
+    };
+
+    assert_eq!(indexing_state(&paused), "Indexing is paused");
+}
