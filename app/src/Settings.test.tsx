@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Settings, type Dashboard, type FailedFile, type IndexedFolder } from "./Settings";
@@ -22,6 +22,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     failedFiles: async () => [] as FailedFile[],
     folders: async () => [] as IndexedFolder[],
     addFolder: vi.fn(async () => false),
+    removeFolder: vi.fn(async (_path: string) => {}),
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -144,5 +145,40 @@ describe("Settings", () => {
 
     expect(props.addFolder).toHaveBeenCalled();
     expect(await screen.findByText("D:\\Projects")).toBeInTheDocument();
+  });
+
+  it("removes a folder once the user confirms it", async () => {
+    let list: IndexedFolder[] = [
+      { path: "C:\\Users\\ana", connected: true },
+      { path: "D:\\Projects", connected: true },
+    ];
+    const props = renderSettings({
+      folders: async () => list,
+      removeFolder: vi.fn(async (path: string) => {
+        list = list.filter((folder) => folder.path !== path);
+      }),
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Remove D:\\Projects" }));
+    expect(props.removeFolder).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Stop searching it" }));
+
+    expect(props.removeFolder).toHaveBeenCalledWith("D:\\Projects");
+    await waitFor(() => expect(screen.queryByText("D:\\Projects")).not.toBeInTheDocument());
+    expect(screen.getByText("C:\\Users\\ana")).toBeInTheDocument();
+  });
+
+  it("keeps a folder when the user changes their mind", async () => {
+    const props = renderSettings({
+      folders: async () => [{ path: "D:\\Projects", connected: true }],
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Remove D:\\Projects" }));
+    await userEvent.click(screen.getByRole("button", { name: "Keep" }));
+
+    expect(props.removeFolder).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Remove D:\\Projects" })).toBeInTheDocument();
   });
 });

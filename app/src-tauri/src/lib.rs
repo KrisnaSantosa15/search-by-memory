@@ -664,6 +664,19 @@ mod commands {
         Ok(true)
     }
 
+    /// Stops indexing `path`; its files leave both indexes.
+    #[tauri::command]
+    pub async fn remove_indexed_folder(
+        running: State<'_, Running>,
+        path: PathBuf,
+    ) -> Result<(), String> {
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        engine
+            .remove_indexed_folder(&path)
+            .map_err(|error| error.to_string())
+    }
+
     /// The lines of `path` around `lineStart`–`lineEnd`, or its first lines.
     #[tauri::command]
     pub async fn preview_lines(
@@ -981,6 +994,7 @@ pub fn run() {
             commands::failed_files,
             commands::indexed_folders,
             commands::pick_and_add_folder,
+            commands::remove_indexed_folder,
             commands::pause_indexing,
             commands::resume_indexing,
             commands::open_file,

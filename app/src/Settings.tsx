@@ -41,6 +41,8 @@ type FoldersProps = {
   folders: () => Promise<IndexedFolder[]>;
   /** Asks the user for a folder and indexes it; false when they picked none. */
   addFolder: () => Promise<boolean>;
+  /** Stops indexing `path`; its files leave both indexes. */
+  removeFolder: (path: string) => Promise<void>;
 };
 
 const TABS = ["Status", "Folders"] as const;
@@ -76,8 +78,10 @@ export function Settings(props: StatusProps & FoldersProps) {
   );
 }
 
-function FoldersTab({ folders, addFolder }: FoldersProps) {
+function FoldersTab({ folders, addFolder, removeFolder }: FoldersProps) {
   const [list, setList] = useState<IndexedFolder[]>([]);
+  // The folder whose removal waits for the user to confirm it.
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const refresh = useCallback(() => folders().then(setList), [folders]);
 
@@ -87,6 +91,12 @@ function FoldersTab({ folders, addFolder }: FoldersProps) {
 
   const add = async () => {
     if (await addFolder()) await refresh();
+  };
+
+  const remove = async (path: string) => {
+    setRemoving(null);
+    await removeFolder(path);
+    await refresh();
   };
 
   return (
@@ -115,6 +125,36 @@ function FoldersTab({ folders, addFolder }: FoldersProps) {
                 Drive not connected
               </span>
             )}
+            <span className="ml-auto flex shrink-0 items-center gap-2">
+              {removing === path ? (
+                <>
+                  <span className="text-muted">Its files leave the search.</span>
+                  <button
+                    type="button"
+                    onClick={() => remove(path)}
+                    className="rounded-lg bg-accent px-3 py-1 font-medium text-canvas transition-colors hover:bg-accent-hover"
+                  >
+                    Stop searching it
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRemoving(null)}
+                    className="rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
+                  >
+                    Keep
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={`Remove ${path}`}
+                  onClick={() => setRemoving(path)}
+                  className="rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
+                >
+                  Remove
+                </button>
+              )}
+            </span>
           </li>
         ))}
       </ul>
