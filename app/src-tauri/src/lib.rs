@@ -3,8 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use sbm_core::{AppDirs, Location};
-use sbm_index::{MatchReason, SearchResult};
 use sbm_embed_onnx::Accelerator;
+use sbm_index::{MatchReason, SearchResult};
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
@@ -193,6 +193,7 @@ mod commands {
     use sbm_core::AppDirs;
     use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
     use sbm_engine::{Engine, LoadedModel};
+    use sbm_index::View;
     use sbm_setup::{
         EMBEDDING_MODEL_DIR, Finished, Plan, Progress, TimeLeft, Web, prepare as install,
     };
@@ -200,7 +201,6 @@ mod commands {
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::TrayIconBuilder;
     use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
-    use sbm_index::View;
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     use tauri_plugin_opener::OpenerExt;
 
@@ -350,7 +350,11 @@ mod commands {
     /// From now on the window is the launcher: out of the taskbar, above other
     /// windows, and gone when the user clicks elsewhere.
     pub fn become_launcher(window: &WebviewWindow) -> tauri::Result<()> {
-        window.app_handle().state::<Launching>().0.store(true, Ordering::Relaxed);
+        window
+            .app_handle()
+            .state::<Launching>()
+            .0
+            .store(true, Ordering::Relaxed);
         window.set_skip_taskbar(true)?;
         window.set_always_on_top(true)
     }
@@ -450,7 +454,10 @@ mod commands {
         }
         #[cfg(not(windows))]
         {
-            Err(format!("copying files is not supported here: {}", path.display()))
+            Err(format!(
+                "copying files is not supported here: {}",
+                path.display()
+            ))
         }
     }
 
@@ -510,7 +517,10 @@ pub fn run() {
         .manage(commands::Running::default())
         .manage(commands::Launching::default())
         .on_window_event(|window, event| {
-            let launching = window.state::<commands::Launching>().0.load(Ordering::Relaxed);
+            let launching = window
+                .state::<commands::Launching>()
+                .0
+                .load(Ordering::Relaxed);
             if launching && matches!(event, WindowEvent::Focused(false)) {
                 let _ = window.hide();
             }
