@@ -108,6 +108,41 @@ impl Settings {
     }
 }
 
+/// What a file is, so the launcher can group Results by it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FileKind {
+    Document,
+    Code,
+    Image,
+    Audio,
+    Video,
+    Other,
+}
+
+impl FileKind {
+    /// The kind of file `path` is, by its extension.
+    pub fn of(path: &Path) -> FileKind {
+        let extension = path
+            .extension()
+            .map(|extension| extension.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        match extension.as_str() {
+            "pdf" | "doc" | "docx" | "odt" | "rtf" | "txt" | "md" | "markdown" | "ppt" | "pptx"
+            | "odp" | "xls" | "xlsx" | "ods" | "csv" | "epub" => FileKind::Document,
+            "rs" | "py" | "js" | "jsx" | "ts" | "tsx" | "go" | "c" | "h" | "cpp" | "hpp" | "cc"
+            | "cs" | "java" | "kt" | "swift" | "rb" | "php" | "sh" | "ps1" | "lua" | "json"
+            | "yaml" | "yml" | "toml" | "xml" | "html" | "css" | "sql" | "ipynb" => FileKind::Code,
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "heic" | "svg" | "tif" | "tiff" => {
+                FileKind::Image
+            }
+            "mp3" | "m4a" | "wav" | "flac" | "ogg" | "aac" | "opus" | "wma" => FileKind::Audio,
+            "mp4" | "mov" | "mkv" | "avi" | "webm" | "wmv" | "m4v" => FileKind::Video,
+            _ => FileKind::Other,
+        }
+    }
+}
+
 /// One Result as the launcher shows it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -117,6 +152,7 @@ pub struct ResultRow {
     pub path: PathBuf,
     /// The folder holding `path`.
     pub folder: PathBuf,
+    pub kind: FileKind,
     /// Other paths with the same content.
     pub copies: Vec<PathBuf>,
     /// False while the file's drive is a Disconnected Drive.
@@ -131,6 +167,8 @@ pub struct ResultRow {
     pub location: Option<String>,
     /// `name`, `content`, or `both`.
     pub match_reason: String,
+    /// A Weaker Match, folded away below the others.
+    pub weaker: bool,
 }
 
 pub fn result_row(result: SearchResult) -> ResultRow {
@@ -140,6 +178,8 @@ pub fn result_row(result: SearchResult) -> ResultRow {
         .then(|| std::fs::metadata(&result.path).ok())
         .flatten();
     ResultRow {
+        kind: FileKind::of(&result.path),
+        weaker: result.weaker,
         folder: result
             .path
             .parent()

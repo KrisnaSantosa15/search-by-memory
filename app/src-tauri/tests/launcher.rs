@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use sbm_app::{ResultRow, result_row};
+use sbm_app::{FileKind, ResultRow, result_row};
 use sbm_core::Location;
 use sbm_index::{MatchReason, SearchResult};
 
@@ -30,6 +30,7 @@ fn content_match_row_names_the_file_its_page_and_why_it_matched() {
             name: "Q3 Report.pdf".into(),
             path: PathBuf::from(r"D:\Work\Q3 Report.pdf"),
             folder: PathBuf::from(r"D:\Work"),
+            kind: FileKind::Document,
             copies: vec![PathBuf::from(r"E:\Backup\Q3 Report.pdf")],
             connected: true,
             size: None,
@@ -37,6 +38,7 @@ fn content_match_row_names_the_file_its_page_and_why_it_matched() {
             snippet: Some("net profit increased by 18%".into()),
             location: Some("Page 14".into()),
             match_reason: "both".into(),
+            weaker: false,
         }
     );
 }
@@ -96,4 +98,34 @@ fn name_match_row_has_no_location() {
     let row = result_row(result(None, MatchReason::Name));
 
     assert_eq!((row.location, row.match_reason.as_str()), (None, "name"));
+}
+
+#[test]
+fn row_says_what_kind_of_file_it_is() {
+    let kind = |name: &str| {
+        result_row(SearchResult {
+            path: PathBuf::from(format!(r"D:\Files\{name}")),
+            ..result(None, MatchReason::Name)
+        })
+        .kind
+    };
+
+    assert_eq!(kind("Lease.PDF"), FileKind::Document);
+    assert_eq!(kind("notes.md"), FileKind::Document);
+    assert_eq!(kind("retry.ts"), FileKind::Code);
+    assert_eq!(kind("holiday.jpg"), FileKind::Image);
+    assert_eq!(kind("barking.m4a"), FileKind::Audio);
+    assert_eq!(kind("wedding.mp4"), FileKind::Video);
+    assert_eq!(kind("backup.zip"), FileKind::Other);
+    assert_eq!(kind("Makefile"), FileKind::Other);
+}
+
+#[test]
+fn row_carries_whether_it_is_a_weaker_match() {
+    let row = result_row(SearchResult {
+        weaker: true,
+        ..result(None, MatchReason::Content)
+    });
+
+    assert!(row.weaker);
 }
