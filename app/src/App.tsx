@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { Launcher, type ResultRow } from "./Launcher";
 import type { TextPreview } from "./Lines";
+import type { PdfPagePreview } from "./PdfPage";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { FoldersStep, type FolderChoice } from "./onboarding/FoldersStep";
@@ -21,6 +22,8 @@ const launcher = {
   copyFile: (path: string) => invoke("copy_file", { path }),
   hide: () => invoke("hide_launcher"),
   thumbnail: (path: string) => invoke<string | null>("thumbnail", { path }),
+  pdfPage: (path: string, page: number, query: string) =>
+    invoke<PdfPagePreview | null>("pdf_page", { path, page, query }),
   previewLines: (path: string, lineStart: number | null, lineEnd: number | null) =>
     invoke<TextPreview | null>("preview_lines", { path, lineStart, lineEnd }),
 };

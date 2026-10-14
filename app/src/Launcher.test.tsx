@@ -15,6 +15,7 @@ const report: ResultRow = {
   weaker: false,
   snippet: "net profit increased by 18%",
   location: "Page 14",
+  page: 14,
   lineStart: null,
   lineEnd: null,
   matchReason: "both",
@@ -27,6 +28,7 @@ const actions = () => ({
   hide: vi.fn(),
   previewLines: vi.fn(async () => null),
   thumbnail: vi.fn(async () => null),
+  pdfPage: vi.fn(async () => null),
 });
 
 describe("Launcher", () => {
@@ -415,6 +417,24 @@ describe("Launcher", () => {
     );
     const reportRow = screen.getByRole("option", { name: /Q3 Report\.pdf/ });
     expect(within(reportRow).getByRole("img", { name: "Document" })).toBeInTheDocument();
+  });
+
+  it("shows the matched PDF page with the Query's words marked on it", async () => {
+    const pdfPage = vi.fn(async () => ({
+      image: "data:image/png;base64,PAGE",
+      marks: [
+        { left: 0.1, top: 0.2, width: 0.05, height: 0.02 },
+        { left: 0.3, top: 0.6, width: 0.05, height: 0.02 },
+      ],
+    }));
+    render(<Launcher search={async () => [report]} {...actions()} pdfPage={pdfPage} />);
+    await userEvent.type(screen.getByRole("searchbox"), "net profit");
+
+    const page = await screen.findByRole("img", { name: "Page 14 of Q3 Report.pdf" });
+    expect(page).toHaveAttribute("src", "data:image/png;base64,PAGE");
+    expect(pdfPage).toHaveBeenLastCalledWith("D:\\Work\\Q3 Report.pdf", 14, "net profit");
+    const preview = screen.getByRole("region", { name: /preview/i });
+    expect(preview.querySelectorAll("figure mark")).toHaveLength(2);
   });
 
   it("hides with Escape", async () => {

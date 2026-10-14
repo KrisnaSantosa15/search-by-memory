@@ -2,6 +2,7 @@ import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
 import type { LoadLines } from "./Lines";
 import { Marked } from "./Marked";
 import { Path } from "./Path";
+import type { LoadPdfPage } from "./PdfPage";
 import { Preview } from "./Preview";
 import { cachedThumbnails, type LoadThumbnail, Thumbnail } from "./Thumbnail";
 
@@ -22,6 +23,8 @@ export type ResultRow = {
   snippet: string | null;
   /** Where the snippet is, e.g. `Page 14`. */
   location: string | null;
+  /** The matched page, 1-based, when the Location is a page. */
+  page: number | null;
   /** The matched lines, 1-based and inclusive, when the Location is lines. */
   lineStart: number | null;
   lineEnd: number | null;
@@ -50,6 +53,7 @@ type Props = {
   copyFile: (path: string) => void;
   previewLines: LoadLines;
   thumbnail: LoadThumbnail;
+  pdfPage: LoadPdfPage;
   hide: () => void;
 };
 
@@ -217,6 +221,7 @@ export function Launcher(props: Props) {
               result={result}
               query={query}
               loadLines={previewLines}
+              loadPdfPage={props.pdfPage}
               copy={copy}
               onOpen={() => act(open)}
               onReveal={() => act(reveal)}

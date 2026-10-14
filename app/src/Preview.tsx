@@ -3,6 +3,7 @@ import type { ResultRow } from "./Launcher";
 import { CodeLines, type LoadLines, PageLines, type TextPreview } from "./Lines";
 import { Marked } from "./Marked";
 import { Path } from "./Path";
+import { type LoadPdfPage, PdfPage, type PdfPagePreview } from "./PdfPage";
 
 const MATCH_REASONS = {
   name: "Its name matches",
@@ -14,6 +15,7 @@ type Props = {
   result: ResultRow;
   query: string;
   loadLines: LoadLines;
+  loadPdfPage: LoadPdfPage;
   /** The Copy being picked; `null` while none is being picked. */
   copy: number | null;
   onOpen: () => void;
@@ -21,9 +23,11 @@ type Props = {
 };
 
 /** The selected Result in full: its Content Match, where it lives, and why it matched. */
-export function Preview({ result, query, loadLines, copy, onOpen, onReveal }: Props) {
+export function Preview(props: Props) {
+  const { result, query, loadLines, copy, onOpen, onReveal } = props;
   const paths = [result.path, ...result.copies];
   const lines = useLines(result, loadLines);
+  const pdfPage = usePdfPage(result, query, props.loadPdfPage);
   const { lineStart, lineEnd } = result;
   const matched: [number, number] | null =
     lineStart !== null && lineEnd !== null ? [lineStart, lineEnd] : null;
@@ -34,7 +38,9 @@ export function Preview({ result, query, loadLines, copy, onOpen, onReveal }: Pr
 
   return (
     <section aria-label="Preview" className="flex min-w-0 flex-col gap-4">
-      {lines && result.kind === "code" ? (
+      {pdfPage && result.page !== null ? (
+        <PdfPage preview={pdfPage} name={result.name} page={result.page} />
+      ) : lines && result.kind === "code" ? (
         <CodeLines preview={lines} query={query} matched={matched} />
       ) : lines ? (
         <Page location={result.location}>
@@ -121,6 +127,29 @@ function useLines(result: ResultRow, loadLines: LoadLines): TextPreview | null {
   }, [loadLines, path, lineStart, lineEnd, readable]);
 
   return lines;
+}
+
+/**
+ * The matched page of a PDF on a connected drive; `null` until it is rendered,
+ * and for other files.
+ */
+function usePdfPage(result: ResultRow, query: string, load: LoadPdfPage): PdfPagePreview | null {
+  const [page, setPage] = useState<PdfPagePreview | null>(null);
+  const { path, page: number, connected } = result;
+  const renderable = number !== null && connected && path.toLowerCase().endsWith(".pdf");
+
+  useEffect(() => {
+    setPage(null);
+    if (!renderable || number === null) return;
+    // Only the selected Result's page is shown, whichever answers last.
+    let current = true;
+    load(path, number, query).then((page) => current && setPage(page));
+    return () => {
+      current = false;
+    };
+  }, [load, path, number, query, renderable]);
+
+  return page;
 }
 
 /** Text on a sheet of paper, where the highlighter marks show best. */
