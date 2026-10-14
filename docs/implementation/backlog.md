@@ -121,7 +121,9 @@
 - M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
   - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
   - Done: dark plum theme with magenta accent (VoiceStudio look, ideas only).
-  - Next: model download step with one progress bar and time left, then folders, hotkey, done; then the launcher.
+  - Done: `setup::Plan` (model + CUDA runtime for NVIDIA), `setup::prepare` (one progress over both), `setup::TimeLeft` (rate since start, none for the first 3 s).
+  - Done: download step: one progress bar, GB done, time left in plain words; `prepare` command emits throttled `setup-progress` events; stopped download offers "Try again" (resumes).
+  - Next: folders step (default to agree), then hotkey, done; then the launcher. Download step moves on once finished; cancel.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
