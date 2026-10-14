@@ -11,8 +11,10 @@ name = "sbm_app"
 tauri-build = { version = "=2.7.0", features = [] }
 
 [dependencies]
+sbm-change-usn = { path = "../../crates/change-usn" }
 sbm-core = { path = "../../crates/core" }
 sbm-embed-onnx = { path = "../../crates/embed-onnx" }
+sbm-engine = { path = "../../crates/engine" }
 sbm-setup = { path = "../../crates/setup" }
 serde = { version = "=1.0.229", features = ["derive"] }
 tauri = { version = "=2.12.0", features = [] }

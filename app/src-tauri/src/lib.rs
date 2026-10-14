@@ -2,8 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
+use sbm_core::AppDirs;
 use sbm_embed_onnx::Accelerator;
-use sbm_setup::{Gpu, cuda_runtime, speed_options};
+use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::Serialize;
 
 /// One way to run the embedding model, as the onboarding speed step offers it.
@@ -77,17 +78,25 @@ pub fn folder_choices(home: &Path, drives: &[PathBuf]) -> Vec<FolderChoice> {
 
 /// What the window can call; thin wrappers over the functions above.
 mod commands {
+    use std::path::PathBuf;
     use std::sync::atomic::AtomicBool;
+    use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
 
+    use sbm_change_usn::UsnJournal;
     use sbm_core::AppDirs;
-    use sbm_embed_onnx::Accelerator;
-    use sbm_setup::{Finished, Plan, Progress, TimeLeft, Web, prepare as install};
+    use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
+    use sbm_engine::{Engine, LoadedModel};
+    use sbm_setup::{
+        EMBEDDING_MODEL_DIR, Finished, Plan, Progress, TimeLeft, Web, prepare as install,
+    };
     use serde::Serialize;
-    use tauri::{AppHandle, Emitter};
+    use tauri::{AppHandle, Emitter, State};
 
-    use super::SpeedChoice;
+    use super::{FolderChoice, SpeedChoice};
 
+    /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
+    const DIMENSIONS: usize = 256;
     /// Progress events per second at most; the bar cannot show more.
     const REPORT_EVERY: Duration = Duration::from_millis(200);
 
@@ -143,14 +152,94 @@ mod commands {
         .await
         .map_err(|error| error.to_string())?
     }
+
+    #[tauri::command]
+    pub fn folder_choices() -> Vec<FolderChoice> {
+        let home = std::env::var_os("USERPROFILE")
+            .or_else(|| std::env::var_os("HOME"))
+            .map(PathBuf::from)
+            .unwrap_or_default();
+        super::folder_choices(&home, &drives())
+    }
+
+    /// Drive roots present on this machine (Windows only).
+    fn drives() -> Vec<PathBuf> {
+        if !cfg!(windows) {
+            return Vec::new();
+        }
+        ('A'..='Z')
+            .map(|letter| PathBuf::from(format!("{letter}:\\")))
+            .filter(|root| root.exists())
+            .collect()
+    }
+
+    /// The running Engine, once onboarding has started it.
+    #[derive(Default)]
+    pub struct Running(Mutex<Option<Engine>>);
+
+    /// Starts the Engine on `choice`'s Accelerator and makes `folders` searchable:
+    /// names at once, content once the model is loaded.
+    #[tauri::command]
+    pub fn start_indexing(
+        running: State<'_, Running>,
+        choice: String,
+        folders: Vec<PathBuf>,
+    ) -> Result<(), String> {
+        let accelerator: Accelerator = choice.parse()?;
+        let dirs = AppDirs::current();
+        let model_dir = dirs.cache.join(EMBEDDING_MODEL_DIR);
+        let load = move || {
+            let mut accelerators = vec![accelerator];
+            if accelerator != Accelerator::Cpu {
+                accelerators.push(Accelerator::Cpu);
+            }
+            let embedder = OnnxEmbedder::load_first(
+                &model_dir,
+                DIMENSIONS,
+                DEFAULT_MAX_TOKENS,
+                &accelerators,
+            )?;
+            let device = embedder.accelerator().to_string();
+            Ok(LoadedModel {
+                embedder: Arc::new(embedder),
+                device,
+            })
+        };
+        let engine = Engine::start_loading(&dirs.data, load, Box::new(UsnJournal))
+            .map_err(|error| error.to_string())?;
+        for folder in &folders {
+            engine
+                .add_indexed_folder(folder)
+                .map_err(|error| error.to_string())?;
+        }
+        *running.0.lock().unwrap() = Some(engine);
+        Ok(())
+    }
 }
 
 pub fn run() {
+    put_cuda_runtime_on_path();
     tauri::Builder::default()
+        .manage(commands::Running::default())
         .invoke_handler(tauri::generate_handler![
             commands::speed_choices,
-            commands::prepare
+            commands::prepare,
+            commands::folder_choices,
+            commands::start_indexing
         ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
+}
+
+/// ONNX Runtime's CUDA provider finds the CUDA and cuDNN DLLs on `PATH`.
+fn put_cuda_runtime_on_path() {
+    let runtime = AppDirs::current().cache.join(CUDA_RUNTIME_DIR);
+    let mut paths = vec![runtime];
+    paths.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    if let Ok(path) = std::env::join_paths(paths) {
+        // SAFETY: called first thing in `run`, before any other thread exists.
+        unsafe { std::env::set_var("PATH", path) };
+    }
 }

@@ -3499,8 +3499,10 @@ dependencies = [
 name = "sbm-app"
 version = "0.1.0"
 dependencies = [
+ "sbm-change-usn",
  "sbm-core",
  "sbm-embed-onnx",
+ "sbm-engine",
  "sbm-setup",
  "serde",
  "tauri",
