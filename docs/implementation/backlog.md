@@ -124,6 +124,14 @@
 - App: quiet period 60 s; tray shows what indexing is doing and why it waits; tray pauses for 1 h / 8 h or resumes.
 - Not yet: GPU busy; Live Updates still use the GPU while full-screen; "until tomorrow" pause; CLI not throttled (by design).
 
+### M4 — Settings and Status window (`crates/index`, `crates/engine`, `app/`)
+- Tray "Settings…" opens a separate window (`?view=settings`); only the launcher hides on blur.
+- Status tab (every 2 s): files found, content % and how far back it is ready, size on disk (`Status.size_on_disk`), why indexing waits, Pause/Resume, failed files with reasons.
+- Folders tab: Indexed Folders (Disconnected Drives labelled), add with the folder picker (`tauri-plugin-dialog` 2.8.0), remove after confirming.
+- Exclusions: defaults marked; remove the user's, turn off defaults (`turned_off_defaults` table), Restore defaults; exclude typed names or a picked folder. `Index`/`Engine::remove_exclusion`, `restore_default_exclusions`.
+- Checked in the real window on a scratch index.
+- Not yet: failed-file reasons are raw extractor messages, not plain language.
+
 ## In progress
 - M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
   - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
@@ -144,7 +152,6 @@
   - Done: Cancel on the download step (`cancel_prepare`): back to the speed choices, download kept for resuming.
   - Done: PDF text read with PDFium where installed, pdf-extract as fallback (ADR 0006); scans' invisible OCR layers now indexed.
   - Next: run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark.
-- M4 Settings and Status window (separate window from the tray; FR-03, FR-08): content progress, why indexing waits, failed files, size on disk, Indexed Folders (folder picker), Exclusions (turned-off defaults stored; restore defaults).
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
