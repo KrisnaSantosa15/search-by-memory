@@ -132,7 +132,8 @@
   - Done: stage 4a/4b: `code:` searches code only (`Index::search_where` / `Engine::search_where` filter before counting and Weaker Matches; icon turns to `</>`); `sbm-thumbnail` crate (Windows Shell thumbnails as PNG, thumbnail-only, cache-only for Online-only Files); rows show thumbnails or a kind icon.
   - Done: stage 4c: PDFium 7881 (`pdfium-render` 0.9.4) planned for every speed choice and installed by `prepare` (tgz runtimes: DLLs + licenses); `sbm-pdf` renders a page as PNG and marks the Query's words; rows carry `page`; `pdf_page` command; Preview Pane shows the matched page with highlighter marks.
   - Done: pictures and videos shown as a large thumbnail (840 px) in the Preview Pane; `thumbnail` command takes a size.
-  - Next: scroll a PDF page to its first mark; remember the chosen Copy; cancel during download; run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark; try PDFium for text extraction (scanned PDFs).
+  - Done: a PDF page scrolls to the first of the Query's words.
+  - Next: remember the chosen Copy; cancel during download; run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark; try PDFium for text extraction (scanned PDFs).
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
