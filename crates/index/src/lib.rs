@@ -1,7 +1,7 @@
 //! SQLite-backed Name Index and file catalog (ADR 0003).
 
 use std::path::{Component, Path, PathBuf, Prefix};
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use sbm_core::{
@@ -68,6 +68,18 @@ pub struct IndexedFolder {
     pub path: PathBuf,
     /// False while the folder's drive is a Disconnected Drive.
     pub connected: bool,
+}
+
+/// How far the Content Index has got (FR-08).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ContentProgress {
+    /// Files whose content is indexed.
+    pub indexed: usize,
+    /// Files whose content is still to be indexed.
+    pub pending: usize,
+    /// Every file modified after this time has its content indexed; `None` when
+    /// nothing is pending.
+    pub ready_since: Option<SystemTime>,
 }
 
 /// What a scan found different from the previous one.
@@ -637,6 +649,34 @@ impl Index {
             |row| row.get(0),
         )?;
         Ok(count as usize)
+    }
+
+    /// How far the Content Index has got: jobs run newest file first, so every file
+    /// newer than the newest pending one is ready.
+    pub fn content_progress(&self) -> Result<ContentProgress> {
+        let (pending, newest_pending): (i64, Option<i64>) = self.db.query_row(
+            "SELECT count(*), max(priority) FROM index_jobs WHERE status = 'pending'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let indexed: i64 = self.db.query_row(
+            "SELECT count(*) FROM files WHERE content_hash IS NOT NULL
+             AND id NOT IN (SELECT file_id FROM index_jobs WHERE status = 'pending')",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(ContentProgress {
+            indexed: indexed as usize,
+            pending: pending as usize,
+            ready_since: newest_pending.map(|mtime_ns| {
+                let since_epoch = Duration::from_nanos(mtime_ns.unsigned_abs());
+                if mtime_ns < 0 {
+                    UNIX_EPOCH - since_epoch
+                } else {
+                    UNIX_EPOCH + since_epoch
+                }
+            }),
+        })
     }
 
     /// Adds the content of a file in the Name Index to the Content Index:

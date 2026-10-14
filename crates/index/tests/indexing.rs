@@ -325,3 +325,27 @@ fn saved_exclusions_drop_matching_files_on_the_next_scan() {
     assert_eq!(index.search_names("backup", 20).unwrap(), []);
     assert_eq!(index.search_names("report", 20).unwrap().len(), 1);
 }
+
+#[test]
+fn content_progress_states_how_far_back_content_is_ready() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let newest = write(folder.path(), "newest.txt", "budget for next year\n");
+    let middle = write(folder.path(), "middle.txt", "minutes of the meeting\n");
+    let oldest = write(folder.path(), "oldest.txt", "draft of the old report\n");
+    modified_days_ago(&newest, 10);
+    modified_days_ago(&middle, 20);
+    modified_days_ago(&oldest, 30);
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    let mut store = store();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+
+    index
+        .run_jobs(&BagOfWords::default(), &mut store, 1)
+        .unwrap();
+
+    let progress = index.content_progress().unwrap();
+    assert_eq!((progress.indexed, progress.pending), (1, 2));
+    let middle_modified = std::fs::metadata(&middle).unwrap().modified().unwrap();
+    assert_eq!(progress.ready_since, Some(middle_modified));
+}
