@@ -1,5 +1,7 @@
 //! The desktop app: Tauri commands over the Engine and first-run setup.
 
+use std::path::{Path, PathBuf};
+
 use sbm_embed_onnx::Accelerator;
 use sbm_setup::{Gpu, cuda_runtime, speed_options};
 use serde::Serialize;
@@ -32,6 +34,45 @@ pub fn speed_choices(gpus: &[Gpu]) -> Vec<SpeedChoice> {
             },
         })
         .collect()
+}
+
+/// What a folder offered in onboarding is, so the UI can name it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FolderKind {
+    /// The user's own folder: Documents, Desktop, Downloads, and the rest.
+    Personal,
+    /// A whole drive.
+    Drive,
+}
+
+/// A folder the onboarding folders step offers to make searchable.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderChoice {
+    pub path: PathBuf,
+    pub kind: FolderKind,
+    /// Picked until the user unpicks it.
+    pub picked: bool,
+}
+
+/// The personal folder `home`, picked, then every drive in `drives` that does
+/// not hold it, offered but not picked.
+pub fn folder_choices(home: &Path, drives: &[PathBuf]) -> Vec<FolderChoice> {
+    let personal = FolderChoice {
+        path: home.to_path_buf(),
+        kind: FolderKind::Personal,
+        picked: true,
+    };
+    let others = drives
+        .iter()
+        .filter(|drive| !home.starts_with(drive))
+        .map(|drive| FolderChoice {
+            path: drive.clone(),
+            kind: FolderKind::Drive,
+            picked: false,
+        });
+    std::iter::once(personal).chain(others).collect()
 }
 
 /// What the window can call; thin wrappers over the functions above.

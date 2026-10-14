@@ -1,6 +1,8 @@
 //! Onboarding: what the wizard offers, as facts the UI phrases for people.
 
-use sbm_app::speed_choices;
+use std::path::PathBuf;
+
+use sbm_app::{FolderChoice, FolderKind, folder_choices, speed_choices};
 use sbm_setup::{Gpu, GpuVendor, cuda_runtime};
 
 fn gpu(name: &str, vendor: GpuVendor, gib: u64) -> Gpu {
@@ -31,4 +33,28 @@ fn nvidia_card_is_offered_first_with_the_runtime_download_it_needs() {
         (0, 0)
     );
     assert_eq!(choices[2].graphics_card, None);
+}
+
+#[test]
+fn personal_folder_is_picked_and_other_drives_are_offered() {
+    let home = PathBuf::from(r"C:\Users\ana");
+    let drives = [PathBuf::from(r"C:\"), PathBuf::from(r"D:\")];
+
+    let choices = folder_choices(&home, &drives);
+
+    assert_eq!(
+        choices,
+        [
+            FolderChoice {
+                path: home.clone(),
+                kind: FolderKind::Personal,
+                picked: true,
+            },
+            FolderChoice {
+                path: PathBuf::from(r"D:\"),
+                kind: FolderKind::Drive,
+                picked: false,
+            },
+        ]
+    );
 }
