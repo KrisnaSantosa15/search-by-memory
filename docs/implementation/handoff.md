@@ -1,6 +1,6 @@
 # Handoff
 
-Snapshot for the next session or agent (2026-10-14, after the onboarding folders step). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
+Snapshot for the next session or agent (2026-10-14, after the onboarding hotkey and done steps). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
 
 ## State
 - **Development moved to Windows** (RTX 4060 8 GB). The workspace builds and all tests pass on Windows; Linux paths are unchanged.
@@ -18,12 +18,14 @@ Snapshot for the next session or agent (2026-10-14, after the onboarding folders
   - Goal (agreed): easy for non-developers; every step has a working default, plain language (no "CUDA"/"DirectML" wording), one progress bar with time left, name search usable as soon as onboarding ends.
   - Look (user's choice): like VoiceStudio (AGPL-3.0; ideas only, no code): dark plum surfaces, magenta accent, rounded bordered cards. Theme tokens in `app/src/index.css`.
   - Onboarding done: speed step (`speed_choices`), download step (`setup::Plan` + `setup::prepare` + `setup::TimeLeft`; `prepare` command emits throttled `setup-progress`; "Try again" resumes), folders step (personal folder picked, other drives offered: the user's choice; `folder_choices`), then `start_indexing` starts the Engine (`start_loading` on the picked Accelerator, CPU fallback, USN Journal) and adds the folders. `run()` puts `<cache>/runtimes/cuda13` on `PATH` before any thread starts.
-  - Verified in the real window: speed step only (`pnpm tauri dev`). The full onboarding has not been run through the GUI: Continue on the folders step indexes the real personal folder into the shared data dir (`sbm` uses it too). Here the model is already in the cache; the CUDA runtime is not yet in `<cache>/runtimes/cuda13` (it lives in `%LOCALAPPDATA%/nvidia-cuda13`), so "Fastest" would download 1.9 GB.
+  - Then the hotkey step (`HotkeyStep`: tries `Alt+Space` via `try_hotkey`, says when another app uses it, records other keys as `Ctrl+Shift+KeyK`; needs a modifier) and the done step; "Start searching" calls `finish_onboarding`, which saves `Settings` (`settings.json` in the data dir: `accelerator`, `hotkey`) and hides the window (the user's choice: hide to tray). Hotkey: `tauri-plugin-global-shortcut` 2.4.0; tray icon (Search, Quit) via Tauri's `tray-icon` feature.
+  - With `settings.json` present, the next start resumes the Engine on the saved Accelerator, registers the hotkey, and starts hidden; the `settings` command makes the window show a launcher placeholder (`Launcher.tsx`) instead of onboarding. Delete `settings.json` to see onboarding again.
+  - Verified in the real window: speed step only (`pnpm tauri dev`; also starts with the shortcut plugin and tray). The full onboarding has not been run through the GUI: Continue on the folders step indexes the real personal folder into the shared data dir (`sbm` uses it too). Here the model is already in the cache; the CUDA runtime is not yet in `<cache>/runtimes/cuda13` (it lives in `%LOCALAPPDATA%/nvidia-cuda13`), so "Fastest" would download 1.9 GB.
   - Code layout: plain, tested functions in `app/src-tauri/src/lib.rs` (`speed_choices`, `folder_choices`); thin `#[tauri::command]` wrappers in `mod commands` (untested glue). Frontend steps in `app/src/onboarding/`, each with a Vitest test; `App.tsx` drives the steps, tested with `mockIPC` (`shouldMockEvents`).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
-  - M3: hotkey step and done step; remember that onboarding is finished (settings) so the next start opens the launcher; cancel during download; then the launcher (File view, Passage view, Detail Panel, global hotkey).
+  - M3: the launcher (File view, Passage view, Detail Panel; replaces the `Launcher.tsx` placeholder); cancel during download; run the whole onboarding through the GUI once (indexes the real personal folder; check Alt + Space registers on Windows).
   - M4: throttling (full-screen, battery, busy; Live Updates exempt).
-- Tests: `cargo test --workspace` 190 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 13 passed.
+- Tests: `cargo test --workspace` 192 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 18 passed.
 
 ## Workspace
 | Path | Purpose |
