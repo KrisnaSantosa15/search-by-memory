@@ -62,3 +62,11 @@ fn words_found_on_the_page_are_marked_where_they_sit() {
         "{mark:?}"
     );
 }
+
+#[test]
+fn page_that_is_not_there_has_no_picture() {
+    let Some(pdfium) = pdfium() else { return };
+
+    assert_eq!(pdfium.page(&fixture("two-pages.pdf"), 3, 400, &[]), None);
+    assert_eq!(pdfium.page(&fixture("gone.pdf"), 1, 400, &[]), None);
+}
