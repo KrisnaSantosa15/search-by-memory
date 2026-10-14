@@ -23,15 +23,89 @@ export type FailedFile = { path: string; reason: string };
 /** How often the status is asked again while the window is open. */
 const REFRESH_EVERY_MS = 2_000;
 
-type Props = {
+/** A folder whose files are indexed; see `IndexedFolder` in `sbm-index`. */
+export type IndexedFolder = {
+  path: string;
+  /** False while the folder's drive is a Disconnected Drive. */
+  connected: boolean;
+};
+
+type StatusProps = {
   dashboard: () => Promise<Dashboard>;
   failedFiles: () => Promise<FailedFile[]>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
 };
 
+type FoldersProps = {
+  folders: () => Promise<IndexedFolder[]>;
+};
+
+const TABS = ["Status", "Folders"] as const;
+
 /** The Settings window: indexing status, Indexed Folders, and Exclusions. */
-export function Settings({ dashboard, failedFiles, pause, resume }: Props) {
+export function Settings(props: StatusProps & FoldersProps) {
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Status");
+
+  return (
+    <div className="flex flex-col">
+      <div role="tablist" className="flex gap-1 border-b border-line px-6 pt-4">
+        {TABS.map((name) => (
+          <button
+            key={name}
+            type="button"
+            role="tab"
+            aria-selected={tab === name}
+            onClick={() => setTab(name)}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
+              tab === name
+                ? "border-accent text-ink"
+                : "border-transparent text-muted hover:text-ink"
+            }`}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" aria-label={tab}>
+        {tab === "Status" ? <StatusTab {...props} /> : <FoldersTab {...props} />}
+      </div>
+    </div>
+  );
+}
+
+function FoldersTab({ folders }: FoldersProps) {
+  const [list, setList] = useState<IndexedFolder[]>([]);
+
+  useEffect(() => {
+    folders().then(setList);
+  }, [folders]);
+
+  return (
+    <section className="flex flex-col gap-2 p-6">
+      <h2 id="indexed-folders" className="font-semibold">
+        Indexed Folders
+      </h2>
+      <ul
+        aria-labelledby="indexed-folders"
+        className="flex flex-col divide-y divide-line rounded-xl border border-line bg-panel"
+      >
+        {list.map(({ path, connected }) => (
+          <li key={path} className="flex items-center gap-3 px-4 py-2 text-sm">
+            <Path path={path} />
+            {!connected && (
+              <span className="shrink-0 rounded-full bg-raised px-2 py-0.5 text-xs text-muted">
+                Drive not connected
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function StatusTab({ dashboard, failedFiles, pause, resume }: StatusProps) {
   const [status, setStatus] = useState<Dashboard | null>(null);
   const [failed, setFailed] = useState<FailedFile[]>([]);
 

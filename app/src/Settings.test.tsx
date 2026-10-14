@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Settings, type Dashboard, type FailedFile } from "./Settings";
+import { Settings, type Dashboard, type FailedFile, type IndexedFolder } from "./Settings";
 
 // 15 March 2025, midday UTC: the same month in every time zone.
 const midMarch2025 = Date.UTC(2025, 2, 15, 12);
@@ -20,6 +20,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
   const props = {
     dashboard: async () => running,
     failedFiles: async () => [] as FailedFile[],
+    folders: async () => [] as IndexedFolder[],
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -107,5 +108,23 @@ describe("Settings", () => {
     expect(await screen.findByText("Indexing is paused")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Resume indexing" }));
     expect(props.resume).toHaveBeenCalled();
+  });
+
+  it("lists the Indexed Folders and says which drives are disconnected", async () => {
+    renderSettings({
+      folders: async () => [
+        { path: "C:\\Users\\ana", connected: true },
+        { path: "E:\\Photos", connected: false },
+      ],
+    });
+
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    const list = screen.getByRole("list", { name: "Indexed Folders" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("C:\\Users\\ana");
+    expect(items[0]).not.toHaveTextContent("not connected");
+    expect(items[1]).toHaveTextContent("E:\\Photos");
+    expect(items[1]).toHaveTextContent("Drive not connected");
   });
 });

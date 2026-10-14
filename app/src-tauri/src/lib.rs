@@ -614,6 +614,31 @@ mod commands {
             .collect())
     }
 
+    /// A folder whose files are indexed, as the Folders tab lists it.
+    #[derive(Serialize)]
+    pub struct IndexedFolder {
+        path: PathBuf,
+        connected: bool,
+    }
+
+    #[tauri::command]
+    pub async fn indexed_folders(
+        running: State<'_, Running>,
+    ) -> Result<Vec<IndexedFolder>, String> {
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        let folders = engine
+            .indexed_folders()
+            .map_err(|error| error.to_string())?;
+        Ok(folders
+            .into_iter()
+            .map(|folder| IndexedFolder {
+                path: folder.path,
+                connected: folder.connected,
+            })
+            .collect())
+    }
+
     /// The lines of `path` around `lineStart`–`lineEnd`, or its first lines.
     #[tauri::command]
     pub async fn preview_lines(
@@ -928,6 +953,7 @@ pub fn run() {
             commands::search,
             commands::dashboard,
             commands::failed_files,
+            commands::indexed_folders,
             commands::pause_indexing,
             commands::resume_indexing,
             commands::open_file,
