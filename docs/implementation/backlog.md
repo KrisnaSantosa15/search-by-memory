@@ -115,7 +115,8 @@
   - Done: `Index::open` waits instead of failing while another connection writes.
   - Done: `failed_files` (with reason) and `failed` count; `remove_indexed_folder`; `add_exclusion`.
   - Done: content progress: `indexed`, `pending`, `ready_since` (newest pending file's mtime; `Index::content_progress`).
-  - Next: accelerator/model status; CLI on the Engine.
+  - Done: `start_loading`: model loads on its own thread; name-only search and no content work until then; `ModelStatus` Loading / Ready { device } / Failed.
+  - Next: CLI on the Engine.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
