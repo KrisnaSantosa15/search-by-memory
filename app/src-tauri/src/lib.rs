@@ -272,8 +272,9 @@ mod commands {
     const DIMENSIONS: usize = 256;
     /// Pixels across a rendered PDF page: the Preview Pane is about 420 px, sharp at 2×.
     const PDF_PAGE_WIDTH: u32 = 840;
-    /// Thumbnail pixels on the longer side: the list shows 40 px, sharp at 2× scaling.
-    const THUMBNAIL_SIZE: u32 = 80;
+    /// Thumbnail pixels on the longer side the frontend may ask for: from a row's
+    /// icon to a picture across the Preview Pane at 2× scaling.
+    const THUMBNAIL_SIZES: (u32, u32) = (16, 840);
     /// Results the launcher shows, as the PRD's default top-K.
     const RESULTS: usize = 20;
     /// Progress events per second at most; the bar cannot show more.
@@ -500,15 +501,17 @@ mod commands {
             .flatten()
     }
 
-    /// The system's thumbnail of `path` as a `data:` URL, if it has one. For an
-    /// Online-only File only an existing thumbnail is used, so nothing downloads.
+    /// The system's thumbnail of `path`, `size` pixels at most on its longer
+    /// side, as a `data:` URL, if it has one. For an Online-only File only an
+    /// existing thumbnail is used, so nothing downloads.
     #[tauri::command]
-    pub async fn thumbnail(path: PathBuf) -> Option<String> {
+    pub async fn thumbnail(path: PathBuf, size: u32) -> Option<String> {
+        let size = size.clamp(THUMBNAIL_SIZES.0, THUMBNAIL_SIZES.1);
         tauri::async_runtime::spawn_blocking(move || {
             use base64::Engine as _;
             use sbm_core::FileAvailability;
             let cached_only = sbm_core::SystemFileAvailability.is_online_only(&path);
-            let png = sbm_thumbnail::thumbnail(&path, THUMBNAIL_SIZE, cached_only)?;
+            let png = sbm_thumbnail::thumbnail(&path, size, cached_only)?;
             let base64 = base64::engine::general_purpose::STANDARD.encode(png);
             Some(format!("data:image/png;base64,{base64}"))
         })

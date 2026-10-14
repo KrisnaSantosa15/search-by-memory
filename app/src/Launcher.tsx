@@ -222,6 +222,7 @@ export function Launcher(props: Props) {
               query={query}
               loadLines={previewLines}
               loadPdfPage={props.pdfPage}
+              loadPicture={thumbnails}
               copy={copy}
               onOpen={() => act(open)}
               onReveal={() => act(reveal)}

@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
 import type { Kind } from "./Launcher";
 
-/** The system's thumbnail of a file as a `data:` URL; `null` when it has none. */
-export type LoadThumbnail = (path: string) => Promise<string | null>;
+/**
+ * The system's thumbnail of a file, `size` pixels at most on its longer side,
+ * as a `data:` URL; `null` when it has none.
+ */
+export type LoadThumbnail = (path: string, size: number) => Promise<string | null>;
 
-/** `load`, asked once per path. */
+/** How large a row's thumbnail is asked for: twice its drawn size, for sharp edges. */
+const ROW_SIZE = 80;
+
+/** `load`, asked once per path and size. */
 export function cachedThumbnails(load: LoadThumbnail): LoadThumbnail {
   const known = new Map<string, Promise<string | null>>();
-  return (path) => {
-    let thumbnail = known.get(path);
+  return (path, size) => {
+    const key = `${size} ${path}`;
+    let thumbnail = known.get(key);
     if (!thumbnail) {
-      thumbnail = load(path).catch(() => null);
-      known.set(path, thumbnail);
+      thumbnail = load(path, size).catch(() => null);
+      known.set(key, thumbnail);
     }
     return thumbnail;
   };
@@ -33,7 +40,7 @@ export function Thumbnail({ path, kind, connected, load }: Props) {
     setPicture(null);
     if (!connected) return;
     let current = true;
-    load(path).then((picture) => current && setPicture(picture));
+    load(path, ROW_SIZE).then((picture) => current && setPicture(picture));
     return () => {
       current = false;
     };

@@ -419,6 +419,19 @@ describe("Launcher", () => {
     expect(within(reportRow).getByRole("img", { name: "Document" })).toBeInTheDocument();
   });
 
+  it("shows a picture or video as a large picture in the Preview Pane", async () => {
+    const photo = { ...report, name: "holiday.jpg", path: "D:\\holiday.jpg", kind: "image" as const };
+    const thumbnail = vi.fn(async (_path: string, size: number) =>
+      size > 80 ? "data:image/png;base64,LARGE" : "data:image/png;base64,SMALL",
+    );
+    render(<Launcher search={async () => [photo]} {...actions()} thumbnail={thumbnail} />);
+    await userEvent.type(screen.getByRole("searchbox"), "beach");
+
+    const picture = await screen.findByRole("img", { name: "holiday.jpg" });
+    expect(picture).toHaveAttribute("src", "data:image/png;base64,LARGE");
+    expect(thumbnail).toHaveBeenCalledWith("D:\\holiday.jpg", 840);
+  });
+
   it("shows the matched PDF page with the Query's words marked on it", async () => {
     const pdfPage = vi.fn(async () => ({
       image: "data:image/png;base64,PAGE",

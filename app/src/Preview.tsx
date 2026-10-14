@@ -4,6 +4,10 @@ import { CodeLines, type LoadLines, PageLines, type TextPreview } from "./Lines"
 import { Marked } from "./Marked";
 import { Path } from "./Path";
 import { type LoadPdfPage, PdfPage, type PdfPagePreview } from "./PdfPage";
+import type { LoadThumbnail } from "./Thumbnail";
+
+/** How large a picture or video is asked for: the Preview Pane's width at 2× scaling. */
+const PICTURE_SIZE = 840;
 
 const MATCH_REASONS = {
   name: "Its name matches",
@@ -16,6 +20,7 @@ type Props = {
   query: string;
   loadLines: LoadLines;
   loadPdfPage: LoadPdfPage;
+  loadPicture: LoadThumbnail;
   /** The Copy being picked; `null` while none is being picked. */
   copy: number | null;
   onOpen: () => void;
@@ -28,6 +33,7 @@ export function Preview(props: Props) {
   const paths = [result.path, ...result.copies];
   const lines = useLines(result, loadLines);
   const pdfPage = usePdfPage(result, query, props.loadPdfPage);
+  const picture = usePicture(result, props.loadPicture);
   const { lineStart, lineEnd } = result;
   const matched: [number, number] | null =
     lineStart !== null && lineEnd !== null ? [lineStart, lineEnd] : null;
@@ -40,6 +46,12 @@ export function Preview(props: Props) {
     <section aria-label="Preview" className="flex min-w-0 flex-col gap-4">
       {pdfPage && result.page !== null ? (
         <PdfPage preview={pdfPage} name={result.name} page={result.page} />
+      ) : picture ? (
+        <img
+          src={picture}
+          alt={result.name}
+          className="max-h-72 self-center rounded-md object-contain shadow-lg shadow-black/30"
+        />
       ) : lines && result.kind === "code" ? (
         <CodeLines preview={lines} query={query} matched={matched} />
       ) : lines ? (
@@ -150,6 +162,29 @@ function usePdfPage(result: ResultRow, query: string, load: LoadPdfPage): PdfPag
   }, [load, path, number, query, renderable]);
 
   return page;
+}
+
+/**
+ * A large picture of an image or video on a connected drive; `null` until the
+ * system gives one, and for other files.
+ */
+function usePicture(result: ResultRow, load: LoadThumbnail): string | null {
+  const [picture, setPicture] = useState<string | null>(null);
+  const { path, connected } = result;
+  const visual = (result.kind === "image" || result.kind === "video") && connected;
+
+  useEffect(() => {
+    setPicture(null);
+    if (!visual) return;
+    // Only the selected Result's picture is shown, whichever answers last.
+    let current = true;
+    load(path, PICTURE_SIZE).then((picture) => current && setPicture(picture));
+    return () => {
+      current = false;
+    };
+  }, [load, path, visual]);
+
+  return picture;
 }
 
 /** Text on a sheet of paper, where the highlighter marks show best. */

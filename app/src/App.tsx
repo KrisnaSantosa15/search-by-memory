@@ -21,7 +21,8 @@ const launcher = {
   reveal: (path: string) => invoke("reveal_file", { path }),
   copyFile: (path: string) => invoke("copy_file", { path }),
   hide: () => invoke("hide_launcher"),
-  thumbnail: (path: string) => invoke<string | null>("thumbnail", { path }),
+  thumbnail: (path: string, size: number) =>
+    invoke<string | null>("thumbnail", { path, size }),
   pdfPage: (path: string, page: number, query: string) =>
     invoke<PdfPagePreview | null>("pdf_page", { path, page, query }),
   previewLines: (path: string, lineStart: number | null, lineEnd: number | null) =>
