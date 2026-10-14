@@ -101,6 +101,14 @@ impl Engine {
         Ok(())
     }
 
+    /// Forgets the Indexed Folder `folder`: its files leave both indexes.
+    pub fn remove_indexed_folder(&self, folder: &Path) -> Result<()> {
+        self.index
+            .lock()
+            .unwrap()
+            .remove_indexed_folder(folder, &mut SharedStore(&self.shared.store))
+    }
+
     /// Blocks until all work queued so far is done.
     pub fn wait_until_idle(&self) {
         let work = self.shared.work.lock().unwrap();

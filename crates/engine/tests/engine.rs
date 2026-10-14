@@ -120,3 +120,23 @@ fn file_that_cannot_be_indexed_is_listed_with_the_reason() {
     assert!(!failed[0].1.is_empty());
     assert_eq!(engine.status().unwrap().failed, 1);
 }
+
+#[test]
+fn removed_indexed_folder_leaves_search_and_status() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "recipe.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    engine.remove_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    assert_eq!(engine.search("beef coconut", View::Passage, 20).unwrap(), []);
+    assert_eq!(engine.search("recipe", View::File, 20).unwrap(), []);
+    assert_eq!(engine.status().unwrap().files, 0);
+}
