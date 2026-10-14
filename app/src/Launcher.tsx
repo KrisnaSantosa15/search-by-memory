@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { Path } from "./Path";
 import { Preview } from "./Preview";
 
 /** One Result, as the Rust side sends it. */
@@ -36,7 +37,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
-  // The Copy picked in the open Detail Panel; `null` while it is closed.
+  // The Copy being picked in the Preview Pane; `null` while none is being picked.
   const [copy, setCopy] = useState<number | null>(null);
   const box = useRef<HTMLInputElement>(null);
 
@@ -73,7 +74,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   // A Disconnected Drive's file can be named but not opened or shown.
   const reachable = target !== undefined && (target !== result?.path || result.connected);
 
-  /** Runs `action` on the target, or opens the Detail Panel to pick a Copy. */
+  /** Runs `action` on the target, or asks which Copy to use. */
   const act = (action: (path: string) => void, needsDrive = true) => {
     if (!target) {
       if (result) setCopy(0);
@@ -134,20 +135,6 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
                 <Path path={result.path} />
                 {!result.connected && <span className="shrink-0">· drive not connected</span>}
               </span>
-              {index === selected && copy !== null && (
-                <ul role="listbox" aria-label="Copies" className="mt-2 flex flex-col gap-0.5">
-                  {paths.map((path, index) => (
-                    <li
-                      key={path}
-                      role="option"
-                      aria-selected={index === copy}
-                      className="flex rounded-lg px-3 py-1.5 text-sm aria-selected:bg-raised"
-                    >
-                      <Path path={path} />
-                    </li>
-                  ))}
-                </ul>
-              )}
             </li>
           ))}
         </ul>
@@ -155,21 +142,13 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
           <Preview
             result={result}
             query={query}
+            copy={copy}
             onOpen={() => act(open)}
             onReveal={() => act(reveal)}
           />
         )}
       </div>
     </section>
-  );
-}
-
-/** A path that, when too long, loses its start: the folder and name stay readable. */
-function Path({ path }: { path: string }) {
-  return (
-    <span className="min-w-0 truncate text-left [direction:rtl]">
-      <bdi>{path}</bdi>
-    </span>
   );
 }
 

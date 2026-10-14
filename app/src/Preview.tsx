@@ -1,5 +1,6 @@
 import type { ResultRow } from "./Launcher";
 import { Marked } from "./Marked";
+import { Path } from "./Path";
 
 const MATCH_REASONS = {
   name: "Its name matches",
@@ -11,11 +12,14 @@ const MATCH_REASONS = {
 type Props = {
   result: ResultRow;
   query: string;
+  /** The Copy being picked; `null` while none is being picked. */
+  copy: number | null;
   onOpen: () => void;
   onReveal: () => void;
 };
 
-export function Preview({ result, query, onOpen, onReveal }: Props) {
+export function Preview({ result, query, copy, onOpen, onReveal }: Props) {
+  const paths = [result.path, ...result.copies];
   const facts = [
     result.size !== null && size(result.size),
     result.modified !== null && `changed ${date(result.modified)}`,
@@ -43,6 +47,34 @@ export function Preview({ result, query, onOpen, onReveal }: Props) {
         </Action>
         <Action onClick={onReveal}>Show in folder</Action>
       </div>
+      {copy !== null ? (
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium">Which copy? Pick one with the arrow keys, then press Enter.</p>
+          <ul role="listbox" aria-label="Copies" className="flex flex-col gap-0.5">
+            {paths.map((path, index) => (
+              <li
+                key={path}
+                role="option"
+                aria-selected={index === copy}
+                className="flex rounded-md px-2 py-1 text-sm aria-selected:bg-raised"
+              >
+                <Path path={path} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        result.copies.length > 0 && (
+          <div className="flex flex-col gap-0.5 text-sm text-muted">
+            <p>Also saved in</p>
+            {result.copies.map((path) => (
+              <p key={path} className="flex">
+                <Path path={path} />
+              </p>
+            ))}
+          </div>
+        )
+      )}
     </section>
   );
 }

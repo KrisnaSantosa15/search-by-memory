@@ -201,6 +201,20 @@ describe("Launcher", () => {
     expect(act.reveal).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
   });
 
+  it("lists the Copies in the Preview Pane and picks one there", async () => {
+    const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
+    render(<Launcher search={async () => [copied]} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option");
+    const preview = screen.getByRole("region", { name: /preview/i });
+
+    expect(preview).toHaveTextContent("E:\\Backup\\Q3 Report.pdf");
+    await userEvent.keyboard("{Enter}");
+
+    expect(within(preview).getByRole("listbox", { name: /copies/i })).toBeInTheDocument();
+    expect(preview).toHaveTextContent(/which copy/i);
+  });
+
   it("hides with Escape", async () => {
     const act = actions();
     render(<Launcher search={async () => []} {...act} />);
