@@ -43,8 +43,8 @@ function gigabytes(bytes: number): string {
 
 function timeLeft(seconds: number | null): string {
   if (seconds === null) return "Working out how long this takes";
+  if (seconds < 60) return "Less than a minute left";
   const minutes = Math.round(seconds / 60);
-  if (minutes < 1) return "Less than a minute left";
   const hours = Math.floor(minutes / 60);
   const parts = [
     hours > 0 && plural(hours, "hour"),
