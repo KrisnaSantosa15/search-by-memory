@@ -144,6 +144,7 @@
   - Done: Cancel on the download step (`cancel_prepare`): back to the speed choices, download kept for resuming.
   - Done: PDF text read with PDFium where installed, pdf-extract as fallback (ADR 0006); scans' invisible OCR layers now indexed.
   - Next: run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark.
+- M4 Settings and Status window (separate window from the tray; FR-03, FR-08): content progress, why indexing waits, failed files, size on disk, Indexed Folders (folder picker), Exclusions (turned-off defaults stored; restore defaults).
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
