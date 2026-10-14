@@ -110,3 +110,19 @@ impl Activity for SteadyActivity {
         self.0
     }
 }
+
+/// Stands in for what the computer is doing, changed by the test as it goes.
+#[derive(Clone, Default)]
+pub struct ChangingActivity(Arc<Mutex<Option<ThrottleReason>>>);
+
+impl ChangingActivity {
+    pub fn set(&self, reason: Option<ThrottleReason>) {
+        *self.0.lock().unwrap() = reason;
+    }
+}
+
+impl Activity for ChangingActivity {
+    fn throttle_reason(&self) -> Option<ThrottleReason> {
+        *self.0.lock().unwrap()
+    }
+}

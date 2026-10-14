@@ -5,7 +5,9 @@ mod common;
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
-use common::{BagOfWords, BrokenJournal, NoJournal, RecordingJournal, SteadyActivity, write};
+use common::{
+    BagOfWords, BrokenJournal, ChangingActivity, NoJournal, RecordingJournal, SteadyActivity, write,
+};
 use sbm_core::ThrottleReason;
 use sbm_engine::{Engine, LoadedModel, ModelStatus};
 use sbm_index::{Exclusion, MatchReason, View};
@@ -323,10 +325,10 @@ fn search_where_keeps_only_the_files_asked_for_while_the_model_loads() {
 #[test]
 fn throttled_engine_indexes_live_updates_but_holds_back_initial_indexing() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
-    write(folder.path(), "old.txt", "notes from the team meeting
-");
+    write(folder.path(), "old.txt", "notes from the team meeting\n");
     let journal = RecordingJournal::default();
-    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(journal.clone())).unwrap();
+    let engine =
+        Engine::start(data.path(), Arc::new(BagOfWords), Box::new(journal.clone())).unwrap();
     engine.set_activity(
         Arc::new(SteadyActivity(Some(ThrottleReason::Battery))),
         Duration::ZERO,
@@ -335,10 +337,12 @@ fn throttled_engine_indexes_live_updates_but_holds_back_initial_indexing() {
     engine.add_indexed_folder(folder.path()).unwrap();
     engine.wait_until_idle();
     let held = engine.status().unwrap();
-    assert_eq!((held.pending, held.throttled), (1, Some(ThrottleReason::Battery)));
+    assert_eq!(
+        (held.pending, held.throttled),
+        (1, Some(ThrottleReason::Battery))
+    );
 
-    let new = write(folder.path(), "new.txt", "agenda for the team meeting
-");
+    let new = write(folder.path(), "new.txt", "agenda for the team meeting\n");
     journal.record(&new);
     let deadline = Instant::now() + Duration::from_secs(10);
     let found = loop {
@@ -351,4 +355,35 @@ fn throttled_engine_indexes_live_updates_but_holds_back_initial_indexing() {
     let paths: Vec<_> = found.iter().map(|result| result.path.clone()).collect();
     assert_eq!(paths, [new]);
     assert_eq!(engine.status().unwrap().pending, 1);
+}
+
+#[test]
+fn initial_indexing_goes_on_once_the_computer_has_been_quiet_for_the_quiet_period() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "notes.txt", "notes from the team meeting");
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    let activity = ChangingActivity::default();
+    activity.set(Some(ThrottleReason::FullScreen));
+    let quiet = Duration::from_secs(1);
+    engine.set_activity(Arc::new(activity.clone()), quiet);
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    activity.set(None);
+    let quiet_since = Instant::now();
+    engine.resume();
+    engine.wait_until_idle();
+    let still = engine.status().unwrap();
+    assert_eq!(
+        (still.pending, still.throttled),
+        (1, Some(ThrottleReason::FullScreen))
+    );
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while engine.status().unwrap().pending > 0 && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let after = engine.status().unwrap();
+    assert_eq!((after.pending, after.throttled), (0, None));
+    assert!(quiet_since.elapsed() >= quiet);
 }
