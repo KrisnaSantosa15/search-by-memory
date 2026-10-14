@@ -13,6 +13,9 @@ export type Dashboard = {
   paused: boolean;
 };
 
+/** How often the status is asked again while the window is open. */
+const REFRESH_EVERY_MS = 2_000;
+
 type Props = {
   dashboard: () => Promise<Dashboard>;
   pause: () => Promise<void>;
@@ -27,6 +30,8 @@ export function Settings({ dashboard, pause, resume }: Props) {
 
   useEffect(() => {
     refresh();
+    const every = setInterval(refresh, REFRESH_EVERY_MS);
+    return () => clearInterval(every);
   }, [refresh]);
 
   if (!status) return null;

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Settings, type Dashboard } from "./Settings";
 
 // 15 March 2025, midday UTC: the same month in every time zone.
@@ -27,6 +27,10 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
 }
 
 describe("Settings", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("shows the files found and how far content search reaches", async () => {
     renderSettings();
 
@@ -34,6 +38,18 @@ describe("Settings", () => {
     expect(
       screen.getByText("Content index 34% — files since March 2025 are ready"),
     ).toBeInTheDocument();
+  });
+
+  it("keeps the status up to date while it is open", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let files = 10;
+    renderSettings({ dashboard: async () => ({ ...running, files }) });
+    expect(await screen.findByText("10 files found")).toBeInTheDocument();
+
+    files = 25;
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(await screen.findByText("25 files found")).toBeInTheDocument();
   });
 
   it("says why indexing waits", async () => {
