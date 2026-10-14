@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { Marked } from "./Marked";
 import { Path } from "./Path";
 import { Preview } from "./Preview";
 
@@ -29,8 +30,6 @@ type Props = {
   copyFile: (path: string) => void;
   hide: () => void;
 };
-
-const MATCH_REASONS = { name: "name", content: "content", both: "name + content" };
 
 /** The search window: a Query box over its Results. */
 export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
@@ -105,8 +104,9 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
   };
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex gap-2">
+    <section className="flex h-full flex-col">
+      <label data-tauri-drag-region className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-4">
+        <SearchIcon />
         <input
           type="search"
           ref={box}
@@ -114,55 +114,88 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Type what you remember about the file…"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-panel px-4 py-3 text-lg outline-none focus:border-accent"
+          placeholder="Describe the file you remember"
+          className="min-w-0 flex-1 bg-transparent font-display text-xl font-light outline-none placeholder:text-muted/70 [&::-webkit-search-cancel-button]:hidden"
         />
-      </div>
-      <div className="grid grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-4">
-        <ul role="listbox" aria-label="Results" className="flex flex-col gap-1">
+      </label>
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        <ul
+          role="listbox"
+          aria-label="Results"
+          className="flex flex-col gap-0.5 overflow-y-auto border-r border-line p-2"
+        >
           {results.map((result, index) => (
             <li
               key={`${result.path}#${index}`}
               role="option"
               aria-selected={index === selected}
-              className="flex flex-col gap-0.5 rounded-xl border border-transparent p-3 aria-selected:border-accent aria-selected:bg-accent-soft"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setSelected(index)}
+              className="flex cursor-default flex-col gap-0.5 rounded-md border-l-2 border-transparent px-3 py-2 aria-selected:border-accent aria-selected:bg-accent-soft"
             >
-              <span className="flex items-baseline gap-2">
-                <span className="font-medium">{result.name}</span>
-                {result.location && <span className="text-sm text-muted">{result.location}</span>}
-                <span className="ml-auto text-xs text-muted">
-                  {MATCH_REASONS[result.matchReason]}
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span className="truncate font-medium">{result.name}</span>
+                {result.location && (
+                  <span className="shrink-0 rounded bg-raised px-1.5 text-xs text-muted">
+                    {result.location}
+                  </span>
+                )}
+              </span>
+              {result.snippet ? (
+                <span className="truncate text-sm text-muted">
+                  <Marked text={result.snippet} query={query} />
                 </span>
-              </span>
-              {result.snippet && <span className="line-clamp-2 text-sm">{result.snippet}</span>}
-              <span className="flex gap-1 text-xs text-muted">
-                <Path path={result.path} />
-                {!result.connected && <span className="shrink-0">· drive not connected</span>}
-              </span>
+              ) : (
+                <span className="flex text-sm text-muted">
+                  <Path path={result.folder} />
+                </span>
+              )}
+              {!result.connected && <span className="text-xs text-accent">Drive not connected</span>}
             </li>
           ))}
         </ul>
-        {result && (
-          <Preview
-            result={result}
-            query={query}
-            copy={copy}
-            onOpen={() => act(open)}
-            onReveal={() => act(reveal)}
-          />
-        )}
+        <div className="min-h-0 overflow-y-auto p-5">
+          {result ? (
+            <Preview
+              result={result}
+              query={query}
+              copy={copy}
+              onOpen={() => act(open)}
+              onReveal={() => act(reveal)}
+            />
+          ) : (
+            !query.trim() && (
+              <p className="pt-16 text-center text-sm leading-relaxed text-muted">
+                Describe it the way you remember it,
+                <br />
+                like “the dentist invoice from March” or “slow-cooked beef recipe”.
+              </p>
+            )
+          )}
+        </div>
       </div>
-      <footer className="flex items-center justify-between gap-4 text-xs text-muted">
+      <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-line px-5 py-2.5 text-xs text-muted">
         <p role="status">{status(query, searching, results.length)}</p>
         <ul aria-label="Keys" className="flex gap-4">
           {KEYS.map(([keys, action]) => (
             <li key={action}>
-              <kbd className="font-sans text-ink">{keys}</kbd> {action}
+              <kbd className="mr-1 font-sans text-ink">{keys}</kbd>
+              {action}
             </li>
           ))}
         </ul>
       </footer>
     </section>
+  );
+}
+
+/** The magnifier in front of the Query box. */
+function SearchIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="size-6 shrink-0 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.5 15.5 5 5" />
+    </svg>
   );
 }
 
