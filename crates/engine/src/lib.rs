@@ -229,6 +229,19 @@ impl Engine {
         Ok(())
     }
 
+    /// Forgets `exclusion`, or turns it off if it is a Default Exclusion; the files it
+    /// kept out join both indexes.
+    pub fn remove_exclusion(&self, exclusion: &Exclusion) -> Result<()> {
+        self.index.lock().unwrap().remove_exclusion(exclusion)?;
+        self.request_pass();
+        Ok(())
+    }
+
+    /// The Default Exclusions still on, followed by the user's.
+    pub fn exclusions(&self) -> Result<Vec<Exclusion>> {
+        self.index.lock().unwrap().exclusions()
+    }
+
     /// Blocks until all work queued so far is done.
     pub fn wait_until_idle(&self) {
         let work = self.shared.work.lock().unwrap();

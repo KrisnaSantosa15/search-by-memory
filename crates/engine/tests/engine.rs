@@ -439,3 +439,21 @@ fn indexed_folders_are_listed_in_the_order_they_were_added() {
     assert_eq!(folders[0].path, photos.path());
     assert!(folders[0].connected);
 }
+
+#[test]
+fn files_beneath_a_removed_exclusion_become_searchable_again() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let diary = write(folder.path(), "private/diary.txt", "secret garden plans\n");
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    let private = Exclusion::Folder(folder.path().join("private"));
+    engine.add_exclusion(private.clone()).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    engine.remove_exclusion(&private).unwrap();
+    engine.wait_until_idle();
+
+    assert!(!engine.exclusions().unwrap().contains(&private));
+    let results = engine.search("secret garden", View::File, 20).unwrap();
+    assert!(results.iter().any(|r| r.path == diary), "{results:?}");
+}
