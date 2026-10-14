@@ -291,6 +291,20 @@ pub fn cuda_runtime() -> Vec<RemoteFile> {
     .collect()
 }
 
+/// Where PDFium lives, relative to the cache directory (`AppDirs`).
+pub const PDFIUM_DIR: &str = "runtimes/pdfium";
+
+/// PDFium, which renders PDF pages for the Preview Pane: the build matching the
+/// API `pdfium-render` binds (7881), from bblanchon/pdfium-binaries (3.7 MB; 7.2 MB unpacked).
+pub fn pdfium_runtime() -> Vec<RemoteFile> {
+    vec![RemoteFile {
+        url: "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7881/pdfium-win-x64.tgz".into(),
+        path: "pdfium-win-x64.tgz".into(),
+        size: 3_733_154,
+        sha256: "73cc0de638ac2095e7445bf56a38200a5b7c7ca0e9f4ba144598f2457377ac08".into(),
+    }]
+}
+
 /// Installs a runtime into `dir`: downloads the `archives` (zip, or gzipped
 /// tar ending in `.tgz`) and unpacks the DLLs in their `bin` folders.
 pub fn install_runtime(
@@ -391,10 +405,12 @@ pub struct Plan {
     pub runtime: Vec<RemoteFile>,
     /// Embedding model files, saved into [`EMBEDDING_MODEL_DIR`].
     pub model: Vec<RemoteFile>,
+    /// PDFium archives, installed into [`PDFIUM_DIR`].
+    pub pdfium: Vec<RemoteFile>,
 }
 
 impl Plan {
-    /// The embedding model, plus the CUDA runtime when `accelerator` needs it.
+    /// The embedding model and PDFium, plus the CUDA runtime when `accelerator` needs it.
     pub fn for_accelerator(accelerator: Accelerator) -> Self {
         Self {
             runtime: if accelerator == Accelerator::Cuda {
@@ -403,6 +419,7 @@ impl Plan {
                 Vec::new()
             },
             model: embedding_model(),
+            pdfium: pdfium_runtime(),
         }
     }
 }

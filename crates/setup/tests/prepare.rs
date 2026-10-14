@@ -10,7 +10,7 @@ use common::FakeHttp;
 use sbm_embed_onnx::Accelerator;
 use sbm_setup::{
     CUDA_RUNTIME_DIR, EMBEDDING_MODEL_DIR, Finished, Plan, Progress, cuda_runtime, embedding_model,
-    prepare,
+    pdfium_runtime, prepare,
 };
 use tempfile::TempDir;
 use zip::write::SimpleFileOptions;
@@ -37,6 +37,7 @@ fn runtime_and_model_are_installed_under_one_progress_bar() {
             "onnx/model.onnx",
             b"model weights",
         )],
+        pdfium: Vec::new(),
     };
     let mut reports = Vec::new();
 
@@ -74,4 +75,21 @@ fn only_the_nvidia_choice_downloads_the_cuda_runtime() {
     for plan in [&cuda, &cpu] {
         assert_eq!(plan.model, embedding_model());
     }
+}
+
+#[test]
+fn every_choice_downloads_pdfium_to_show_pdf_pages() {
+    for accelerator in [Accelerator::Cuda, Accelerator::DirectMl, Accelerator::Cpu] {
+        assert_eq!(Plan::for_accelerator(accelerator).pdfium, pdfium_runtime());
+    }
+    let [archive] = pdfium_runtime().try_into().unwrap();
+    assert_eq!(
+        archive.url,
+        "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7881/pdfium-win-x64.tgz"
+    );
+    assert_eq!(archive.size, 3_733_154);
+    assert_eq!(
+        archive.sha256,
+        "73cc0de638ac2095e7445bf56a38200a5b7c7ca0e9f4ba144598f2457377ac08"
+    );
 }
