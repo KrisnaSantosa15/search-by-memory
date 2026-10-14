@@ -52,7 +52,7 @@ export function SpeedStep({ choices, onContinue }: Props) {
                 <span className="font-medium">
                   {title}
                   {choice.recommended && (
-                    <span className="ml-2 rounded-md bg-accent px-1.5 py-0.5 text-xs font-medium text-white">
+                    <span className="ml-2 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent">
                       Recommended
                     </span>
                   )}
@@ -65,7 +65,7 @@ export function SpeedStep({ choices, onContinue }: Props) {
       </div>
       <button
         type="submit"
-        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-white transition-colors hover:bg-accent-hover"
+        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-canvas transition-colors hover:bg-accent-hover"
       >
         Continue
       </button>

@@ -43,7 +43,7 @@ export function DownloadStep({ done, total, secondsLeft, onRetry }: Props) {
           <button
             type="button"
             onClick={onRetry}
-            className="shrink-0 rounded-lg bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover"
+            className="shrink-0 rounded-lg bg-accent px-4 py-2 font-medium text-canvas transition-colors hover:bg-accent-hover"
           >
             Try again
           </button>

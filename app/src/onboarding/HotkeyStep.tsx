@@ -63,7 +63,7 @@ export function HotkeyStep({ tryHotkey, onContinue }: Props) {
       <button
         type="submit"
         disabled={!free}
-        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
+        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-canvas transition-colors hover:bg-accent-hover disabled:opacity-40"
       >
         Continue
       </button>
