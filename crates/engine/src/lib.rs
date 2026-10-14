@@ -4,10 +4,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, OnceLock, RwLock};
 use std::thread::JoinHandle;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 use sbm_core::{
-    ChangeSource, Embedding, EmbeddingProvider, Neighbor, Result, VectorId, VectorStore,
+    Activity, ChangeSource, Embedding, EmbeddingProvider, Neighbor, Result, ThrottleReason,
+    VectorId, VectorStore,
 };
 use sbm_index::{Exclusion, Index, MatchReason, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
@@ -59,6 +60,8 @@ pub struct Status {
     /// Why the last indexing pass stopped early, if it did.
     pub error: Option<String>,
     pub model: ModelStatus,
+    /// Why Initial Indexing is holding back, if it is; Live Updates go on.
+    pub throttled: Option<ThrottleReason>,
 }
 
 pub struct Engine {
@@ -72,6 +75,31 @@ struct Shared {
     model: OnceLock<Model>,
     work: Mutex<Work>,
     changed: Condvar,
+    throttle: Mutex<Throttle>,
+}
+
+/// Holds Initial Indexing back while the computer is in use, and for a quiet
+/// period after (FR-04).
+#[derive(Default)]
+struct Throttle {
+    activity: Option<Arc<dyn Activity + Send + Sync>>,
+    quiet: Duration,
+    /// The last reason seen, and when.
+    last: Option<(ThrottleReason, Instant)>,
+}
+
+impl Throttle {
+    /// Why indexing holds back now: what the computer is doing, or what it did
+    /// less than the quiet period ago.
+    fn reason(&mut self) -> Option<ThrottleReason> {
+        let now = Instant::now();
+        if let Some(reason) = self.activity.as_ref()?.throttle_reason() {
+            self.last = Some((reason, now));
+        }
+        self.last
+            .filter(|(_, seen)| now.duration_since(*seen) <= self.quiet)
+            .map(|(reason, _)| reason)
+    }
 }
 
 struct Model {
@@ -92,6 +120,8 @@ struct Work {
     error: Option<String>,
     /// Why the model could not be loaded, if it could not.
     model_error: Option<String>,
+    /// Why Initial Indexing held back when last checked.
+    throttled: Option<ThrottleReason>,
 }
 
 impl Engine {
@@ -150,6 +180,7 @@ impl Engine {
                 ..Work::default()
             }),
             changed: Condvar::new(),
+            throttle: Mutex::default(),
         });
         let worker = {
             let mut worker_index = Index::open(&database)?;
@@ -208,6 +239,17 @@ impl Engine {
         self.request_pass();
     }
 
+    /// Holds Initial Indexing back whenever `activity` gives a reason, and until
+    /// it has given none for `quiet`; Live Updates go on regardless.
+    pub fn set_activity(&self, activity: Arc<dyn Activity + Send + Sync>, quiet: Duration) {
+        *self.shared.throttle.lock().unwrap() = Throttle {
+            activity: Some(activity),
+            quiet,
+            last: None,
+        };
+        self.request_pass();
+    }
+
     pub fn status(&self) -> Result<Status> {
         let index = self.index.lock().unwrap();
         let progress = index.content_progress()?;
@@ -226,6 +268,7 @@ impl Engine {
                 (None, Some(error)) => ModelStatus::Failed(error.clone()),
                 (None, None) => ModelStatus::Loading,
             },
+            throttled: work.throttled,
         })
     }
 
@@ -348,7 +391,13 @@ fn index_pass(
         if shared.work.lock().unwrap().paused {
             break Ok(());
         }
-        match index.run_jobs(&*model.embedder, &mut store, 1) {
+        let throttled = shared.throttle.lock().unwrap().reason();
+        shared.work.lock().unwrap().throttled = throttled;
+        let ran = match throttled {
+            Some(_) => index.run_live_jobs(&*model.embedder, &mut store, 1),
+            None => index.run_jobs(&*model.embedder, &mut store, 1),
+        };
+        match ran {
             Ok(0) => break Ok(()),
             Ok(_) => unsaved += 1,
             Err(error) => break Err(error),

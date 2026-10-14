@@ -5,7 +5,8 @@ mod common;
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
-use common::{BagOfWords, BrokenJournal, NoJournal, write};
+use common::{BagOfWords, BrokenJournal, NoJournal, RecordingJournal, SteadyActivity, write};
+use sbm_core::ThrottleReason;
 use sbm_engine::{Engine, LoadedModel, ModelStatus};
 use sbm_index::{Exclusion, MatchReason, View};
 use tempfile::TempDir;
@@ -317,4 +318,37 @@ fn search_where_keeps_only_the_files_asked_for_while_the_model_loads() {
     let found: Vec<_> = results.iter().map(|result| &result.path).collect();
     assert_eq!(found, [&code]);
     drop(release);
+}
+
+#[test]
+fn throttled_engine_indexes_live_updates_but_holds_back_initial_indexing() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "old.txt", "notes from the team meeting
+");
+    let journal = RecordingJournal::default();
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(journal.clone())).unwrap();
+    engine.set_activity(
+        Arc::new(SteadyActivity(Some(ThrottleReason::Battery))),
+        Duration::ZERO,
+    );
+
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+    let held = engine.status().unwrap();
+    assert_eq!((held.pending, held.throttled), (1, Some(ThrottleReason::Battery)));
+
+    let new = write(folder.path(), "new.txt", "agenda for the team meeting
+");
+    journal.record(&new);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let found = loop {
+        let results = engine.search("team meeting", View::Passage, 20).unwrap();
+        if !results.is_empty() || Instant::now() > deadline {
+            break results;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    let paths: Vec<_> = found.iter().map(|result| result.path.clone()).collect();
+    assert_eq!(paths, [new]);
+    assert_eq!(engine.status().unwrap().pending, 1);
 }

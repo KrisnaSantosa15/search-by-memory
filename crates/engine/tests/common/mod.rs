@@ -4,8 +4,12 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
-use sbm_core::{ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, Result};
+use sbm_core::{
+    Activity, ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, Result,
+    SystemVolumes, ThrottleReason, Volumes,
+};
 
 pub const DIMENSIONS: usize = 64;
 
@@ -66,5 +70,43 @@ pub struct BrokenJournal;
 impl ChangeSource for BrokenJournal {
     fn changes_since(&self, _volume_id: &str, _since: Option<&ChangeCursor>) -> Result<Changes> {
         Err("the change journal cannot be read".into())
+    }
+}
+
+/// Stands in for a change journal: reports the paths recorded since the cursor,
+/// on the real volumes they sit on. Without a cursor, the history is lost.
+/// Clones share one record.
+#[derive(Clone, Default)]
+pub struct RecordingJournal(Arc<Mutex<Vec<PathBuf>>>);
+
+impl RecordingJournal {
+    pub fn record(&self, path: &Path) {
+        self.0.lock().unwrap().push(path.to_path_buf());
+    }
+}
+
+impl ChangeSource for RecordingJournal {
+    fn changes_since(&self, volume_id: &str, since: Option<&ChangeCursor>) -> Result<Changes> {
+        let recorded = self.0.lock().unwrap();
+        let next = ChangeCursor(recorded.len().to_string());
+        let Some(read) = since.and_then(|since| since.0.parse::<usize>().ok()) else {
+            return Ok(Changes::Lost { next });
+        };
+        let root = SystemVolumes.mount_point(volume_id).unwrap();
+        let paths = recorded[read..]
+            .iter()
+            .filter_map(|path| path.strip_prefix(&root).ok())
+            .map(|relative| relative.to_string_lossy().replace('\\', "/"))
+            .collect();
+        Ok(Changes::Paths { paths, next })
+    }
+}
+
+/// Stands in for what the computer is doing: always the same answer.
+pub struct SteadyActivity(pub Option<ThrottleReason>);
+
+impl Activity for SteadyActivity {
+    fn throttle_reason(&self) -> Option<ThrottleReason> {
+        self.0
     }
 }

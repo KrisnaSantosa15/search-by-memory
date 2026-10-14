@@ -157,6 +157,23 @@ pub trait ChangeSource {
     fn changes_since(&self, volume_id: &str, since: Option<&ChangeCursor>) -> Result<Changes>;
 }
 
+/// Why Initial Indexing holds back for now (FR-04); Live Updates go on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThrottleReason {
+    /// A game, video, or presentation fills the screen.
+    FullScreen,
+    /// The computer runs on battery power.
+    Battery,
+    /// Other work keeps the computer busy.
+    Busy,
+}
+
+/// What the computer is doing that indexing must not disturb (platform adapter).
+pub trait Activity {
+    /// Why indexing should hold back right now, or `None` when it need not.
+    fn throttle_reason(&self) -> Option<ThrottleReason>;
+}
+
 /// The operating system convention that decides where the app keeps its files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Platform {
