@@ -327,6 +327,29 @@ fn saved_exclusions_drop_matching_files_on_the_next_scan() {
 }
 
 #[test]
+fn removed_exclusion_lets_its_files_back_in_on_the_next_scan() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "private/diary.txt", "dear diary\n");
+    write(folder.path(), "work/backup.bak", "old copy\n");
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    index.add_indexed_folder(folder.path()).unwrap();
+    let private = Exclusion::Folder(folder.path().join("private"));
+    let backups = Exclusion::Name("*.bak".to_string());
+    index.add_exclusion(private.clone()).unwrap();
+    index.add_exclusion(backups.clone()).unwrap();
+    index.scan_all().unwrap();
+
+    index.remove_exclusion(&private).unwrap();
+    index.remove_exclusion(&backups).unwrap();
+    index.scan_all().unwrap();
+
+    assert!(!index.exclusions().unwrap().contains(&private));
+    assert!(!index.exclusions().unwrap().contains(&backups));
+    assert_eq!(index.search_names("diary", 20).unwrap().len(), 1);
+    assert_eq!(index.search_names("backup", 20).unwrap().len(), 1);
+}
+
+#[test]
 fn content_progress_states_how_far_back_content_is_ready() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     let newest = write(folder.path(), "newest.txt", "budget for next year\n");

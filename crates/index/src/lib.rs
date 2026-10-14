@@ -405,6 +405,38 @@ impl Index {
         Ok(())
     }
 
+    /// Forgets an Exclusion; the next scan, or apply_changes, brings back the files it
+    /// kept out by rescanning the volumes it applied to.
+    pub fn remove_exclusion(&mut self, exclusion: &Exclusion) -> Result<()> {
+        match exclusion {
+            Exclusion::Name(pattern) => {
+                let tx = self.db.transaction()?;
+                tx.execute(
+                    "DELETE FROM exclusions WHERE pattern = ?1",
+                    params![pattern],
+                )?;
+                tx.execute("DELETE FROM change_cursors", [])?;
+                tx.commit()?;
+            }
+            Exclusion::Folder(folder) => {
+                let folder = normalized(folder);
+                let volume = self.volumes.volume_of(&folder)?;
+                let path = relative_path(&folder, &volume)?;
+                let tx = self.db.transaction()?;
+                tx.execute(
+                    "DELETE FROM exclusions WHERE volume_id = ?1 AND relative_path = ?2",
+                    params![volume.id, path],
+                )?;
+                tx.execute(
+                    "DELETE FROM change_cursors WHERE volume_id = ?1",
+                    params![volume.id],
+                )?;
+                tx.commit()?;
+            }
+        }
+        Ok(())
+    }
+
     /// The Default Exclusions followed by the user's.
     pub fn exclusions(&self) -> Result<Vec<Exclusion>> {
         let saved: Vec<(Option<String>, Option<String>, Option<String>)> = self
