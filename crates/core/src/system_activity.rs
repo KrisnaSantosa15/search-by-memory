@@ -50,16 +50,46 @@ impl SystemActivity {
 
 impl Activity for SystemActivity {
     fn throttle_reason(&self) -> Option<ThrottleReason> {
-        self.busy().then_some(ThrottleReason::Busy)
+        if platform::full_screen() {
+            Some(ThrottleReason::FullScreen)
+        } else if platform::on_battery() {
+            Some(ThrottleReason::Battery)
+        } else {
+            self.busy().then_some(ThrottleReason::Busy)
+        }
     }
 }
 
 #[cfg(windows)]
 mod platform {
     use windows_sys::Win32::Foundation::FILETIME;
+    use windows_sys::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
     use windows_sys::Win32::System::Threading::{
         GetCurrentProcess, GetProcessTimes, GetSystemTimes,
     };
+    use windows_sys::Win32::UI::Shell::{
+        QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
+        SHQueryUserNotificationState,
+    };
+
+    /// A full-screen game, video, or presentation: the moments Windows itself
+    /// keeps notifications quiet for.
+    pub fn full_screen() -> bool {
+        let mut state = 0;
+        let read = unsafe { SHQueryUserNotificationState(&mut state) } >= 0;
+        read && [
+            QUNS_BUSY,
+            QUNS_RUNNING_D3D_FULL_SCREEN,
+            QUNS_PRESENTATION_MODE,
+        ]
+        .contains(&state)
+    }
+
+    /// Unplugged; a desktop without a battery reports mains power.
+    pub fn on_battery() -> bool {
+        let mut status: SYSTEM_POWER_STATUS = unsafe { std::mem::zeroed() };
+        unsafe { GetSystemPowerStatus(&mut status) != 0 && status.ACLineStatus == 0 }
+    }
 
     /// CPU time in 100 ns units, summed over all processors.
     pub struct CpuTimes {
@@ -105,6 +135,15 @@ mod platform {
         pub all: u64,
         pub idle: u64,
         pub own: u64,
+    }
+
+    /// Not detected outside Windows yet.
+    pub fn full_screen() -> bool {
+        false
+    }
+
+    pub fn on_battery() -> bool {
+        false
     }
 
     /// Not measured outside Windows yet: never busy.
