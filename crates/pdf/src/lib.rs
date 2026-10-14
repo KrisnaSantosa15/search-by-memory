@@ -22,6 +22,14 @@ pub struct RenderedPage {
     pub marks: Vec<Area>,
 }
 
+/// Why PDFium could not read the text of a PDF.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotRead {
+    /// Encrypted with a password.
+    PasswordProtected,
+    Other,
+}
+
 /// Part of a page, in fractions of its width and height from the top left.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Area {
@@ -43,13 +51,24 @@ impl PdfPages {
     }
 
     /// The text of each page of the PDF `path`, lines ending in `\n`, including
-    /// invisible text such as a scan's OCR layer; `None` when it cannot be read.
-    pub fn text(&self, path: &Path) -> Option<Vec<String>> {
-        let document = self.0.load_pdf_from_file(path, None).ok()?;
+    /// invisible text such as a scan's OCR layer.
+    pub fn text(&self, path: &Path) -> Result<Vec<String>, NotRead> {
+        let document = self
+            .0
+            .load_pdf_from_file(path, None)
+            .map_err(|error| match error {
+                PdfiumError::PdfiumLibraryInternalError(PdfiumInternalError::PasswordError) => {
+                    NotRead::PasswordProtected
+                }
+                _ => NotRead::Other,
+            })?;
         document
             .pages()
             .iter()
-            .map(|page| Some(page.text().ok()?.all().replace("\r\n", "\n")))
+            .map(|page| {
+                let text = page.text().map_err(|_| NotRead::Other)?;
+                Ok(text.all().replace("\r\n", "\n"))
+            })
             .collect()
     }
 

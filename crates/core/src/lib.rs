@@ -52,6 +52,8 @@ pub struct Section {
 /// Why the content of a file could not be read, in terms a user can act on (FR-08).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unreadable {
+    /// Encrypted; it opens only with a password.
+    PasswordProtected,
     /// Not a valid file of its format, or cut short.
     Damaged,
     /// None of the above, or not known.

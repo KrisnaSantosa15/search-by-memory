@@ -42,10 +42,18 @@ pub struct PdfExtractor;
 impl ContentExtractor for PdfExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
         let pages = match pdfium_text(path) {
-            Some(pages) => pages,
+            Some(Ok(pages)) => pages,
+            Some(Err(sbm_pdf::NotRead::PasswordProtected)) => {
+                return Err(ExtractError::new(
+                    Unreadable::PasswordProtected,
+                    "PDF is protected by a password",
+                )
+                .into());
+            }
             // pdf-extract panics on some malformed PDFs; a bad file must not stop indexing.
-            None => std::panic::catch_unwind(|| pdf_extract::extract_text_by_pages(path))
-                .map_err(|_| format!("PDF parser crashed on {}", path.display()))??,
+            _ => std::panic::catch_unwind(|| pdf_extract::extract_text_by_pages(path))
+                .map_err(|_| format!("PDF parser crashed on {}", path.display()))?
+                .map_err(pdf_extract_error)?,
         };
         Ok(pages
             .into_iter()
@@ -58,11 +66,20 @@ impl ContentExtractor for PdfExtractor {
     }
 }
 
-/// The pages of `path` as PDFium reads them; `None` when PDFium is not
-/// installed or cannot open the file.
-fn pdfium_text(path: &Path) -> Option<Vec<String>> {
+/// The pages of `path` as PDFium reads them; `None` when PDFium is not installed.
+fn pdfium_text(path: &Path) -> Option<std::result::Result<Vec<String>, sbm_pdf::NotRead>> {
     let dir = sbm_core::AppDirs::current().cache.join(sbm_pdf::PDFIUM_DIR);
-    sbm_pdf::PdfPages::load(&dir).ok()?.text(path)
+    Some(sbm_pdf::PdfPages::load(&dir).ok()?.text(path))
+}
+
+/// pdf-extract's `error`, with the reason where it tells one.
+fn pdf_extract_error(error: pdf_extract::OutputError) -> sbm_core::Error {
+    match error {
+        pdf_extract::OutputError::PdfError(pdf_extract::Error::Decryption(_)) => {
+            ExtractError::new(Unreadable::PasswordProtected, error).into()
+        }
+        _ => error.into(),
+    }
 }
 
 /// Largest content an extractor reads from one file (FR-03), guarding against

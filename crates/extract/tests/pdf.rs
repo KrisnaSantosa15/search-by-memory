@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use sbm_core::{ContentExtractor, Location};
+use sbm_core::{ContentExtractor, Location, Unreadable};
 use sbm_extract::PdfExtractor;
 
 fn fixture(name: &str) -> std::path::PathBuf {
@@ -24,6 +24,16 @@ fn pdf_is_extracted_page_by_page() {
             (Location::Page(2), "Paid by bank transfer".to_string()),
         ]
     );
+}
+
+#[test]
+fn password_protected_pdf_is_reported_as_protected() {
+    // two-pages.pdf encrypted by PDFtk with the user password "secret".
+    let error = PdfExtractor
+        .extract(&fixture("password-protected.pdf"))
+        .unwrap_err();
+
+    assert_eq!(Unreadable::of(error.as_ref()), Unreadable::PasswordProtected);
 }
 
 #[test]

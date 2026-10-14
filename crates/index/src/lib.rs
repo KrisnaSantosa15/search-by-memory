@@ -189,6 +189,7 @@ pub struct FailedFile {
 /// How `reason` is stored in `index_jobs.failure_reason`.
 fn reason_name(reason: Unreadable) -> &'static str {
     match reason {
+        Unreadable::PasswordProtected => "password_protected",
         Unreadable::Damaged => "damaged",
         Unreadable::Other => "other",
     }
@@ -197,6 +198,7 @@ fn reason_name(reason: Unreadable) -> &'static str {
 /// The reason stored as `name`; names this version does not know are `Other`.
 fn reason_named(name: &str) -> Unreadable {
     match name {
+        "password_protected" => Unreadable::PasswordProtected,
         "damaged" => Unreadable::Damaged,
         _ => Unreadable::Other,
     }
