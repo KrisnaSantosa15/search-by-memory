@@ -220,3 +220,70 @@ fn files_are_found_by_name_while_the_model_loads() {
     assert_eq!(results[0].match_reason, MatchReason::Name);
     drop(release);
 }
+
+#[test]
+fn content_is_indexed_once_the_model_is_loaded() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let recipe = write(
+        folder.path(),
+        "recipe.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    let (release, gate) = mpsc::channel::<()>();
+    let engine = Engine::start_loading(
+        data.path(),
+        move || {
+            let _ = gate.recv();
+            Ok(LoadedModel {
+                embedder: Arc::new(BagOfWords),
+                device: "graphics card".into(),
+            })
+        },
+        Box::new(NoJournal),
+    )
+    .unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    release.send(()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while engine.status().unwrap().model == ModelStatus::Loading && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    engine.wait_until_idle();
+
+    let status = engine.status().unwrap();
+    let ready = ModelStatus::Ready {
+        device: "graphics card".into(),
+    };
+    assert_eq!((status.model, status.indexed), (ready, 1));
+    let results = engine.search("beef coconut", View::Passage, 20).unwrap();
+    assert_eq!(results.first().map(|r| &r.path), Some(&recipe));
+}
+
+#[test]
+fn model_that_cannot_be_loaded_is_reported_and_names_still_work() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let recipe = write(folder.path(), "recipe.txt", "beef\n");
+    let engine = Engine::start_loading(
+        data.path(),
+        || Err("model file is missing".into()),
+        Box::new(NoJournal),
+    )
+    .unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while engine.status().unwrap().model == ModelStatus::Loading && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    engine.wait_until_idle();
+
+    let status = engine.status().unwrap();
+    assert_eq!(
+        status.model,
+        ModelStatus::Failed("model file is missing".into())
+    );
+    let results = engine.search("recipe", View::File, 20).unwrap();
+    assert_eq!(results.first().map(|r| &r.path), Some(&recipe));
+}
