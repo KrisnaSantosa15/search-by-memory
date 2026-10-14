@@ -61,4 +61,17 @@ describe("Launcher", () => {
     expect(act.open).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
     expect(act.reveal).not.toHaveBeenCalled();
   });
+
+  it("reveals the selected file in its folder with Ctrl + Enter or Shift + Enter", async () => {
+    const act = actions();
+    render(<Launcher search={async () => [report]} {...act} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option");
+
+    await userEvent.keyboard("{Control>}{Enter}{/Control}{Shift>}{Enter}{/Shift}");
+
+    expect(act.reveal).toHaveBeenCalledTimes(2);
+    expect(act.reveal).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(act.open).not.toHaveBeenCalled();
+  });
 });
