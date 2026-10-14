@@ -1,5 +1,6 @@
 //! SQLite-backed Name Index and file catalog (ADR 0003).
 
+use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf, Prefix};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -182,6 +183,9 @@ const EMBEDDING_BATCH: usize = 8;
 const ATTEMPTS_PER_FILE: i64 = 3;
 /// Content Matches considered per Result requested.
 const CANDIDATES_PER_RESULT: usize = 10;
+/// How far a Result's similarity may fall below the best Result's before it is
+/// a Weaker Match. A starting value; to be tuned on the Benchmark.
+const WEAKER_MARGIN: f32 = 0.08;
 
 /// How Results are grouped (FR-02).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -212,6 +216,8 @@ pub struct SearchResult {
     pub snippet: Option<String>,
     pub location: Option<Location>,
     pub match_reason: MatchReason,
+    /// A Weaker Match: related only by meaning, and much less than the best Results.
+    pub weaker: bool,
 }
 
 /// The file catalog and Name Index, stored in SQLite.
@@ -800,11 +806,17 @@ impl Index {
         limit: usize,
     ) -> Result<Vec<SearchResult>> {
         let candidates = limit * CANDIDATES_PER_RESULT;
-        let semantic: Vec<i64> = store
-            .search(&embedder.embed_query(query)?, candidates)?
-            .into_iter()
+        let neighbors = store.search(&embedder.embed_query(query)?, candidates)?;
+        let semantic: Vec<i64> = neighbors
+            .iter()
             .map(|neighbor| neighbor.id as i64)
             .collect();
+        let similarity_of = |chunk_id: i64| {
+            neighbors
+                .iter()
+                .find(|neighbor| neighbor.id as i64 == chunk_id)
+                .map(|neighbor| neighbor.similarity)
+        };
         let keyword: Vec<i64> = match fts_query(query) {
             Some(words) => self
                 .db
@@ -821,6 +833,8 @@ impl Index {
             .prepare("SELECT volume_id, relative_path FROM files WHERE content_hash = ?1")?;
         let mut results: Vec<SearchResult> = Vec::new();
         let mut seen_contents: Vec<String> = Vec::new();
+        // Each Result's best semantic similarity, by its path.
+        let mut similarities: HashMap<PathBuf, f32> = HashMap::new();
         for chunk_id in reciprocal_rank_fusion(&[&semantic, &keyword]) {
             // A vector saved before a crash can outlive its Chunk.
             let Some((hash, page, line_start, line_end, text)) = chunk
@@ -837,8 +851,16 @@ impl Index {
             else {
                 continue;
             };
-            if view == View::File && seen_contents.contains(&hash) {
-                continue;
+            if view == View::File {
+                if let Some(index) = seen_contents.iter().position(|seen| seen == &hash) {
+                    if let Some(similarity) = similarity_of(chunk_id) {
+                        let best = similarities
+                            .entry(results[index].path.clone())
+                            .or_insert(similarity);
+                        *best = best.max(similarity);
+                    }
+                    continue;
+                }
             }
             let mut paths: Vec<(PathBuf, bool)> = files
                 .query_map(params![hash], |row| {
@@ -851,6 +873,9 @@ impl Index {
             }
             let (path, connected) = paths.remove(0);
             seen_contents.push(hash);
+            if let Some(similarity) = similarity_of(chunk_id) {
+                similarities.insert(path.clone(), similarity);
+            }
             results.push(SearchResult {
                 path,
                 copies: paths.into_iter().map(|(path, _)| path).collect(),
@@ -858,12 +883,14 @@ impl Index {
                 snippet: Some(text),
                 location: Some(location_from_columns(page, line_start, line_end)),
                 match_reason: MatchReason::Content,
+                weaker: false,
             });
         }
         if view == View::File {
             let names = self.search_names(query, candidates)?;
             results = fuse_name_matches(results, &names);
         }
+        mark_weaker_matches(&mut results, &similarities);
         results.truncate(limit);
         Ok(results)
     }
@@ -1208,6 +1235,19 @@ fn reciprocal_rank_fusion(lists: &[&[i64]]) -> Vec<i64> {
     scores.into_iter().map(|(id, _)| id).collect()
 }
 
+/// Flags the Results related only by meaning whose similarity falls more than
+/// `WEAKER_MARGIN` below the best Result's.
+fn mark_weaker_matches(results: &mut [SearchResult], similarities: &HashMap<PathBuf, f32>) {
+    let Some(best) = similarities.values().copied().reduce(f32::max) else {
+        return;
+    };
+    for result in results {
+        let similarity = similarities.get(&result.path).copied().unwrap_or(f32::MIN);
+        result.weaker =
+            result.match_reason == MatchReason::Content && similarity < best - WEAKER_MARGIN;
+    }
+}
+
 /// Merges File-view content Results with Name Matches by Reciprocal Rank
 /// Fusion; a file found both ways is one Result with Match Reason `Both`.
 fn fuse_name_matches(content: Vec<SearchResult>, names: &[NameMatch]) -> Vec<SearchResult> {
@@ -1233,6 +1273,7 @@ fn fuse_name_matches(content: Vec<SearchResult>, names: &[NameMatch]) -> Vec<Sea
                     snippet: None,
                     location: None,
                     match_reason: MatchReason::Name,
+                    weaker: false,
                 },
                 fusion_score(rank),
             )),

@@ -11,9 +11,12 @@ fn result(location: Option<Location>, match_reason: MatchReason) -> SearchResult
         path: PathBuf::from(r"D:\Work\Q3 Report.pdf"),
         copies: vec![PathBuf::from(r"E:\Backup\Q3 Report.pdf")],
         connected: true,
-        snippet: location.as_ref().map(|_| "net profit increased by 18%".to_string()),
+        snippet: location
+            .as_ref()
+            .map(|_| "net profit increased by 18%".to_string()),
         location,
         match_reason,
+        weaker: false,
     }
 }
 
@@ -42,8 +45,14 @@ fn content_match_row_names_the_file_its_page_and_why_it_matched() {
 fn locations_read_as_lines_and_times() {
     let label = |location| result_row(result(Some(location), MatchReason::Content)).location;
 
-    assert_eq!(label(Location::Lines { start: 3, end: 8 }).as_deref(), Some("Lines 3–8"));
-    assert_eq!(label(Location::Lines { start: 5, end: 5 }).as_deref(), Some("Line 5"));
+    assert_eq!(
+        label(Location::Lines { start: 3, end: 8 }).as_deref(),
+        Some("Lines 3–8")
+    );
+    assert_eq!(
+        label(Location::Lines { start: 5, end: 5 }).as_deref(),
+        Some("Line 5")
+    );
     let time = Location::Time {
         start: std::time::Duration::from_secs(62),
         end: std::time::Duration::from_secs(70),
@@ -67,7 +76,10 @@ fn row_says_where_the_file_is_how_big_and_when_it_changed() {
 
     assert_eq!(row.folder, folder.path());
     assert_eq!(row.size, Some(12));
-    let millis = changed.duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+    let millis = changed
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
     assert_eq!(row.modified, Some(millis));
 }
 

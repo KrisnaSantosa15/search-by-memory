@@ -248,6 +248,7 @@ impl Engine {
                     snippet: None,
                     location: None,
                     match_reason: MatchReason::Name,
+                    weaker: false,
                 })
                 .collect());
         };
