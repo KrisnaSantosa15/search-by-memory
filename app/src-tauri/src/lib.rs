@@ -770,9 +770,17 @@ mod commands {
         });
     }
 
-    fn resume_indexing(app: &AppHandle) {
+    /// Pauses indexing until the user resumes it, as the Settings window does.
+    #[tauri::command]
+    pub fn pause_indexing(app: AppHandle) {
         PAUSES.fetch_add(1, Ordering::SeqCst);
-        with_engine(app, Engine::resume);
+        with_engine(&app, Engine::pause);
+    }
+
+    #[tauri::command]
+    pub fn resume_indexing(app: AppHandle) {
+        PAUSES.fetch_add(1, Ordering::SeqCst);
+        with_engine(&app, Engine::resume);
     }
 
     /// Runs `action` on the Engine, once onboarding has started it.
@@ -822,7 +830,7 @@ mod commands {
                 "settings" => open_settings(app),
                 "pause-1h" => pause_for(app, Duration::from_secs(60 * 60)),
                 "pause-8h" => pause_for(app, Duration::from_secs(8 * 60 * 60)),
-                "resume" => resume_indexing(app),
+                "resume" => resume_indexing(app.clone()),
                 "quit" => app.exit(0),
                 _ => {}
             });
@@ -898,6 +906,8 @@ pub fn run() {
             commands::finish_onboarding,
             commands::search,
             commands::dashboard,
+            commands::pause_indexing,
+            commands::resume_indexing,
             commands::open_file,
             commands::reveal_file,
             commands::copy_file,

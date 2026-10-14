@@ -5,7 +5,11 @@ import App from "./App";
 import { Settings, type Dashboard } from "./Settings";
 import "./index.css";
 
-const dashboard = () => invoke<Dashboard>("dashboard");
+const settings = {
+  dashboard: () => invoke<Dashboard>("dashboard"),
+  pause: () => invoke<void>("pause_indexing"),
+  resume: () => invoke<void>("resume_indexing"),
+};
 
 // The Settings window opens this page with `?view=settings`; the main window without.
 const settingsWindow = new URLSearchParams(location.search).get("view") === "settings";
@@ -14,7 +18,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {settingsWindow ? (
       <div className="min-h-full bg-canvas">
-        <Settings dashboard={dashboard} />
+        <Settings {...settings} />
       </div>
     ) : (
       <App />
