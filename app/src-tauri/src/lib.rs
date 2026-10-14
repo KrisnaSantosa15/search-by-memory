@@ -177,12 +177,16 @@ mod commands {
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::TrayIconBuilder;
     use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
+    use sbm_index::View;
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    use tauri_plugin_opener::OpenerExt;
 
-    use super::{FolderChoice, Settings, SpeedChoice};
+    use super::{FolderChoice, ResultRow, Settings, SpeedChoice};
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
     const DIMENSIONS: usize = 256;
+    /// Results the launcher shows, as the PRD's default top-K.
+    const RESULTS: usize = 20;
     /// Progress events per second at most; the bar cannot show more.
     const REPORT_EVERY: Duration = Duration::from_millis(200);
 
@@ -350,6 +354,51 @@ mod commands {
             .map_err(|error| error.to_string())
     }
 
+    /// Results for `query` in `view` (`file` or `passage`), best first; none
+    /// before the Engine has started.
+    #[tauri::command]
+    pub async fn search(
+        running: State<'_, Running>,
+        query: String,
+        view: String,
+    ) -> Result<Vec<ResultRow>, String> {
+        let view = if view == "passage" {
+            View::Passage
+        } else {
+            View::File
+        };
+        let running = running.0.lock().unwrap();
+        let Some(engine) = running.as_ref() else {
+            return Ok(Vec::new());
+        };
+        let results = engine
+            .search(&query, view, RESULTS)
+            .map_err(|error| error.to_string())?;
+        Ok(results.into_iter().map(super::result_row).collect())
+    }
+
+    /// Opens `path` with its default app.
+    #[tauri::command]
+    pub fn open_file(app: AppHandle, path: PathBuf) -> Result<(), String> {
+        app.opener()
+            .open_path(path.to_string_lossy(), None::<&str>)
+            .map_err(|error| error.to_string())
+    }
+
+    /// Shows `path` selected in its folder, without opening it.
+    #[tauri::command]
+    pub fn reveal_file(app: AppHandle, path: PathBuf) -> Result<(), String> {
+        app.opener()
+            .reveal_item_in_dir(path)
+            .map_err(|error| error.to_string())
+    }
+
+    /// Hides the launcher; indexing goes on.
+    #[tauri::command]
+    pub fn hide_launcher(window: WebviewWindow) -> Result<(), String> {
+        window.hide().map_err(|error| error.to_string())
+    }
+
     /// Brings the window to the front, as the hotkey and the tray do.
     pub fn show(app: &AppHandle) {
         if let Some(window) = app.get_webview_window("main") {
@@ -396,6 +445,7 @@ pub fn run() {
                 })
                 .build(),
         )
+        .plugin(tauri_plugin_opener::init())
         .manage(commands::Running::default())
         .setup(|app| {
             commands::tray(app.handle())?;
@@ -417,7 +467,11 @@ pub fn run() {
             commands::start_indexing,
             commands::settings,
             commands::try_hotkey,
-            commands::finish_onboarding
+            commands::finish_onboarding,
+            commands::search,
+            commands::open_file,
+            commands::reveal_file,
+            commands::hide_launcher
         ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
