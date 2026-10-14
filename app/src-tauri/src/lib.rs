@@ -236,6 +236,12 @@ mod commands {
         shortcuts.register(hotkey.as_str()).is_ok()
     }
 
+    /// What onboarding decided; `None` until it has finished.
+    #[tauri::command]
+    pub fn settings() -> Option<Settings> {
+        Settings::load(&AppDirs::current().data)
+    }
+
     /// Saves what onboarding decided and hides the window until the hotkey.
     #[tauri::command]
     pub fn finish_onboarding(
@@ -355,6 +361,7 @@ pub fn run() {
             commands::prepare,
             commands::folder_choices,
             commands::start_indexing,
+            commands::settings,
             commands::try_hotkey,
             commands::finish_onboarding
         ])
