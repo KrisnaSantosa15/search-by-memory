@@ -58,26 +58,55 @@ pub enum Unreadable {
     TooLarge,
     /// Not a valid file of its format, or cut short.
     Damaged,
+    /// Another program had it open and would not share it.
+    InUse,
     /// None of the above, or not known.
     Other,
 }
 
 impl Unreadable {
-    /// The reason behind `error`, from the first [`ExtractError`] in its chain.
+    /// The reason behind `error`: the first [`ExtractError`] in its chain, or
+    /// what the operating system said about the file.
     pub fn of(error: &(dyn std::error::Error + 'static)) -> Self {
         let mut next = Some(error);
         while let Some(error) = next {
             if let Some(extract) = error.downcast_ref::<ExtractError>() {
                 return extract.reason;
             }
-            // An I/O error's `source` skips the error it wraps.
             next = match error.downcast_ref::<std::io::Error>() {
-                Some(io) => io.get_ref().map(|inner| inner as _),
+                // An I/O error's `source` skips the error it wraps.
+                Some(io) => match io.get_ref() {
+                    Some(inner) => Some(inner as _),
+                    None => return Self::of_io(io),
+                },
                 None => error.source(),
             };
         }
         Unreadable::Other
     }
+
+    fn of_io(error: &std::io::Error) -> Self {
+        if is_sharing_violation(error) {
+            Unreadable::InUse
+        } else {
+            Unreadable::Other
+        }
+    }
+}
+
+/// Whether another process holds the file without sharing it.
+#[cfg(windows)]
+fn is_sharing_violation(error: &std::io::Error) -> bool {
+    use windows_sys::Win32::Foundation::{ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION};
+    matches!(
+        error.raw_os_error(),
+        Some(code) if code == ERROR_SHARING_VIOLATION as i32 || code == ERROR_LOCK_VIOLATION as i32
+    )
+}
+
+#[cfg(not(windows))]
+fn is_sharing_violation(_: &std::io::Error) -> bool {
+    false
 }
 
 /// A file a [`ContentExtractor`] could not read, with the reason and the

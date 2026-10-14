@@ -192,6 +192,7 @@ fn reason_name(reason: Unreadable) -> &'static str {
         Unreadable::PasswordProtected => "password_protected",
         Unreadable::TooLarge => "too_large",
         Unreadable::Damaged => "damaged",
+        Unreadable::InUse => "in_use",
         Unreadable::Other => "other",
     }
 }
@@ -202,6 +203,7 @@ fn reason_named(name: &str) -> Unreadable {
         "password_protected" => Unreadable::PasswordProtected,
         "too_large" => Unreadable::TooLarge,
         "damaged" => Unreadable::Damaged,
+        "in_use" => Unreadable::InUse,
         _ => Unreadable::Other,
     }
 }

@@ -60,3 +60,22 @@ fn text_file_that_is_not_utf8_is_still_extracted() {
         sections[0].text
     );
 }
+
+#[cfg(windows)]
+#[test]
+fn text_file_another_program_has_open_is_reported_as_in_use() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("open-elsewhere.txt");
+    fs::write(&path, "draft budget\n").unwrap();
+    // Opened with no sharing, as some programs hold the files they edit.
+    let _held = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .open(&path)
+        .unwrap();
+
+    let error = TextExtractor.extract(&path).unwrap_err();
+
+    assert_eq!(Unreadable::of(error.as_ref()), Unreadable::InUse);
+}
