@@ -195,6 +195,32 @@ pub fn indexing_state(status: &Status) -> String {
     }
 }
 
+/// What the Status tab shows (FR-08).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Dashboard {
+    /// Files in the Name Index.
+    pub files: usize,
+    /// Files whose content is indexed.
+    pub indexed: usize,
+    /// Files whose content is still to be indexed.
+    pub pending: usize,
+    /// Every file modified after this time (Unix milliseconds) has its content indexed.
+    pub ready_since: Option<u64>,
+}
+
+pub fn dashboard(status: &Status) -> Dashboard {
+    Dashboard {
+        files: status.files,
+        indexed: status.indexed,
+        pending: status.pending,
+        ready_since: status
+            .ready_since
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|since| since.as_millis() as u64),
+    }
+}
+
 /// `12345` as `12,345`.
 fn thousands(number: usize) -> String {
     let digits = number.to_string();
