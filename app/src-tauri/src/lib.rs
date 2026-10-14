@@ -7,7 +7,9 @@ use sbm_index::{MatchReason, SearchResult};
 use sbm_embed_onnx::Accelerator;
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
-use tauri::Manager;
+use std::sync::atomic::Ordering;
+
+use tauri::{Manager, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 
 /// One way to run the embedding model, as the onboarding speed step offers it.
@@ -183,7 +185,7 @@ fn location_label(location: &Location) -> Option<String> {
 /// What the window can call; thin wrappers over the functions above.
 mod commands {
     use std::path::PathBuf;
-    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
 
@@ -335,8 +337,27 @@ mod commands {
         settings
             .save(&data_dir())
             .map_err(|error| error.to_string())?;
+        become_launcher(&window).map_err(|error| error.to_string())?;
         window.hide().map_err(|error| error.to_string())
     }
+
+    /// Ends the app, indexing included.
+    #[tauri::command]
+    pub fn quit(app: AppHandle) {
+        app.exit(0);
+    }
+
+    /// From now on the window is the launcher: out of the taskbar, above other
+    /// windows, and gone when the user clicks elsewhere.
+    pub fn become_launcher(window: &WebviewWindow) -> tauri::Result<()> {
+        window.app_handle().state::<Launching>().0.store(true, Ordering::Relaxed);
+        window.set_skip_taskbar(true)?;
+        window.set_always_on_top(true)
+    }
+
+    /// Whether onboarding is over and the window acts as the launcher.
+    #[derive(Default)]
+    pub struct Launching(pub AtomicBool);
 
     /// Starts again from finished onboarding: the Engine on the saved
     /// Accelerator, and the saved hotkey; the window stays hidden.
@@ -487,11 +508,19 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .manage(commands::Running::default())
+        .manage(commands::Launching::default())
+        .on_window_event(|window, event| {
+            let launching = window.state::<commands::Launching>().0.load(Ordering::Relaxed);
+            if launching && matches!(event, WindowEvent::Focused(false)) {
+                let _ = window.hide();
+            }
+        })
         .setup(|app| {
             commands::tray(app.handle())?;
             if let Some(settings) = Settings::load(&data_dir()) {
                 if let Some(window) = app.get_webview_window("main") {
                     window.hide()?;
+                    commands::become_launcher(&window)?;
                 }
                 if let Err(error) = commands::resume(app.handle(), &settings) {
                     eprintln!("search could not start: {error}");
@@ -512,6 +541,7 @@ pub fn run() {
             commands::open_file,
             commands::reveal_file,
             commands::copy_file,
+            commands::quit,
             commands::hide_launcher
         ])
         .run(tauri::generate_context!())
