@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { SpeedStep, type SpeedChoice } from "./SpeedStep";
 
 const nvidiaMachine: SpeedChoice[] = [
@@ -16,5 +17,16 @@ describe("SpeedStep", () => {
     expect(screen.getByRole("radio", { name: /any computer/i })).not.toBeChecked();
     expect(screen.getByText(/1\.9 GB/)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/cuda|directml/i);
+  });
+
+  it("continues with the choice the user picked", async () => {
+    const user = userEvent.setup();
+    const onContinue = vi.fn();
+    render(<SpeedStep choices={nvidiaMachine} onContinue={onContinue} />);
+
+    await user.click(screen.getByRole("radio", { name: /any computer/i }));
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+
+    expect(onContinue).toHaveBeenCalledWith("cpu");
   });
 });
