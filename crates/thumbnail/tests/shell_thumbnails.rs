@@ -45,3 +45,23 @@ fn picture_gets_a_thumbnail_of_what_it_shows() {
     ];
     assert!(r > 180 && g < 80 && b < 80 && a == 255, "{r} {g} {b} {a}");
 }
+
+#[test]
+fn file_with_only_an_icon_or_none_at_all_has_no_thumbnail() {
+    let folder = tempfile::tempdir().unwrap();
+    let notes = folder.path().join("notes.txt");
+    std::fs::write(&notes, "plain words\n").unwrap();
+
+    assert_eq!(thumbnail(&notes, 64, false), None);
+    assert_eq!(thumbnail(&folder.path().join("gone.png"), 64, false), None);
+}
+
+#[test]
+#[cfg(windows)]
+fn cached_only_never_makes_a_new_thumbnail() {
+    let folder = tempfile::tempdir().unwrap();
+    let picture = folder.path().join("never-seen.png");
+    write_png(&picture, 256, [30, 30, 220]);
+
+    assert_eq!(thumbnail(&picture, 64, true), None);
+}
