@@ -1,20 +1,50 @@
-import { render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { emit } from "@tauri-apps/api/event";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { afterEach, describe, expect, it } from "vitest";
 import App from "./App";
 
-afterEach(clearMocks);
+// Unmount first and let it stop listening, which needs the mocks.
+afterEach(async () => {
+  cleanup();
+  await new Promise((settled) => setTimeout(settled));
+  clearMocks();
+});
+
+const cpuOnly = [{ id: "cpu", graphicsCard: null, recommended: true, extraDownload: 0 }];
 
 describe("App", () => {
   it("starts onboarding with the speed choices this machine offers", async () => {
     mockIPC((command) => {
-      if (command === "speed_choices") {
-        return [{ id: "cpu", graphicsCard: null, recommended: true, extraDownload: 0 }];
-      }
+      if (command === "speed_choices") return cpuOnly;
     });
 
     render(<App />);
 
     expect(await screen.findByRole("radio", { name: /any computer/i })).toBeChecked();
+  });
+
+  it("downloads what the picked speed needs and shows its progress", async () => {
+    const prepared: unknown[] = [];
+    mockIPC(
+      (command, payload) => {
+        if (command === "speed_choices") return cpuOnly;
+        if (command === "prepare") {
+          prepared.push(payload);
+          return new Promise(() => {});
+        }
+      },
+      { shouldMockEvents: true },
+    );
+    render(<App />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
+    await act(() =>
+      emit("setup-progress", { done: 500_000_000, total: 1_000_000_000, secondsLeft: null }),
+    );
+
+    expect(prepared).toEqual([{ choice: "cpu" }]);
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
   });
 });
