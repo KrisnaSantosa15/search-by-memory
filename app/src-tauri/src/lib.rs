@@ -197,7 +197,7 @@ fn thousands(number: usize) -> String {
     let digits = number.to_string();
     let mut grouped = String::new();
     for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (digits.len() - index) % 3 == 0 {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
             grouped.push(',');
         }
         grouped.push(digit);
@@ -286,7 +286,7 @@ mod commands {
         prepare as install,
     };
     use serde::Serialize;
-    use tauri::menu::{Menu, MenuItem};
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
     use tauri::tray::TrayIconBuilder;
     use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
@@ -306,6 +306,8 @@ mod commands {
     /// How long the computer must be free (no full-screen app, mains power, not
     /// busy) before Initial Indexing goes on (FR-04).
     const QUIET_PERIOD: Duration = Duration::from_secs(60);
+    /// How often the tray's indexing state is brought up to date.
+    const TRAY_EVERY: Duration = Duration::from_secs(3);
     /// Progress events per second at most; the bar cannot show more.
     const REPORT_EVERY: Duration = Duration::from_millis(200);
 
@@ -332,7 +334,10 @@ mod commands {
         let accelerator: Accelerator = choice.parse()?;
         // A fresh flag each time, so an earlier Cancel cannot stop this one.
         let cancel = Arc::new(AtomicBool::new(false));
-        *preparing.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = cancel.clone();
+        *preparing
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = cancel.clone();
         tauri::async_runtime::spawn_blocking(move || {
             let plan = Plan::for_accelerator(accelerator);
             let started = Instant::now();
@@ -377,7 +382,10 @@ mod commands {
     /// what is on disk so the next `prepare` resumes it.
     #[tauri::command]
     pub fn cancel_prepare(preparing: State<'_, Preparing>) {
-        let cancel = preparing.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let cancel = preparing
+            .0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         cancel.store(true, Ordering::SeqCst);
     }
 
@@ -674,9 +682,13 @@ mod commands {
 
     /// The tray icon: the way back to the hidden window, and out of the app.
     pub fn tray(app: &AppHandle) -> tauri::Result<()> {
+        // Not clickable: says what indexing is doing, and why it waits.
+        let state = MenuItem::with_id(app, "state", "Search by Memory", false, None::<&str>)?;
         let menu = Menu::with_items(
             app,
             &[
+                &state,
+                &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "show", "Search", true, None::<&str>)?,
                 &MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?,
             ],
@@ -692,7 +704,25 @@ mod commands {
         if let Some(icon) = app.default_window_icon() {
             tray = tray.icon(icon.clone());
         }
-        tray.build(app)?;
+        let tray = tray.build(app)?;
+        let app = app.clone();
+        std::thread::spawn(move || {
+            loop {
+                let status = app
+                    .state::<Running>()
+                    .0
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .map(Engine::status);
+                if let Some(Ok(status)) = status {
+                    let text = super::indexing_state(&status);
+                    let _ = state.set_text(&text);
+                    let _ = tray.set_tooltip(Some(format!("Search by Memory: {text}")));
+                }
+                std::thread::sleep(TRAY_EVERY);
+            }
+        });
         Ok(())
     }
 }
