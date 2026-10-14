@@ -2,12 +2,12 @@
 
 mod common;
 
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
 use common::{BagOfWords, BrokenJournal, NoJournal, write};
-use sbm_engine::Engine;
-use sbm_index::{Exclusion, View};
+use sbm_engine::{Engine, LoadedModel, ModelStatus};
+use sbm_index::{Exclusion, MatchReason, View};
 use tempfile::TempDir;
 
 #[test]
@@ -186,4 +186,37 @@ fn status_states_how_far_back_content_is_ready() {
     let modified = std::fs::metadata(&recipe).unwrap().modified().unwrap();
     assert_eq!((paused.indexed, paused.ready_since), (0, Some(modified)));
     assert_eq!((resumed.indexed, resumed.ready_since), (1, None));
+}
+
+#[test]
+fn files_are_found_by_name_while_the_model_loads() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let recipe = write(
+        folder.path(),
+        "recipe.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    let (release, gate) = mpsc::channel::<()>();
+    let engine = Engine::start_loading(
+        data.path(),
+        move || {
+            let _ = gate.recv();
+            Ok(LoadedModel {
+                embedder: Arc::new(BagOfWords),
+                device: "test".into(),
+            })
+        },
+        Box::new(NoJournal),
+    )
+    .unwrap();
+
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    let status = engine.status().unwrap();
+    assert_eq!((status.model, status.pending), (ModelStatus::Loading, 1));
+    let results = engine.search("recipe", View::File, 20).unwrap();
+    assert_eq!(results.first().map(|r| &r.path), Some(&recipe));
+    assert_eq!(results[0].match_reason, MatchReason::Name);
+    drop(release);
 }

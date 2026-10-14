@@ -2,14 +2,14 @@
 //! background thread, and answers Queries while it does.
 
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Condvar, Mutex, RwLock};
+use std::sync::{Arc, Condvar, Mutex, OnceLock, RwLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime};
 
 use sbm_core::{
     ChangeSource, Embedding, EmbeddingProvider, Neighbor, Result, VectorId, VectorStore,
 };
-use sbm_index::{Exclusion, Index, SearchResult, View};
+use sbm_index::{Exclusion, Index, MatchReason, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 const DATABASE: &str = "index.sqlite";
@@ -20,6 +20,24 @@ const FILES_PER_SAVE: usize = 100;
 const CHANGE_POLL: Duration = Duration::from_secs(2);
 
 type Embedder = Arc<dyn EmbeddingProvider + Send + Sync>;
+
+/// An embedding model ready to use, and the device it runs on.
+pub struct LoadedModel {
+    pub embedder: Embedder,
+    pub device: String,
+}
+
+/// Whether the embedding model can be used yet (FR-08).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub enum ModelStatus {
+    /// Files are found by name only, and content waits, until the model is loaded.
+    #[default]
+    Loading,
+    Ready {
+        device: String,
+    },
+    Failed(String),
+}
 
 /// What the Engine has indexed so far (FR-08).
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -37,19 +55,26 @@ pub struct Status {
     pub failed: usize,
     /// Why the last indexing pass stopped early, if it did.
     pub error: Option<String>,
+    pub model: ModelStatus,
 }
 
 pub struct Engine {
     shared: Arc<Shared>,
-    embedder: Embedder,
     index: Mutex<Index>,
     worker: Option<JoinHandle<()>>,
 }
 
 struct Shared {
-    store: RwLock<UsearchStore>,
+    /// Set once the model is loaded.
+    model: OnceLock<Model>,
     work: Mutex<Work>,
     changed: Condvar,
+}
+
+struct Model {
+    embedder: Embedder,
+    device: String,
+    store: RwLock<UsearchStore>,
 }
 
 /// Indexing passes asked for and finished; a pass picks up everything asked before it.
@@ -62,6 +87,8 @@ struct Work {
     paused: bool,
     /// Why the last pass stopped early, if it did.
     error: Option<String>,
+    /// Why the model could not be loaded, if it could not.
+    model_error: Option<String>,
 }
 
 impl Engine {
@@ -72,11 +99,49 @@ impl Engine {
         changes: Box<dyn ChangeSource + Send>,
     ) -> Result<Self> {
         std::fs::create_dir_all(data_dir)?;
-        let index = Index::open(&data_dir.join(DATABASE))?;
-        let mut store = UsearchStore::new(embedder.dimensions(), Precision::F16)?;
-        index.rebuild_vectors(&mut store)?;
+        let model = OnceLock::new();
+        let loaded = LoadedModel {
+            embedder,
+            device: String::new(),
+        };
+        let _ = model.set(model_with_vectors(loaded, &data_dir.join(DATABASE))?);
+        Self::launch(data_dir, model, changes)
+    }
+
+    /// Opens the indexes in `data_dir` and starts indexing in the background while
+    /// `load` loads the embedding model on a thread of its own.
+    pub fn start_loading(
+        data_dir: &Path,
+        load: impl FnOnce() -> Result<LoadedModel> + Send + 'static,
+        changes: Box<dyn ChangeSource + Send>,
+    ) -> Result<Self> {
+        std::fs::create_dir_all(data_dir)?;
+        let engine = Self::launch(data_dir, OnceLock::new(), changes)?;
+        let (shared, database) = (engine.shared.clone(), data_dir.join(DATABASE));
+        std::thread::spawn(move || {
+            let loaded = load().and_then(|loaded| model_with_vectors(loaded, &database));
+            let mut work = shared.work.lock().unwrap();
+            match loaded {
+                Ok(model) => {
+                    let _ = shared.model.set(model);
+                    work.requested += 1;
+                }
+                Err(error) => work.model_error = Some(error.to_string()),
+            }
+            shared.changed.notify_all();
+        });
+        Ok(engine)
+    }
+
+    fn launch(
+        data_dir: &Path,
+        model: OnceLock<Model>,
+        changes: Box<dyn ChangeSource + Send>,
+    ) -> Result<Self> {
+        let database = data_dir.join(DATABASE);
+        let index = Index::open(&database)?;
         let shared = Arc::new(Shared {
-            store: RwLock::new(store),
+            model,
             work: Mutex::new(Work {
                 requested: 1,
                 ..Work::default()
@@ -84,16 +149,12 @@ impl Engine {
             changed: Condvar::new(),
         });
         let worker = {
-            let mut worker_index = Index::open(&data_dir.join(DATABASE))?;
-            let (shared, embedder, data_dir) =
-                (shared.clone(), embedder.clone(), data_dir.to_path_buf());
-            std::thread::spawn(move || {
-                run_worker(&mut worker_index, &shared, &*embedder, &*changes, &data_dir)
-            })
+            let mut worker_index = Index::open(&database)?;
+            let (shared, data_dir) = (shared.clone(), data_dir.to_path_buf());
+            std::thread::spawn(move || run_worker(&mut worker_index, &shared, &*changes, &data_dir))
         };
         Ok(Self {
             shared,
-            embedder,
             index: Mutex::new(index),
             worker: Some(worker),
         })
@@ -108,10 +169,12 @@ impl Engine {
 
     /// Forgets the Indexed Folder `folder`: its files leave both indexes.
     pub fn remove_indexed_folder(&self, folder: &Path) -> Result<()> {
-        self.index
-            .lock()
-            .unwrap()
-            .remove_indexed_folder(folder, &mut SharedStore(&self.shared.store))
+        let mut index = self.index.lock().unwrap();
+        match self.shared.model.get() {
+            Some(model) => index.remove_indexed_folder(folder, &mut SharedStore(&model.store)),
+            // Vectors are rebuilt from the Content Index once the model is loaded.
+            None => index.remove_indexed_folder(folder, &mut NoVectors),
+        }
     }
 
     /// Remembers `exclusion`; files it matches leave both indexes.
@@ -145,13 +208,21 @@ impl Engine {
     pub fn status(&self) -> Result<Status> {
         let index = self.index.lock().unwrap();
         let progress = index.content_progress()?;
+        let work = self.shared.work.lock().unwrap();
         Ok(Status {
             files: index.file_count()?,
             indexed: progress.indexed,
             pending: progress.pending,
             ready_since: progress.ready_since,
             failed: index.failed_files()?.len(),
-            error: self.shared.work.lock().unwrap().error.clone(),
+            error: work.error.clone(),
+            model: match (self.shared.model.get(), &work.model_error) {
+                (Some(model), _) => ModelStatus::Ready {
+                    device: model.device.clone(),
+                },
+                (None, Some(error)) => ModelStatus::Failed(error.clone()),
+                (None, None) => ModelStatus::Loading,
+            },
         })
     }
 
@@ -160,12 +231,30 @@ impl Engine {
         self.index.lock().unwrap().failed_files()
     }
 
+    /// Finds files by name and content; by name only until the model is loaded.
     pub fn search(&self, query: &str, view: View, limit: usize) -> Result<Vec<SearchResult>> {
         let index = self.index.lock().unwrap();
+        let Some(model) = self.shared.model.get() else {
+            if view == View::Passage {
+                return Ok(Vec::new());
+            }
+            return Ok(index
+                .search_names(query, limit)?
+                .into_iter()
+                .map(|name| SearchResult {
+                    path: name.path,
+                    copies: Vec::new(),
+                    connected: name.connected,
+                    snippet: None,
+                    location: None,
+                    match_reason: MatchReason::Name,
+                })
+                .collect());
+        };
         index.search(
             query,
-            &*self.embedder,
-            &SharedStore(&self.shared.store),
+            &*model.embedder,
+            &SharedStore(&model.store),
             view,
             limit,
         )
@@ -187,15 +276,20 @@ impl Drop for Engine {
     }
 }
 
+/// The loaded model with a vector index rebuilt from the Content Index.
+fn model_with_vectors(loaded: LoadedModel, database: &Path) -> Result<Model> {
+    let mut store = UsearchStore::new(loaded.embedder.dimensions(), Precision::F16)?;
+    Index::open(database)?.rebuild_vectors(&mut store)?;
+    Ok(Model {
+        embedder: loaded.embedder,
+        device: loaded.device,
+        store: RwLock::new(store),
+    })
+}
+
 /// Indexes until the Engine stops: a pass whenever one is asked for, and one
 /// every `CHANGE_POLL` to pick up Live Updates.
-fn run_worker(
-    index: &mut Index,
-    shared: &Shared,
-    embedder: &dyn EmbeddingProvider,
-    changes: &dyn ChangeSource,
-    data_dir: &Path,
-) {
+fn run_worker(index: &mut Index, shared: &Shared, changes: &dyn ChangeSource, data_dir: &Path) {
     loop {
         let target = {
             let work = shared.work.lock().unwrap();
@@ -204,7 +298,7 @@ fn run_worker(
             }
             work.requested
         };
-        let outcome = index_pass(index, shared, embedder, changes, data_dir);
+        let outcome = index_pass(index, shared, changes, data_dir);
         let mut work = shared.work.lock().unwrap();
         work.error = outcome.err().map(|error| error.to_string());
         work.completed = target;
@@ -219,32 +313,34 @@ fn run_worker(
 }
 
 /// Applies changes since the last pass and indexes queued content until the
-/// queue is empty or the Engine is paused.
+/// queue is empty, the Engine is paused, or while the model is not loaded.
 fn index_pass(
     index: &mut Index,
     shared: &Shared,
-    embedder: &dyn EmbeddingProvider,
     changes: &dyn ChangeSource,
     data_dir: &Path,
 ) -> Result<()> {
     index.apply_changes(changes)?;
-    let mut store = SharedStore(&shared.store);
+    let Some(model) = shared.model.get() else {
+        return Ok(());
+    };
+    let mut store = SharedStore(&model.store);
     let mut unsaved = 0;
     let result = loop {
         if shared.work.lock().unwrap().paused {
             break Ok(());
         }
-        match index.run_jobs(embedder, &mut store, 1) {
+        match index.run_jobs(&*model.embedder, &mut store, 1) {
             Ok(0) => break Ok(()),
             Ok(_) => unsaved += 1,
             Err(error) => break Err(error),
         }
         if unsaved == FILES_PER_SAVE {
-            shared.store.read().unwrap().save(&data_dir.join(VECTORS))?;
+            model.store.read().unwrap().save(&data_dir.join(VECTORS))?;
             unsaved = 0;
         }
     };
-    shared.store.read().unwrap().save(&data_dir.join(VECTORS))?;
+    model.store.read().unwrap().save(&data_dir.join(VECTORS))?;
     result
 }
 
@@ -263,5 +359,23 @@ impl VectorStore for SharedStore<'_> {
     }
     fn len(&self) -> usize {
         self.0.read().unwrap().len()
+    }
+}
+
+/// Stands in for the vector store before the model is loaded.
+struct NoVectors;
+
+impl VectorStore for NoVectors {
+    fn add(&mut self, _id: VectorId, _embedding: &Embedding) -> Result<()> {
+        Ok(())
+    }
+    fn remove(&mut self, _id: VectorId) -> Result<()> {
+        Ok(())
+    }
+    fn search(&self, _query: &Embedding, _limit: usize) -> Result<Vec<Neighbor>> {
+        Ok(Vec::new())
+    }
+    fn len(&self) -> usize {
+        0
     }
 }
