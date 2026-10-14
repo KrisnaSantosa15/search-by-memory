@@ -450,6 +450,29 @@ describe("Launcher", () => {
     expect(preview.querySelectorAll("figure mark")).toHaveLength(2);
   });
 
+  it("scrolls the PDF page to the first of the Query's words on it", async () => {
+    const pdfPage = vi.fn(async () => ({
+      image: "data:image/png;base64,PAGE",
+      marks: [
+        { left: 0.3, top: 0.6, width: 0.05, height: 0.02 },
+        { left: 0.1, top: 0.2, width: 0.05, height: 0.02 },
+      ],
+    }));
+    const scrolled: Element[] = [];
+    // jsdom has no scrolling; record which element asked to be scrolled into view.
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    render(<Launcher search={async () => [report]} {...actions()} pdfPage={pdfPage} />);
+    await userEvent.type(screen.getByRole("searchbox"), "net profit");
+
+    await screen.findByRole("img", { name: "Page 14 of Q3 Report.pdf" });
+    await waitFor(() => expect(scrolled.at(-1)).toHaveStyle({ top: "20%" }));
+    expect(scrolled.at(-1)?.tagName).toBe("MARK");
+    // @ts-expect-error: back to jsdom's own, which has none.
+    delete Element.prototype.scrollIntoView;
+  });
+
   it("hides with Escape", async () => {
     const spies = actions();
     render(<Launcher search={async () => []} {...spies} />);
