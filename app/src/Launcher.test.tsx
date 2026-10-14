@@ -188,6 +188,19 @@ describe("Launcher", () => {
     expect([...marks].map((mark) => mark.textContent)).toEqual(["profit", "in"]);
   });
 
+  it("opens or shows the previewed file from its buttons", async () => {
+    const act = actions();
+    render(<Launcher search={async () => [report]} {...act} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option");
+
+    await userEvent.click(screen.getByRole("button", { name: "Open" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show in folder" }));
+
+    expect(act.open).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(act.reveal).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+  });
+
   it("hides with Escape", async () => {
     const act = actions();
     render(<Launcher search={async () => []} {...act} />);

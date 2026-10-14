@@ -8,7 +8,14 @@ const MATCH_REASONS = {
 };
 
 /** The selected Result in full: its Content Match, where it lives, and why it matched. */
-export function Preview({ result, query }: { result: ResultRow; query: string }) {
+type Props = {
+  result: ResultRow;
+  query: string;
+  onOpen: () => void;
+  onReveal: () => void;
+};
+
+export function Preview({ result, query, onOpen, onReveal }: Props) {
   const facts = [
     result.size !== null && size(result.size),
     result.modified !== null && `changed ${date(result.modified)}`,
@@ -30,7 +37,31 @@ export function Preview({ result, query }: { result: ResultRow; query: string })
         {MATCH_REASONS[result.matchReason]}
         {result.location && `, ${result.location.toLowerCase()}`}
       </p>
+      <div className="flex gap-2">
+        <Action onClick={onOpen} primary>
+          Open
+        </Action>
+        <Action onClick={onReveal}>Show in folder</Action>
+      </div>
     </section>
+  );
+}
+
+/** A button that leaves the keyboard in the Query box. */
+function Action(props: { onClick: () => void; primary?: boolean; children: string }) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={props.onClick}
+      className={
+        props.primary
+          ? "rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-canvas hover:bg-accent-hover"
+          : "rounded-md border border-line px-3 py-1.5 text-sm hover:bg-raised"
+      }
+    >
+      {props.children}
+    </button>
   );
 }
 

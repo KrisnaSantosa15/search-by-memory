@@ -151,7 +151,14 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
             </li>
           ))}
         </ul>
-        {result && <Preview result={result} query={query} />}
+        {result && (
+          <Preview
+            result={result}
+            query={query}
+            onOpen={() => act(open)}
+            onReveal={() => act(reveal)}
+          />
+        )}
       </div>
     </section>
   );
