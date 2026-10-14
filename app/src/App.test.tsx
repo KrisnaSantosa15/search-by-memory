@@ -69,4 +69,26 @@ describe("App", () => {
     expect(attempts).toBe(2);
     expect(screen.queryByText(/download stopped/i)).not.toBeInTheDocument();
   });
+
+  it("asks which folders to search once the download is done, then starts indexing them", async () => {
+    const started: unknown[] = [];
+    mockIPC(
+      (command, payload) => {
+        if (command === "speed_choices") return cpuOnly;
+        if (command === "prepare") return true;
+        if (command === "folder_choices") {
+          return [{ path: "C:\\Users\\ana", kind: "personal", picked: true }];
+        }
+        if (command === "start_indexing") started.push(payload);
+      },
+      { shouldMockEvents: true },
+    );
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
+
+    await screen.findByRole("checkbox", { name: /your personal folders/i });
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    expect(started).toEqual([{ choice: "cpu", folders: ["C:\\Users\\ana"] }]);
+  });
 });

@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { DownloadStep } from "./onboarding/DownloadStep";
+import { FoldersStep, type FolderChoice } from "./onboarding/FoldersStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 
 type DownloadProgress = { done: number; total: number; secondsLeft: number | null };
@@ -17,6 +18,7 @@ export default function App() {
     total: 0,
     secondsLeft: null,
   });
+  const [folders, setFolders] = useState<FolderChoice[] | null>(null);
 
   useEffect(() => {
     invoke<SpeedChoice[]>("speed_choices").then(setChoices);
@@ -28,7 +30,11 @@ export default function App() {
     const unlisten = listen<DownloadProgress>("setup-progress", (event) =>
       setProgress(event.payload),
     ).then((unlisten) => {
-      invoke("prepare", { choice }).catch(() => setStopped(true));
+      invoke<boolean>("prepare", { choice })
+        .then((complete) => {
+          if (complete) return invoke<FolderChoice[]>("folder_choices").then(setFolders);
+        })
+        .catch(() => setStopped(true));
       return unlisten;
     });
     return () => {
@@ -36,9 +42,17 @@ export default function App() {
     };
   }, [choice, attempt]);
 
-  return (
-    <main className="mx-auto max-w-xl px-6 py-10">
-      {choice ? (
+  const step = () => {
+    if (folders) {
+      return (
+        <FoldersStep
+          choices={folders}
+          onContinue={(paths) => invoke("start_indexing", { choice, folders: paths })}
+        />
+      );
+    }
+    if (choice) {
+      return (
         <DownloadStep
           {...progress}
           onRetry={
@@ -50,9 +64,10 @@ export default function App() {
               : undefined
           }
         />
-      ) : (
-        choices && <SpeedStep choices={choices} onContinue={setChoice} />
-      )}
-    </main>
-  );
+      );
+    }
+    return choices && <SpeedStep choices={choices} onContinue={setChoice} />;
+  };
+
+  return <main className="mx-auto max-w-xl px-6 py-10">{step()}</main>;
 }
