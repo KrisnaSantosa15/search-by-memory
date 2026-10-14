@@ -6,6 +6,7 @@ import {
   Settings,
   type Dashboard,
   type ExclusionList,
+  type ExclusionRow,
   type FailedFile,
   type IndexedFolder,
 } from "./Settings";
@@ -18,6 +19,7 @@ const settings = {
   addFolder: () => invoke<boolean>("pick_and_add_folder"),
   removeFolder: (path: string) => invoke<void>("remove_indexed_folder", { path }),
   exclusions: () => invoke<ExclusionList>("exclusions"),
+  removeExclusion: (row: ExclusionRow) => invoke<void>("remove_exclusion", { row }),
   pause: () => invoke<void>("pause_indexing"),
   resume: () => invoke<void>("resume_indexing"),
 };

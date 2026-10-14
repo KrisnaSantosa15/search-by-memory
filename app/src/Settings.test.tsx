@@ -5,6 +5,7 @@ import {
   Settings,
   type Dashboard,
   type ExclusionList,
+  type ExclusionRow,
   type FailedFile,
   type IndexedFolder,
 } from "./Settings";
@@ -30,6 +31,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     addFolder: vi.fn(async () => false),
     removeFolder: vi.fn(async (_path: string) => {}),
     exclusions: async (): Promise<ExclusionList> => ({ rows: [], defaultsTurnedOff: false }),
+    removeExclusion: vi.fn(async (_row: ExclusionRow) => {}),
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     ...overrides,
@@ -211,5 +213,28 @@ describe("Settings", () => {
     expect(items[1]).not.toHaveTextContent("Default");
     expect(items[2]).toHaveTextContent("C:\\Users\\ana\\private");
     expect(screen.queryByRole("button", { name: "Restore defaults" })).not.toBeInTheDocument();
+  });
+
+  it("removes the user's Exclusions and turns off default ones", async () => {
+    const nodeModules: ExclusionRow = { kind: "name", pattern: "node_modules", default: true };
+    const backups: ExclusionRow = { kind: "name", pattern: "*.bak", default: false };
+    let rows = [nodeModules, backups];
+    const props = renderSettings({
+      exclusions: async () => ({ rows, defaultsTurnedOff: false }),
+      removeExclusion: vi.fn(async (row: ExclusionRow) => {
+        rows = rows.filter((other) => other !== row);
+      }),
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Remove *.bak" }));
+    await userEvent.click(screen.getByRole("button", { name: "Turn off node_modules" }));
+
+    expect(props.removeExclusion).toHaveBeenCalledWith(backups);
+    expect(props.removeExclusion).toHaveBeenCalledWith(nodeModules);
+    await waitFor(() =>
+      expect(within(screen.getByRole("list", { name: "Exclusions" })).queryAllByRole("listitem"))
+        .toHaveLength(0),
+    );
   });
 });

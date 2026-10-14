@@ -44,6 +44,8 @@ type FoldersProps = {
   /** Stops indexing `path`; its files leave both indexes. */
   removeFolder: (path: string) => Promise<void>;
   exclusions: () => Promise<ExclusionList>;
+  /** Forgets one of the user's Exclusions, or turns off a default one. */
+  removeExclusion: (row: ExclusionRow) => Promise<void>;
 };
 
 /** One Exclusion; see `ExclusionRow` in `src-tauri`. */
@@ -90,7 +92,8 @@ export function Settings(props: StatusProps & FoldersProps) {
   );
 }
 
-function FoldersTab({ folders, addFolder, removeFolder, exclusions }: FoldersProps) {
+function FoldersTab(props: FoldersProps) {
+  const { folders, addFolder, removeFolder, exclusions, removeExclusion } = props;
   const [list, setList] = useState<IndexedFolder[]>([]);
   // The folder whose removal waits for the user to confirm it.
   const [removing, setRemoving] = useState<string | null>(null);
@@ -170,17 +173,27 @@ function FoldersTab({ folders, addFolder, removeFolder, exclusions }: FoldersPro
           </li>
         ))}
       </ul>
-      <Exclusions exclusions={exclusions} />
+      <Exclusions exclusions={exclusions} removeExclusion={removeExclusion} />
     </section>
   );
 }
 
-function Exclusions({ exclusions }: Pick<FoldersProps, "exclusions">) {
+function Exclusions({
+  exclusions,
+  removeExclusion,
+}: Pick<FoldersProps, "exclusions" | "removeExclusion">) {
   const [list, setList] = useState<ExclusionList>({ rows: [], defaultsTurnedOff: false });
 
+  const refresh = useCallback(() => exclusions().then(setList), [exclusions]);
+
   useEffect(() => {
-    exclusions().then(setList);
-  }, [exclusions]);
+    refresh();
+  }, [refresh]);
+
+  const remove = async (row: ExclusionRow) => {
+    await removeExclusion(row);
+    await refresh();
+  };
 
   return (
     <>
@@ -204,11 +217,23 @@ function Exclusions({ exclusions }: Pick<FoldersProps, "exclusions">) {
                 Default
               </span>
             )}
+            <button
+              type="button"
+              aria-label={`${isDefault(row) ? "Turn off" : "Remove"} ${label(row)}`}
+              onClick={() => remove(row)}
+              className="ml-auto shrink-0 rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
+            >
+              {isDefault(row) ? "Turn off" : "Remove"}
+            </button>
           </li>
         ))}
       </ul>
     </>
   );
+}
+
+function isDefault(row: ExclusionRow): boolean {
+  return row.kind === "name" && row.default;
 }
 
 /** What an Exclusion row shows: its name pattern or folder. */
