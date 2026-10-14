@@ -4000,6 +4000,7 @@ dependencies = [
  "pdf-extract",
  "quick-xml",
  "sbm-core",
+ "sbm-pdf",
  "tempfile",
  "zip",
 ]

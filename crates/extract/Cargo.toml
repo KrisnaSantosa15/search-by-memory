@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 sbm-core = { path = "../core" }
+sbm-pdf = { path = "../pdf" }
 pdf-extract = "=0.12.1"
 quick-xml = "=0.42.0"
 zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }

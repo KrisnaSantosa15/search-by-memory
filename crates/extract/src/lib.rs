@@ -35,14 +35,18 @@ impl ContentExtractor for TextExtractor {
     }
 }
 
-/// PDF documents: one Section per page.
+/// PDF documents: one Section per page. Read with PDFium where setup installed
+/// it (it also reads the invisible OCR layer of scans), else with pdf-extract.
 pub struct PdfExtractor;
 
 impl ContentExtractor for PdfExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
-        // pdf-extract panics on some malformed PDFs; a bad file must not stop indexing.
-        let pages = std::panic::catch_unwind(|| pdf_extract::extract_text_by_pages(path))
-            .map_err(|_| format!("PDF parser crashed on {}", path.display()))??;
+        let pages = match pdfium_text(path) {
+            Some(pages) => pages,
+            // pdf-extract panics on some malformed PDFs; a bad file must not stop indexing.
+            None => std::panic::catch_unwind(|| pdf_extract::extract_text_by_pages(path))
+                .map_err(|_| format!("PDF parser crashed on {}", path.display()))??,
+        };
         Ok(pages
             .into_iter()
             .enumerate()
@@ -52,6 +56,13 @@ impl ContentExtractor for PdfExtractor {
             })
             .collect())
     }
+}
+
+/// The pages of `path` as PDFium reads them; `None` when PDFium is not
+/// installed or cannot open the file.
+fn pdfium_text(path: &Path) -> Option<Vec<String>> {
+    let dir = sbm_core::AppDirs::current().cache.join(sbm_pdf::PDFIUM_DIR);
+    sbm_pdf::PdfPages::load(&dir).ok()?.text(path)
 }
 
 /// Largest content an extractor reads from one file (FR-03), guarding against
