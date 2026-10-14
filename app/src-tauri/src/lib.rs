@@ -2,8 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
-use sbm_core::{AppDirs, Location};
+use sbm_core::{AppDirs, Location, ThrottleReason};
 use sbm_embed_onnx::Accelerator;
+use sbm_engine::Status;
 use sbm_index::{MatchReason, SearchResult};
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
@@ -177,6 +178,16 @@ pub struct ResultRow {
     pub match_reason: String,
     /// A Weaker Match, folded away below the others.
     pub weaker: bool,
+}
+
+/// What indexing is doing, as the tray says it.
+pub fn indexing_state(status: &Status) -> String {
+    match status.throttled {
+        Some(ThrottleReason::FullScreen) => "Indexing waits while a full-screen app is open".into(),
+        Some(ThrottleReason::Battery) => "Indexing waits until the computer is plugged in".into(),
+        Some(ThrottleReason::Busy) => "Indexing waits while the computer is busy".into(),
+        None => String::new(),
+    }
 }
 
 pub fn result_row(result: SearchResult) -> ResultRow {
