@@ -250,7 +250,7 @@ mod commands {
     use std::time::{Duration, Instant};
 
     use sbm_change_usn::UsnJournal;
-    use sbm_core::AppDirs;
+    use sbm_core::{AppDirs, SystemActivity};
     use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
     use sbm_engine::{Engine, LoadedModel};
     use sbm_index::View;
@@ -277,6 +277,9 @@ mod commands {
     const THUMBNAIL_SIZES: (u32, u32) = (16, 840);
     /// Results the launcher shows, as the PRD's default top-K.
     const RESULTS: usize = 20;
+    /// How long the computer must be free (no full-screen app, mains power, not
+    /// busy) before Initial Indexing goes on (FR-04).
+    const QUIET_PERIOD: Duration = Duration::from_secs(60);
     /// Progress events per second at most; the bar cannot show more.
     const REPORT_EVERY: Duration = Duration::from_millis(200);
 
@@ -482,8 +485,10 @@ mod commands {
                 device,
             })
         };
-        Engine::start_loading(&data_dir(), load, Box::new(UsnJournal))
-            .map_err(|error| error.to_string())
+        let engine = Engine::start_loading(&data_dir(), load, Box::new(UsnJournal))
+            .map_err(|error| error.to_string())?;
+        engine.set_activity(Arc::new(SystemActivity::default()), QUIET_PERIOD);
+        Ok(engine)
     }
 
     /// Results for `query` in File view, best first, code only when asked;
