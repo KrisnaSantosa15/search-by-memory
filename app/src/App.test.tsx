@@ -25,6 +25,19 @@ describe("App", () => {
     expect(await screen.findByRole("radio", { name: /any computer/i })).toBeChecked();
   });
 
+  it("quits from the close button during onboarding", async () => {
+    const called: string[] = [];
+    mockIPC((command) => {
+      called.push(command);
+      if (command === "speed_choices") return cpuOnly;
+    });
+    render(<App />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /quit/i }));
+
+    expect(called).toContain("quit");
+  });
+
   it("skips onboarding once it has finished", async () => {
     mockIPC((command) => {
       if (command === "settings") return { accelerator: "cpu", hotkey: "Alt+Space" };

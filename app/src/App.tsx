@@ -63,7 +63,6 @@ export default function App() {
   }, [choice, attempt]);
 
   const step = () => {
-    if (finished) return <Launcher {...launcher} />;
     if (hotkey) {
       return (
         <DoneStep
@@ -103,5 +102,32 @@ export default function App() {
     return choices && <SpeedStep choices={choices} onContinue={setChoice} />;
   };
 
-  return <main className="mx-auto max-w-xl px-6 py-10">{step()}</main>;
+  if (finished) {
+    return (
+      <div className="h-full bg-glass">
+        <Launcher {...launcher} />
+      </div>
+    );
+  }
+  // The window has no frame: this strip moves it, and quits onboarding.
+  return (
+    <div className="flex h-full flex-col bg-glass">
+      <header data-tauri-drag-region className="flex h-10 shrink-0 items-center justify-between pl-5">
+        <span data-tauri-drag-region className="text-xs text-muted">
+          Search by Memory
+        </span>
+        <button
+          type="button"
+          aria-label="Quit"
+          onClick={() => invoke("quit")}
+          className="h-10 w-12 text-muted transition-colors hover:bg-raised hover:text-ink"
+        >
+          ✕
+        </button>
+      </header>
+      <main className="w-full flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-xl px-6 pt-4 pb-10">{step()}</div>
+      </main>
+    </div>
+  );
 }
