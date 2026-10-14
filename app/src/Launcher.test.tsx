@@ -99,6 +99,16 @@ describe("Launcher", () => {
     );
   });
 
+  it("counts Weaker Matches apart in the footer", async () => {
+    const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
+    const fainter = { ...report, name: "fainter.txt", path: "D:\\fainter.txt", weaker: true };
+    render(<Launcher search={async () => [report, faint, fainter]} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+
+    expect(await screen.findByRole("status")).toHaveTextContent("1 result, 2 weaker");
+  });
+
   it("unfolds Weaker Matches with Arrow Right or a click", async () => {
     const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
     render(<Launcher search={async () => [report, faint]} {...actions()} />);

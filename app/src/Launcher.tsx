@@ -219,7 +219,7 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
         </div>
       </div>
       <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-line px-5 py-2.5 text-xs text-muted">
-        <p role="status">{status(query, searching, results.length)}</p>
+        <p role="status">{status(query, searching, strong.length, faint.length)}</p>
         <ul aria-label="Keys" className="flex gap-4">
           {KEYS.map(([keys, action]) => (
             <li key={action}>
@@ -310,11 +310,12 @@ const KEYS = [
 ];
 
 /** What the search is doing, in a few words. */
-function status(query: string, searching: boolean, found: number): string {
+function status(query: string, searching: boolean, found: number, weaker: number): string {
   if (!query.trim()) return "Type what you remember about a file";
   if (searching) return "Searching…";
-  if (found === 0) return "Nothing matches yet";
-  return found === 1 ? "1 result" : `${found} results`;
+  if (found + weaker === 0) return "Nothing matches yet";
+  const results = found === 1 ? "1 result" : `${found} results`;
+  return weaker > 0 ? `${results}, ${weaker} weaker` : results;
 }
 
 /** `index` kept within a list of `length` items. */
