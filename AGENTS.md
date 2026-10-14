@@ -77,5 +77,6 @@ Always commit in the smallest possible units.
 
 - Rust: `cargo test --workspace`
 - Python dev tooling (`tools/`): `uv run pytest`
+- Desktop app frontend (`app/`): `pnpm test`
 
 A change is not done until the relevant suite passes. Report failing tests honestly, with their output.
