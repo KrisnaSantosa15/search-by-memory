@@ -1,13 +1,20 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { Preview } from "./Preview";
 
 /** One Result, as the Rust side sends it. */
 export type ResultRow = {
   name: string;
   path: string;
+  /** The folder holding `path`. */
+  folder: string;
   /** Other paths with the same content. */
   copies: string[];
   /** False while the file's drive is a Disconnected Drive. */
   connected: boolean;
+  /** Bytes; `null` when the file cannot be read now. */
+  size: number | null;
+  /** Last change, in milliseconds since 1970; `null` when the file cannot be read now. */
+  modified: number | null;
   snippet: string | null;
   /** Where the snippet is, e.g. `Page 14`. */
   location: string | null;
@@ -106,43 +113,46 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
           className="min-w-0 flex-1 rounded-xl border border-line bg-panel px-4 py-3 text-lg outline-none focus:border-accent"
         />
       </div>
-      <ul role="listbox" aria-label="Results" className="flex flex-col gap-1">
-        {results.map((result, index) => (
-          <li
-            key={`${result.path}#${index}`}
-            role="option"
-            aria-selected={index === selected}
-            className="flex flex-col gap-0.5 rounded-xl border border-transparent p-3 aria-selected:border-accent aria-selected:bg-accent-soft"
-          >
-            <span className="flex items-baseline gap-2">
-              <span className="font-medium">{result.name}</span>
-              {result.location && <span className="text-sm text-muted">{result.location}</span>}
-              <span className="ml-auto text-xs text-muted">
-                {MATCH_REASONS[result.matchReason]}
+      <div className="grid grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-4">
+        <ul role="listbox" aria-label="Results" className="flex flex-col gap-1">
+          {results.map((result, index) => (
+            <li
+              key={`${result.path}#${index}`}
+              role="option"
+              aria-selected={index === selected}
+              className="flex flex-col gap-0.5 rounded-xl border border-transparent p-3 aria-selected:border-accent aria-selected:bg-accent-soft"
+            >
+              <span className="flex items-baseline gap-2">
+                <span className="font-medium">{result.name}</span>
+                {result.location && <span className="text-sm text-muted">{result.location}</span>}
+                <span className="ml-auto text-xs text-muted">
+                  {MATCH_REASONS[result.matchReason]}
+                </span>
               </span>
-            </span>
-            {result.snippet && <span className="line-clamp-2 text-sm">{result.snippet}</span>}
-            <span className="flex gap-1 text-xs text-muted">
-              <Path path={result.path} />
-              {!result.connected && <span className="shrink-0">· drive not connected</span>}
-            </span>
-            {index === selected && copy !== null && (
-              <ul role="listbox" aria-label="Copies" className="mt-2 flex flex-col gap-0.5">
-                {paths.map((path, index) => (
-                  <li
-                    key={path}
-                    role="option"
-                    aria-selected={index === copy}
-                    className="flex rounded-lg px-3 py-1.5 text-sm aria-selected:bg-raised"
-                  >
-                    <Path path={path} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-        ))}
-      </ul>
+              {result.snippet && <span className="line-clamp-2 text-sm">{result.snippet}</span>}
+              <span className="flex gap-1 text-xs text-muted">
+                <Path path={result.path} />
+                {!result.connected && <span className="shrink-0">· drive not connected</span>}
+              </span>
+              {index === selected && copy !== null && (
+                <ul role="listbox" aria-label="Copies" className="mt-2 flex flex-col gap-0.5">
+                  {paths.map((path, index) => (
+                    <li
+                      key={path}
+                      role="option"
+                      aria-selected={index === copy}
+                      className="flex rounded-lg px-3 py-1.5 text-sm aria-selected:bg-raised"
+                    >
+                      <Path path={path} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+        {result && <Preview result={result} />}
+      </div>
     </section>
   );
 }

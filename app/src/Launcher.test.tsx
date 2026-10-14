@@ -6,8 +6,11 @@ import { Launcher, type ResultRow } from "./Launcher";
 const report: ResultRow = {
   name: "Q3 Report.pdf",
   path: "D:\\Work\\Q3 Report.pdf",
+  folder: "D:\\Work",
   copies: [],
   connected: true,
+  size: 2_100_000,
+  modified: Date.UTC(2026, 9, 3),
   snippet: "net profit increased by 18%",
   location: "Page 14",
   matchReason: "both",
@@ -156,6 +159,23 @@ describe("Launcher", () => {
     window.dispatchEvent(new FocusEvent("focus"));
 
     expect(box).toHaveFocus();
+  });
+
+  it("previews the selected Result: where it is, how big, when it changed, and why it matched", async () => {
+    const notes = { ...report, name: "notes.md", path: "D:\\notes.md", folder: "D:\\" };
+    render(<Launcher search={async () => [report, notes]} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findAllByRole("option");
+
+    const preview = screen.getByRole("region", { name: /preview/i });
+    expect(within(preview).getByRole("heading")).toHaveTextContent("Q3 Report.pdf");
+    expect(preview).toHaveTextContent("D:\\Work");
+    expect(preview).toHaveTextContent("2.1 MB");
+    expect(preview).toHaveTextContent("2026");
+    expect(preview).toHaveTextContent("Name and contents match");
+    expect(preview).toHaveTextContent("net profit increased by 18%");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(within(preview).getByRole("heading")).toHaveTextContent("notes.md");
   });
 
   it("hides with Escape", async () => {
