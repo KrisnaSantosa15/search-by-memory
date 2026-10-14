@@ -16,9 +16,10 @@ Snapshot for the next session or agent (2026-10-14, after the Engine was finishe
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
   - M4: throttling (full-screen, battery, busy; Live Updates exempt).
-  - M3 (agreed with the user, next): Tauri 2 app (React + TypeScript + Tailwind + shadcn/Radix): onboarding wizard first (system check, speed, model download, folders, hotkey, done), then the launcher. Goal: easy for non-developers; every step has a working default, plain language (no "CUDA"/"DirectML" jargon), one progress bar with time left, name search usable as soon as onboarding ends. VoiceStudio (AGPL-3.0) is the UX reference: ideas only, no code.
+  - M3 (in progress): Tauri 2 app (React + TypeScript + Tailwind + shadcn/Radix): onboarding wizard first (system check, speed, model download, folders, hotkey, done), then the launcher. Goal: easy for non-developers; every step has a working default, plain language (no "CUDA"/"DirectML" jargon), one progress bar with time left, name search usable as soon as onboarding ends. VoiceStudio (AGPL-3.0) is the UX and visual reference (the user wants the app to look like it: dark plum, magenta accent, rounded bordered cards): ideas only, no code.
+  - Done so far: `app/` (Vite + React + TS + Tailwind 4, Vitest, pnpm; npm 11.4 crashes on install) and `app/src-tauri` (`sbm-app`, workspace member; compiles in dev mode without `dist`, so `cargo test --workspace` needs no frontend build). Speed step works end to end on this machine (`pnpm tauri dev`). Theme tokens in `app/src/index.css`.
   - The app must put the CUDA runtime folder (`<cache>/runtimes/cuda13`) on `PATH` before loading the CUDA provider.
-- Tests: `cargo test --workspace` 183 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed.
+- Tests: `cargo test --workspace` 184 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 3 passed.
 
 ## Workspace
 | Path | Purpose |
@@ -31,6 +32,7 @@ Snapshot for the next session or agent (2026-10-14, after the Engine was finishe
 | `crates/change-usn` | `UsnJournal`: the NTFS USN Journal as a `ChangeSource` (unprivileged read, paths by file ID); elsewhere always Lost. |
 | `crates/engine` | `Engine`: owns the indexes and embedder, loads the model in the background (`start_loading`), indexes in a background thread (own SQLite connection, vector store shared through an `RwLock`), answers `search` meanwhile. |
 | `crates/setup` | First-run setup: `download` (resume, SHA-256, cancel), `Web` (ureq), model and CUDA manifests, `install_runtime`, `system_gpus`, `speed_options`. |
+| `app/` | Desktop app: React frontend (`src/`, Vitest tests next to components); `src-tauri/` is the Tauri shell (`sbm-app`): plain tested functions in `lib.rs`, thin `#[tauri::command]` wrappers in `mod commands`. |
 | `crates/cli` | `sbm` binary and the tested `index` / `search` / `folders` / `remove_folder` / `exclude` / `accelerator_option` / `printable` functions; `main.rs` is thin, untested glue. |
 | `crates/bench` | Dev-only measurements: `embed_throughput [--accelerator <name>]`, `retrieval_benchmark`, Benchmark parser, File-view metrics, Location-miss report. |
 | `benchmark/public/` | Public Corpus `manifest.toml` (74 files: URL, sha256, license) and `queries.toml` (58 labelled Queries). |
@@ -105,6 +107,8 @@ Snapshot for the next session or agent (2026-10-14, after the Engine was finishe
 - Unix `SystemVolumes` (mount point by device ID) compiles only on Unix and has not been run since the Windows move; an empty mount folder left behind by an unmounted drive counts as connected.
 
 ## Environment gotchas
+- `pnpm tauri dev` right after the previous app instance was killed can fail with WebView2 `0x800700AA` (resource in use); retry after a few seconds.
+- Screenshots of the app: `PrintWindow` on the window handle (never screen copy: it captures whatever is in front).
 - Windows: `core.autocrlf=true`. `.gitattributes` marks PDF/DOCX/PNG/ONNX binary; add new binary fixture types there, or CRLF conversion corrupts them.
 - usearch 2.26.2 + MSVC: `.cargo/config.toml` sets `CXXFLAGS_x86_64_pc_windows_msvc=/DNK_DYNAMIC=` so NumKong links statically (otherwise unresolved `__imp_nk_*`).
 - In PowerShell, `Select-String` is case-insensitive: `FAILED` also matches `0 failed`. Use `-CaseSensitive` or Git Bash `grep`.
