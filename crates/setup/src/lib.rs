@@ -418,3 +418,24 @@ pub fn prepare(
         },
     )
 }
+
+/// Estimates how long a download still takes from its speed so far.
+#[derive(Debug, Clone, Copy)]
+pub struct TimeLeft {
+    /// Bytes already on disk when the download started.
+    start: u64,
+}
+
+impl TimeLeft {
+    pub fn starting_at(done: u64) -> Self {
+        Self { start: done }
+    }
+
+    /// Time left at `progress`, `elapsed` after the download started.
+    pub fn estimate(&self, progress: Progress, elapsed: Duration) -> Option<Duration> {
+        let fetched = progress.done.saturating_sub(self.start);
+        let rate = fetched as f64 / elapsed.as_secs_f64();
+        let left = progress.total.saturating_sub(progress.done);
+        Some(Duration::from_secs_f64(left as f64 / rate))
+    }
+}
