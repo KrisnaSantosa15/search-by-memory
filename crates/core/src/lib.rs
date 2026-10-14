@@ -60,6 +60,8 @@ pub enum Unreadable {
     Damaged,
     /// Another program had it open and would not share it.
     InUse,
+    /// The system did not allow reading it.
+    NoAccess,
     /// Moved or deleted before it was read.
     Gone,
     /// None of the above, or not known.
@@ -93,6 +95,7 @@ impl Unreadable {
         }
         match error.kind() {
             std::io::ErrorKind::NotFound => Unreadable::Gone,
+            std::io::ErrorKind::PermissionDenied => Unreadable::NoAccess,
             _ => Unreadable::Other,
         }
     }
