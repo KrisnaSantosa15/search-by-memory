@@ -37,6 +37,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
+  const [searching, setSearching] = useState(false);
   // The Copy being picked in the Preview Pane; `null` while none is being picked.
   const [copy, setCopy] = useState<number | null>(null);
   const box = useRef<HTMLInputElement>(null);
@@ -51,12 +52,15 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setSearching(false);
       return;
     }
     // Only the newest Query's Results are shown, whichever answers last.
     let current = true;
+    setSearching(true);
     search(query).then((results) => {
       if (!current) return;
+      setSearching(false);
       setResults(results);
       setSelected(0);
       setCopy(null);
@@ -148,8 +152,32 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
           />
         )}
       </div>
+      <footer className="flex items-center justify-between gap-4 text-xs text-muted">
+        <p role="status">{status(query, searching, results.length)}</p>
+        <ul aria-label="Keys" className="flex gap-4">
+          {KEYS.map(([keys, action]) => (
+            <li key={action}>
+              <kbd className="font-sans text-ink">{keys}</kbd> {action}
+            </li>
+          ))}
+        </ul>
+      </footer>
     </section>
   );
+}
+
+const KEYS = [
+  ["Enter", "Open"],
+  ["Ctrl+Enter", "Show in folder"],
+  ["Ctrl+C", "Copy"],
+];
+
+/** What the search is doing, in a few words. */
+function status(query: string, searching: boolean, found: number): string {
+  if (!query.trim()) return "Type what you remember about a file";
+  if (searching) return "Searching…";
+  if (found === 0) return "Nothing matches yet";
+  return found === 1 ? "1 result" : `${found} results`;
 }
 
 /** `index` kept within a list of `length` items. */

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Launcher, type ResultRow } from "./Launcher";
@@ -54,62 +54,62 @@ describe("Launcher", () => {
   });
 
   it("opens the selected file with Enter", async () => {
-    const act = actions();
-    render(<Launcher search={async () => [report]} {...act} />);
+    const spies = actions();
+    render(<Launcher search={async () => [report]} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
     await userEvent.keyboard("{Enter}");
 
-    expect(act.open).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
-    expect(act.reveal).not.toHaveBeenCalled();
+    expect(spies.open).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(spies.reveal).not.toHaveBeenCalled();
   });
 
   it("reveals the selected file in its folder with Ctrl + Enter or Shift + Enter", async () => {
-    const act = actions();
-    render(<Launcher search={async () => [report]} {...act} />);
+    const spies = actions();
+    render(<Launcher search={async () => [report]} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
     await userEvent.keyboard("{Control>}{Enter}{/Control}{Shift>}{Enter}{/Shift}");
 
-    expect(act.reveal).toHaveBeenCalledTimes(2);
-    expect(act.reveal).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
-    expect(act.open).not.toHaveBeenCalled();
+    expect(spies.reveal).toHaveBeenCalledTimes(2);
+    expect(spies.reveal).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(spies.open).not.toHaveBeenCalled();
   });
 
   it("copies the selected file's path with Ctrl + C", async () => {
-    const act = actions();
-    render(<Launcher search={async () => [report]} {...act} />);
+    const spies = actions();
+    render(<Launcher search={async () => [report]} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
     await userEvent.keyboard("{Control>}c{/Control}");
 
-    expect(act.copyPath).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(spies.copyPath).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
   });
 
   it("leaves Ctrl + C to copy Query text that is selected", async () => {
-    const act = actions();
-    render(<Launcher search={async () => [report]} {...act} />);
+    const spies = actions();
+    render(<Launcher search={async () => [report]} {...spies} />);
     const box = screen.getByRole("searchbox");
     await userEvent.type(box, "profit");
     await screen.findByRole("option");
 
     await userEvent.keyboard("{Control>}a{/Control}{Control>}c{/Control}");
 
-    expect(act.copyPath).not.toHaveBeenCalled();
+    expect(spies.copyPath).not.toHaveBeenCalled();
   });
 
   it("asks which Copy to open when a Result has several, and opens the one picked", async () => {
-    const act = actions();
+    const spies = actions();
     const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
-    render(<Launcher search={async () => [copied]} {...act} />);
+    render(<Launcher search={async () => [copied]} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
     await userEvent.keyboard("{Enter}");
-    expect(act.open).not.toHaveBeenCalled();
+    expect(spies.open).not.toHaveBeenCalled();
     const copies = screen.getByRole("listbox", { name: /copies/i });
     expect(within(copies).getAllByRole("option").map((copy) => copy.textContent)).toEqual([
       "D:\\Work\\Q3 Report.pdf",
@@ -117,7 +117,7 @@ describe("Launcher", () => {
     ]);
     await userEvent.keyboard("{ArrowDown}{Enter}");
 
-    expect(act.open).toHaveBeenCalledWith("E:\\Backup\\Q3 Report.pdf");
+    expect(spies.open).toHaveBeenCalledWith("E:\\Backup\\Q3 Report.pdf");
   });
 
   it("opens the Detail Panel with Arrow Right and closes it with Arrow Left", async () => {
@@ -139,16 +139,16 @@ describe("Launcher", () => {
   });
 
   it("says when a Result's drive is not connected and does not try to open it", async () => {
-    const act = actions();
+    const spies = actions();
     const away = { ...report, connected: false };
-    render(<Launcher search={async () => [away]} {...act} />);
+    render(<Launcher search={async () => [away]} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     expect(await screen.findByRole("option")).toHaveTextContent(/drive not connected/i);
     await userEvent.keyboard("{Enter}{Control>}{Enter}{/Control}");
 
-    expect(act.open).not.toHaveBeenCalled();
-    expect(act.reveal).not.toHaveBeenCalled();
+    expect(spies.open).not.toHaveBeenCalled();
+    expect(spies.reveal).not.toHaveBeenCalled();
   });
 
   it("focuses the Query box whenever the window comes back", async () => {
@@ -189,16 +189,16 @@ describe("Launcher", () => {
   });
 
   it("opens or shows the previewed file from its buttons", async () => {
-    const act = actions();
-    render(<Launcher search={async () => [report]} {...act} />);
+    const spies = actions();
+    render(<Launcher search={async () => [report]} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
     await userEvent.click(screen.getByRole("button", { name: "Open" }));
     await userEvent.click(screen.getByRole("button", { name: "Show in folder" }));
 
-    expect(act.open).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
-    expect(act.reveal).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(spies.open).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(spies.reveal).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
   });
 
   it("lists the Copies in the Preview Pane and picks one there", async () => {
@@ -215,12 +215,36 @@ describe("Launcher", () => {
     expect(preview).toHaveTextContent(/which copy/i);
   });
 
+  it("says in the footer what the search is doing, with the keys to act", async () => {
+    let answer: (results: ResultRow[]) => void = () => {};
+    const search = () => new Promise<ResultRow[]>((resolve) => (answer = resolve));
+    render(<Launcher search={search} {...actions()} />);
+    const status = screen.getByRole("status");
+
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    expect(status).toHaveTextContent("Searching…");
+    await act(async () => answer([report, { ...report, path: "D:\\other.pdf" }]));
+
+    expect(status).toHaveTextContent("2 results");
+    expect(screen.getByRole("list", { name: "Keys" })).toHaveTextContent(/Enter.*Open/);
+    expect(screen.getByRole("list", { name: "Keys" })).toHaveTextContent(/Ctrl\+Enter.*Show in folder/);
+    expect(screen.getByRole("list", { name: "Keys" })).toHaveTextContent(/Ctrl\+C.*Copy/);
+  });
+
+  it("says when nothing matches", async () => {
+    render(<Launcher search={async () => []} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "zebra");
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Nothing matches yet");
+  });
+
   it("hides with Escape", async () => {
-    const act = actions();
-    render(<Launcher search={async () => []} {...act} />);
+    const spies = actions();
+    render(<Launcher search={async () => []} {...spies} />);
 
     await userEvent.type(screen.getByRole("searchbox"), "{Escape}");
 
-    expect(act.hide).toHaveBeenCalled();
+    expect(spies.hide).toHaveBeenCalled();
   });
 });
