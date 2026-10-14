@@ -3,8 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use sbm_core::AppDirs;
-use sbm_pdf::PdfPages;
-use sbm_setup::PDFIUM_DIR;
+use sbm_pdf::{PDFIUM_DIR, PdfPages};
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

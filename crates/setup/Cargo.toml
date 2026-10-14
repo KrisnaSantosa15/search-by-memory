@@ -7,6 +7,7 @@ license.workspace = true
 [dependencies]
 sbm-core = { path = "../core" }
 sbm-embed-onnx = { path = "../embed-onnx" }
+sbm-pdf = { path = "../pdf" }
 sha2 = "=0.11.0"
 zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }
 ureq = { version = "=3.4.2", default-features = false, features = ["rustls"] }

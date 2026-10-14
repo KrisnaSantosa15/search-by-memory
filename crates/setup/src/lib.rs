@@ -291,8 +291,7 @@ pub fn cuda_runtime() -> Vec<RemoteFile> {
     .collect()
 }
 
-/// Where PDFium lives, relative to the cache directory (`AppDirs`).
-pub const PDFIUM_DIR: &str = "runtimes/pdfium";
+pub use sbm_pdf::PDFIUM_DIR;
 
 /// PDFium, which renders PDF pages for the Preview Pane: the build matching the
 /// API `pdfium-render` binds (7881), from bblanchon/pdfium-binaries (3.7 MB; 7.2 MB unpacked).

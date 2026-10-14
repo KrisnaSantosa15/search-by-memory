@@ -10,4 +10,3 @@ png = "=0.18.1"
 
 [dev-dependencies]
 sbm-core = { path = "../core" }
-sbm-setup = { path = "../setup" }

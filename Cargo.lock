@@ -4024,7 +4024,6 @@ dependencies = [
  "pdfium-render",
  "png 0.18.1",
  "sbm-core",
- "sbm-setup",
 ]
 
 [[package]]
@@ -4034,6 +4033,7 @@ dependencies = [
  "flate2",
  "sbm-core",
  "sbm-embed-onnx",
+ "sbm-pdf",
  "sha2 0.11.0",
  "tar",
  "tempfile",

@@ -5,6 +5,9 @@ use std::sync::OnceLock;
 
 use pdfium_render::prelude::*;
 
+/// Where PDFium lives, relative to the cache directory (`AppDirs`).
+pub const PDFIUM_DIR: &str = "runtimes/pdfium";
+
 /// PDFium, loaded once per process (its bindings are global), or why it failed.
 static PDFIUM: OnceLock<Result<Pdfium, String>> = OnceLock::new();
 
