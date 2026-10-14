@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useState } from "react";
 
 /** One Result, as the Rust side sends it. */
 export type ResultRow = {
@@ -30,6 +30,7 @@ const MATCH_REASONS = { name: "name", content: "content", both: "name + content"
 export function Launcher({ search }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
+  const [selected, setSelected] = useState(0);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -38,11 +39,23 @@ export function Launcher({ search }: Props) {
     }
     // Only the newest Query's Results are shown, whichever answers last.
     let current = true;
-    search(query, "file").then((results) => current && setResults(results));
+    search(query, "file").then((results) => {
+      if (!current) return;
+      setResults(results);
+      setSelected(0);
+    });
     return () => {
       current = false;
     };
   }, [search, query]);
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    const last = results.length - 1;
+    if (event.key === "ArrowDown") setSelected((index) => Math.min(index + 1, last));
+    else if (event.key === "ArrowUp") setSelected((index) => Math.max(index - 1, 0));
+    else return;
+    event.preventDefault();
+  };
 
   return (
     <section className="flex flex-col gap-3">
@@ -51,16 +64,17 @@ export function Launcher({ search }: Props) {
         autoFocus
         value={query}
         onChange={(event) => setQuery(event.target.value)}
+        onKeyDown={onKeyDown}
         placeholder="Type what you remember about the file…"
         className="rounded-xl border border-line bg-panel px-4 py-3 text-lg outline-none focus:border-accent"
       />
       <ul role="listbox" aria-label="Results" className="flex flex-col gap-1">
-        {results.map((result) => (
+        {results.map((result, index) => (
           <li
             key={result.path}
             role="option"
-            aria-selected={false}
-            className="flex flex-col gap-0.5 rounded-xl border border-transparent p-3"
+            aria-selected={index === selected}
+            className="flex flex-col gap-0.5 rounded-xl border border-transparent p-3 aria-selected:border-accent aria-selected:bg-accent-soft"
           >
             <span className="flex items-baseline gap-2">
               <span className="font-medium">{result.name}</span>
