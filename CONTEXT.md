@@ -29,7 +29,7 @@ A folder or name pattern the user does not want indexed, even though it sits ben
 _Avoid_: Ignore rule, filter, blacklist
 
 **Default Exclusions**:
-The Exclusions pre-filled by the app for well-known system and tooling folders, which the user can remove or extend.
+The Exclusions pre-filled by the app for well-known system and tooling folders, which the user can extend, or turn off one by one and restore. Defaults added in a later version apply unless the user turned them off.
 _Avoid_: Built-in ignores, system filter
 
 **Online-only File**:
