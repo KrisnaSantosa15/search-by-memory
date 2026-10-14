@@ -97,4 +97,13 @@ describe("Launcher", () => {
 
     expect(act.copyPath).not.toHaveBeenCalled();
   });
+
+  it("hides with Escape", async () => {
+    const act = actions();
+    render(<Launcher search={async () => []} {...act} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "{Escape}");
+
+    expect(act.hide).toHaveBeenCalled();
+  });
 });
