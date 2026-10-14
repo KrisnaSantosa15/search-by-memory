@@ -44,6 +44,12 @@
     padding: 0 1px;
   }
 
+  /* Thin, quiet scrollbars, so the dark panel is not cut by light gutters. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+
   ::selection {
     background: var(--color-mark);
   }
