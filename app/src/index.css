@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+/* Dark plum surfaces with a magenta accent. */
+@theme {
+  --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --color-canvas: #1c1620;
+  --color-panel: #241c28;
+  --color-raised: #2d2431;
+  --color-line: #3a3040;
+  --color-ink: #f2ecf3;
+  --color-muted: #a99cad;
+  --color-accent: #b0185f;
+  --color-accent-hover: #c81f6d;
+  --color-accent-soft: #3a1a2c;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  color-scheme: dark;
+}

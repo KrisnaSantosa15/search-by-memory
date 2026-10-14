@@ -23,38 +23,41 @@ export function SpeedStep({ choices, onContinue }: Props) {
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         if (picked) onContinue(picked);
       }}
     >
-      <h1 className="text-xl font-semibold">How fast should your files be read?</h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-xl font-semibold">How fast should your files be read?</h1>
+        <p className="text-sm text-muted">You can change this later in Settings.</p>
+      </div>
       <div className="flex flex-col gap-2">
         {choices.map((choice) => {
           const { title, detail } = describe(choice);
           return (
             <label
               key={choice.id}
-              className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-300 p-3 has-checked:border-blue-600 has-checked:bg-blue-50"
+              className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-panel p-4 transition-colors hover:bg-raised has-checked:border-accent has-checked:bg-accent-soft"
             >
               <input
                 type="radio"
                 name="speed"
-                className="mt-1"
+                className="mt-1 accent-accent"
                 checked={picked === choice.id}
                 onChange={() => setPicked(choice.id)}
               />
-              <span className="flex flex-col">
+              <span className="flex flex-col gap-0.5">
                 <span className="font-medium">
                   {title}
                   {choice.recommended && (
-                    <span className="ml-2 rounded bg-blue-600 px-1.5 py-0.5 text-xs text-white">
+                    <span className="ml-2 rounded-md bg-accent px-1.5 py-0.5 text-xs font-medium text-white">
                       Recommended
                     </span>
                   )}
                 </span>
-                <span className="text-sm text-neutral-600">{detail}</span>
+                <span className="text-sm text-muted">{detail}</span>
               </span>
             </label>
           );
@@ -62,7 +65,7 @@ export function SpeedStep({ choices, onContinue }: Props) {
       </div>
       <button
         type="submit"
-        className="self-end rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
+        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-white transition-colors hover:bg-accent-hover"
       >
         Continue
       </button>
