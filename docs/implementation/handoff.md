@@ -12,6 +12,7 @@ Snapshot for the next session or agent (2026-10-14, after launcher stage 4 in th
 - **Engine** (`crates/engine`): done. Background worker + `search`, `status` (files, indexed, pending, `ready_since`, failed, last error, `ModelStatus`), `failed_files`, `remove_indexed_folder`, `add_exclusion`, `pause`/`resume`, Live Updates polled every 2 s. `start_loading` loads the model on its own thread: until it is ready, search is name-only (Passage view empty) and content waits. The desktop app will run on it. `sbm index` runs on it; `sbm search` / `folders` / `remove` / `exclude` read and write the index directly (no worker, no model load where none is needed).
 - **Setup** (`crates/setup`): done. Verified, resumable downloads (`download`, `Web`), pinned `embedding_model()` and `cuda_runtime()` manifests, `install_runtime`, `system_gpus` (DXGI), `speed_options` (recommendation).
 - **M4 Online-only Files**: done. `FileAvailability` adapter (`SystemFileAvailability`: Windows recall/offline attributes, never opens the file); Online-only Files are name-indexed only, and content-indexed once downloaded.
+- **M4 Throttling**: done (CPU side). `Activity` adapter + `ThrottleReason` in core; `SystemActivity` (Windows): full-screen/presentation via `SHQueryUserNotificationState` (QUNS_BUSY, D3D full screen, presentation), on battery via `GetSystemPowerStatus`, busy = other processes > 50% of all CPU time between samples ≥ 1 s apart (own process excluded). `Engine::set_activity(activity, quiet)`: while throttled and for `quiet` after, only `Index::run_live_jobs` runs; `Status.throttled` / `Status.paused`. The app uses a 60 s quiet period; the tray's first (disabled) entry and tooltip show `indexing_state` every 3 s; tray pauses 1 h / 8 h or resumes. `sbm index` is not throttled. Not done: GPU busy, Live Updates on CPU while full-screen (needs a second, CPU model), "until tomorrow".
 - **M4 Live Updates**: done. `ChangeSource` trait, `Index::apply_changes`, `UsnJournal` adapter (`crates/change-usn`, no admin rights; ADR 0005); `sbm index` uses it.
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
 - **M3 desktop app** (`app/`): in progress. Tauri 2 + React + TypeScript + Tailwind 4, Vitest, pnpm (npm 11.4 crashes on install). `app/src-tauri` is `sbm-app`, a workspace member; it compiles in dev mode without `dist`, so `cargo test --workspace` needs no frontend build.
@@ -31,10 +32,11 @@ Snapshot for the next session or agent (2026-10-14, after launcher stage 4 in th
   - Verified in the real window: speed step only (`pnpm tauri dev`; also starts with the shortcut plugin and tray). The full onboarding has not been run through the GUI: Continue on the folders step indexes the real personal folder into the shared data dir (`sbm` uses it too). Here the model is already in the cache; the CUDA runtime is not yet in `<cache>/runtimes/cuda13` (it lives in `%LOCALAPPDATA%/nvidia-cuda13`), so "Fastest" would download 1.9 GB.
   - Code layout: plain, tested functions in `app/src-tauri/src/lib.rs` (`speed_choices`, `folder_choices`); thin `#[tauri::command]` wrappers in `mod commands` (untested glue). Frontend steps in `app/src/onboarding/`, each with a Vitest test; `App.tsx` drives the steps, tested with `mockIPC` (`shouldMockEvents`).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
-  - M3 launcher follow-ups: scroll a PDF page to its first mark (now shows the page top); remember the chosen Copy; cancel during download; run the whole onboarding through the GUI once (indexes the real personal folder; check Alt + Space registers on Windows; PDFium now downloads too).
-  - PDF text: PDFium is now in the app; it may read the scanned UU 27/2022 text layer that pdf-extract misses (open question 4). Also: remember the chosen Copy; cancel during download; run the whole onboarding through the GUI once (indexes the real personal folder; check Alt + Space registers on Windows).
-  - M4: throttling (full-screen, battery, busy; Live Updates exempt).
-- Tests: `cargo test --workspace` 218 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 49 passed.
+  - Done since stage 4c: large picture for images/videos; PDF page scrolls to its first mark; Copy picking starts on the one picked last time (WebView `localStorage`, `picked-copy <path>` = timestamp; still confirmed with Enter, PRD updated); Cancel on the download step (`cancel_prepare`, fresh cancel flag per `prepare`; back to the speed choices, download resumes on the next pick); PDF text from PDFium (ADR 0006).
+  - M3 launcher follow-ups: run the whole onboarding through the GUI once (indexes the real personal folder; check Alt + Space registers on Windows; PDFium now downloads too).
+  - M4 throttling follow-ups: GPU busy detection; Live Updates on CPU while a full-screen app runs (PRD acceptance item); pause "until tomorrow".
+  - PDFs indexed before PDFium was installed keep their pdf-extract Chunks (content hash unchanged); decide whether to re-extract them.
+- Tests: `cargo test --workspace` 229 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 52 passed.
 
 ## Workspace
 | Path | Purpose |
@@ -48,7 +50,7 @@ Snapshot for the next session or agent (2026-10-14, after launcher stage 4 in th
 | `crates/engine` | `Engine`: owns the indexes and embedder, loads the model in the background (`start_loading`), indexes in a background thread (own SQLite connection, vector store shared through an `RwLock`), answers `search` / `search_where` meanwhile. |
 | `crates/setup` | First-run setup: `download` (resume, SHA-256, cancel), `Web` (ureq), model, CUDA and PDFium manifests, `install_runtime` (zip or `.tgz`), `Plan` / `prepare` (one progress bar), `system_gpus`, `speed_options`. |
 | `crates/thumbnail` | `thumbnail(path, size, cached_only)`: the Windows Shell thumbnail as PNG (`IShellItemImageFactory`); `None` elsewhere. |
-| `crates/pdf` | `PdfPages` (PDFium via `pdfium-render`): `page(path, number, width, words)` → PNG + where the words sit. |
+| `crates/pdf` | `PdfPages` (PDFium via `pdfium-render`): `page(path, number, width, words)` → PNG + where the words sit; `text(path)` → each page's text (used by `PdfExtractor`); `PDFIUM_DIR`. |
 | `app/` | Desktop app: React frontend (`src/`, Vitest tests next to components); `src-tauri/` is the Tauri shell (`sbm-app`): plain tested functions in `lib.rs` (`speed_choices`, `folder_choices`, `Settings`, `result_row`, `FileKind`) and `preview.rs` (`text_preview`), thin `#[tauri::command]` wrappers in `mod commands`. Frontend: `App.tsx` (onboarding steps, then `Launcher`), `Launcher.tsx`, `Preview.tsx`, `Lines.tsx`, `PdfPage.tsx`, `Thumbnail.tsx`, `Marked.tsx`, `Path.tsx`. |
 | `crates/cli` | `sbm` binary and the tested `index` / `search` / `folders` / `remove_folder` / `exclude` / `accelerator_option` / `printable` functions; `main.rs` is thin, untested glue. |
 | `crates/bench` | Dev-only measurements: `embed_throughput [--accelerator <name>]`, `retrieval_benchmark`, Benchmark parser, File-view metrics, Location-miss report. |
@@ -112,6 +114,7 @@ PDFium lives in `<cache>/runtimes/pdfium` (`PDFIUM_DIR`), the CUDA runtime in `<
 - Retrieval Benchmark (semantic only, 43 of 58 Queries scorable): Recall@5 = 1.0; MRR 0.93–0.95; Location Accuracy 0.67 @256, 0.56 @512, 0.60 @768. f16 matches exact; i8 loses 0.02–0.07.
 
 ## Known gaps and caveats
+- `SystemActivity` tests use the real system; while a full-screen app (e.g. a game) is in front, the busy test prints SKIPPED. Its `cmd` busy loops run at idle priority.
 - `WEAKER_MARGIN` (0.08) is a first guess; tune it on the Benchmark. Similarity is per Chunk, so a long file's best Chunk decides.
 - Online-only detection is tested with `FILE_ATTRIBUTE_OFFLINE` only; the cloud recall attributes need a real OneDrive folder (not yet tried).
 - `Engine` search shares the ONNX session with indexing: a Query waits for the current batch of 8 Chunks.
@@ -144,5 +147,5 @@ PDFium lives in `<cache>/runtimes/pdfium` (`PDFIUM_DIR`), the CUDA runtime in `<
 1. NVIDIA licence: show cuDNN's NVIDIA SLA and ask for consent in onboarding before the CUDA runtime download? (Decided: the CUDA runtime is downloaded during onboarding only when the user picks the NVIDIA option.)
 2. Review the 58 drafted Queries in `benchmark/public/queries.toml`; license spot-checks above.
 3. f16 vs i8 and 256 vs 512 dims: confirm with the deferred Benchmark runs.
-4. PDF backend: keep pdf-extract, or move to PDFium (now shipped for page previews) for scanned PDFs?
+4. PDF backend: decided (ADR 0006): PDFium where installed, pdf-extract as fallback. Re-extract PDFs indexed before?
 5. Run the full onboarding through the GUI? It indexes the real personal folder into the shared data dir.
