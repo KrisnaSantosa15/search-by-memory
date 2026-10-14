@@ -47,4 +47,26 @@ describe("App", () => {
     expect(prepared).toEqual([{ choice: "cpu" }]);
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
   });
+
+  it("offers to try again when the download stops", async () => {
+    let attempts = 0;
+    mockIPC(
+      (command) => {
+        if (command === "speed_choices") return cpuOnly;
+        if (command === "prepare") {
+          attempts += 1;
+          return attempts === 1 ? Promise.reject("connection reset") : new Promise(() => {});
+        }
+      },
+      { shouldMockEvents: true },
+    );
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
+
+    expect(await screen.findByText(/download stopped/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    expect(attempts).toBe(2);
+    expect(screen.queryByText(/download stopped/i)).not.toBeInTheDocument();
+  });
 });

@@ -4,10 +4,12 @@ type Props = {
   total: number;
   /** `null` until the download speed is known. */
   secondsLeft: number | null;
+  /** Set when the download stopped; offers to try again from where it stopped. */
+  onRetry?: () => void;
 };
 
 /** Onboarding step that fetches what search needs, as one progress bar. */
-export function DownloadStep({ done, total, secondsLeft }: Props) {
+export function DownloadStep({ done, total, secondsLeft, onRetry }: Props) {
   const percent = total > 0 ? Math.floor((done / total) * 100) : 0;
 
   return (
@@ -33,6 +35,20 @@ export function DownloadStep({ done, total, secondsLeft }: Props) {
           <span>{timeLeft(secondsLeft)}</span>
         </div>
       </div>
+      {onRetry && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-accent bg-accent-soft p-4">
+          <p className="text-sm">
+            The download stopped. Check your internet connection; it picks up where it left off.
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="shrink-0 rounded-lg bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover"
+          >
+            Try again
+          </button>
+        </div>
+      )}
     </section>
   );
 }

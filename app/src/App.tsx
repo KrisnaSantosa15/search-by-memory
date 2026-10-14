@@ -9,6 +9,9 @@ type DownloadProgress = { done: number; total: number; secondsLeft: number | nul
 export default function App() {
   const [choices, setChoices] = useState<SpeedChoice[] | null>(null);
   const [choice, setChoice] = useState<string | null>(null);
+  // Each attempt starts the download again; it resumes where the last one stopped.
+  const [attempt, setAttempt] = useState(0);
+  const [stopped, setStopped] = useState(false);
   const [progress, setProgress] = useState<DownloadProgress>({
     done: 0,
     total: 0,
@@ -25,18 +28,28 @@ export default function App() {
     const unlisten = listen<DownloadProgress>("setup-progress", (event) =>
       setProgress(event.payload),
     ).then((unlisten) => {
-      invoke("prepare", { choice });
+      invoke("prepare", { choice }).catch(() => setStopped(true));
       return unlisten;
     });
     return () => {
       unlisten.then((stop) => stop());
     };
-  }, [choice]);
+  }, [choice, attempt]);
 
   return (
     <main className="mx-auto max-w-xl px-6 py-10">
       {choice ? (
-        <DownloadStep {...progress} />
+        <DownloadStep
+          {...progress}
+          onRetry={
+            stopped
+              ? () => {
+                  setStopped(false);
+                  setAttempt((attempt) => attempt + 1);
+                }
+              : undefined
+          }
+        />
       ) : (
         choices && <SpeedStep choices={choices} onContinue={setChoice} />
       )}
