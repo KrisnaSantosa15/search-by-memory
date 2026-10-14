@@ -206,6 +206,34 @@ describe("Launcher", () => {
     expect(spies.open).toHaveBeenCalledWith("E:\\Backup\\Q3 Report.pdf");
   });
 
+  it("starts asking which Copy on the one picked last time, even after a restart", async () => {
+    const saved = new Map<string, string>();
+    const memory = {
+      getItem: (key: string) => saved.get(key) ?? null,
+      setItem: (key: string, value: string) => void saved.set(key, value),
+    };
+    const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
+    const first = render(<Launcher search={async () => [copied]} {...actions()} memory={memory} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option");
+    await userEvent.keyboard("{Enter}{ArrowDown}{Enter}");
+    first.unmount();
+
+    const spies = actions();
+    render(<Launcher search={async () => [copied]} {...spies} memory={memory} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option");
+    await userEvent.keyboard("{Enter}");
+
+    expect(spies.open).not.toHaveBeenCalled();
+    const copies = screen.getByRole("listbox", { name: /copies/i });
+    expect(within(copies).getByRole("option", { selected: true })).toHaveTextContent(
+      "E:\\Backup\\Q3 Report.pdf",
+    );
+    await userEvent.keyboard("{Enter}");
+    expect(spies.open).toHaveBeenCalledWith("E:\\Backup\\Q3 Report.pdf");
+  });
+
   it("opens the Detail Panel with Arrow Right and closes it with Arrow Left", async () => {
     const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
     const notes = { ...report, name: "notes.md", path: "D:\\notes.md" };

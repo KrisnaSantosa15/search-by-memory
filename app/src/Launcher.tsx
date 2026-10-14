@@ -55,7 +55,12 @@ type Props = {
   thumbnail: LoadThumbnail;
   pdfPage: LoadPdfPage;
   hide: () => void;
+  /** Where the Copies picked before are kept, such as `localStorage`. */
+  memory?: Memory;
 };
+
+/** The part of the Web Storage API the launcher remembers things in. */
+export type Memory = Pick<Storage, "getItem" | "setItem">;
 
 /** The search window: a Query box over its Results. */
 export function Launcher(props: Props) {
@@ -117,11 +122,17 @@ export function Launcher(props: Props) {
   // A Disconnected Drive's file can be named but not opened or shown.
   const reachable = target !== undefined && (target !== result?.path || result.connected);
 
+  /** Starts asking which Copy, on the one picked most recently. */
+  const pickCopy = () => setCopy(lastPicked(paths, props.memory));
+
   /** Runs `action` on the target, or asks which Copy to use. */
   const act = (action: (path: string) => void, needsDrive = true) => {
     if (!target) {
-      if (result) setCopy(0);
-    } else if (reachable || !needsDrive) action(target);
+      if (result) pickCopy();
+    } else if (reachable || !needsDrive) {
+      if (copy !== null) rememberPicked(target, props.memory);
+      action(target);
+    }
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -137,7 +148,7 @@ export function Launcher(props: Props) {
     else if (event.key === "ArrowUp") move(-1);
     else if (entry === FOLD && event.key === "Enter") setUnfolded((unfolded) => !unfolded);
     else if (entry === FOLD && event.key === "ArrowRight" && caretAtEnd) setUnfolded(true);
-    else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
+    else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) pickCopy();
     else if (event.key === "ArrowLeft" && copy !== null) setCopy(null);
     else if (event.key === "Enter") act(event.ctrlKey || event.shiftKey ? reveal : open);
     else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyFile, false);
@@ -383,6 +394,38 @@ function status(query: string, searching: boolean, found: number, weaker: number
 }
 
 /** `index` kept within a list of `length` items. */
+const PICKED = "picked-copy ";
+
+/** Which of `paths` was picked most recently; the first when none was. */
+function lastPicked(paths: string[], memory: Memory | undefined): number {
+  let best = 0;
+  let newest = 0;
+  paths.forEach((path, index) => {
+    const picked = Number(recall(memory, PICKED + path));
+    if (picked > newest) {
+      newest = picked;
+      best = index;
+    }
+  });
+  return best;
+}
+
+function rememberPicked(path: string, memory: Memory | undefined) {
+  try {
+    memory?.setItem(PICKED + path, String(Date.now()));
+  } catch {
+    // Storage full or blocked: picking simply starts on the first Copy again.
+  }
+}
+
+function recall(memory: Memory | undefined, key: string): string | null {
+  try {
+    return memory?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function clamp(index: number, length: number): number {
   return Math.max(0, Math.min(index, length - 1));
 }

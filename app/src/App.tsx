@@ -27,6 +27,8 @@ const launcher = {
     invoke<PdfPagePreview | null>("pdf_page", { path, page, query }),
   previewLines: (path: string, lineStart: number | null, lineEnd: number | null) =>
     invoke<TextPreview | null>("preview_lines", { path, lineStart, lineEnd }),
+  // The app's own WebView storage: kept across restarts, on this machine only.
+  memory: localStorage,
 };
 
 export default function App() {
