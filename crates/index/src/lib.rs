@@ -1,6 +1,6 @@
 //! SQLite-backed Name Index and file catalog (ADR 0003).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf, Prefix};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -835,6 +835,8 @@ impl Index {
         let mut seen_contents: Vec<String> = Vec::new();
         // Each Result's best semantic similarity, by its path.
         let mut similarities: HashMap<PathBuf, f32> = HashMap::new();
+        // Results with the Query's words in their content.
+        let mut by_keyword: HashSet<PathBuf> = HashSet::new();
         for chunk_id in reciprocal_rank_fusion(&[&semantic, &keyword]) {
             // A vector saved before a crash can outlive its Chunk.
             let Some((hash, page, line_start, line_end, text)) = chunk
@@ -853,10 +855,12 @@ impl Index {
             };
             if view == View::File {
                 if let Some(index) = seen_contents.iter().position(|seen| seen == &hash) {
+                    let path = results[index].path.clone();
+                    if keyword.contains(&chunk_id) {
+                        by_keyword.insert(path.clone());
+                    }
                     if let Some(similarity) = similarity_of(chunk_id) {
-                        let best = similarities
-                            .entry(results[index].path.clone())
-                            .or_insert(similarity);
+                        let best = similarities.entry(path).or_insert(similarity);
                         *best = best.max(similarity);
                     }
                     continue;
@@ -876,6 +880,9 @@ impl Index {
             if let Some(similarity) = similarity_of(chunk_id) {
                 similarities.insert(path.clone(), similarity);
             }
+            if keyword.contains(&chunk_id) {
+                by_keyword.insert(path.clone());
+            }
             results.push(SearchResult {
                 path,
                 copies: paths.into_iter().map(|(path, _)| path).collect(),
@@ -890,7 +897,7 @@ impl Index {
             let names = self.search_names(query, candidates)?;
             results = fuse_name_matches(results, &names);
         }
-        mark_weaker_matches(&mut results, &similarities);
+        mark_weaker_matches(&mut results, &similarities, &by_keyword);
         results.truncate(limit);
         Ok(results)
     }
@@ -1235,16 +1242,22 @@ fn reciprocal_rank_fusion(lists: &[&[i64]]) -> Vec<i64> {
     scores.into_iter().map(|(id, _)| id).collect()
 }
 
-/// Flags the Results related only by meaning whose similarity falls more than
-/// `WEAKER_MARGIN` below the best Result's.
-fn mark_weaker_matches(results: &mut [SearchResult], similarities: &HashMap<PathBuf, f32>) {
+/// Flags the Results related only by meaning (no Name Match, none of the
+/// Query's words) whose similarity falls more than `WEAKER_MARGIN` below the
+/// best Result's.
+fn mark_weaker_matches(
+    results: &mut [SearchResult],
+    similarities: &HashMap<PathBuf, f32>,
+    by_keyword: &HashSet<PathBuf>,
+) {
     let Some(best) = similarities.values().copied().reduce(f32::max) else {
         return;
     };
     for result in results {
         let similarity = similarities.get(&result.path).copied().unwrap_or(f32::MIN);
-        result.weaker =
-            result.match_reason == MatchReason::Content && similarity < best - WEAKER_MARGIN;
+        result.weaker = result.match_reason == MatchReason::Content
+            && !by_keyword.contains(&result.path)
+            && similarity < best - WEAKER_MARGIN;
     }
 }
 

@@ -60,3 +60,18 @@ fn result_related_only_by_meaning_and_far_below_the_best_is_weaker() {
     assert!(!weaker(&results, &paths[0]));
     assert!(weaker(&results, &paths[1]));
 }
+
+#[test]
+fn result_with_the_query_words_in_it_is_never_weaker() {
+    let long_note = "beef coconut chili \
+        plus a long shopping list of bread butter apples onions garlic rice flour sugar \
+        salt pepper soap tissues batteries candles matches tape glue string nails";
+    let (_folder, index, store, paths) = indexed(&[
+        ("kitchen/a.txt", "beef coconut chili\n"),
+        ("notes/list.txt", long_note),
+    ]);
+
+    let results = search(&index, &store, "beef coconut chili");
+
+    assert!(!weaker(&results, &paths[1]));
+}
