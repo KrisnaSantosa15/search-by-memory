@@ -3843,6 +3843,7 @@ dependencies = [
 name = "sbm-app"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "clipboard-win",
  "sbm-change-usn",
  "sbm-core",
@@ -3850,6 +3851,7 @@ dependencies = [
  "sbm-engine",
  "sbm-index",
  "sbm-setup",
+ "sbm-thumbnail",
  "serde",
  "serde_json",
  "tauri",

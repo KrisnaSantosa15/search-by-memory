@@ -262,6 +262,8 @@ mod commands {
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
     const DIMENSIONS: usize = 256;
+    /// Thumbnail pixels on the longer side: the list shows 40 px, sharp at 2× scaling.
+    const THUMBNAIL_SIZE: u32 = 80;
     /// Results the launcher shows, as the PRD's default top-K.
     const RESULTS: usize = 20;
     /// Progress events per second at most; the bar cannot show more.
@@ -488,6 +490,23 @@ mod commands {
             .flatten()
     }
 
+    /// The system's thumbnail of `path` as a `data:` URL, if it has one. For an
+    /// Online-only File only an existing thumbnail is used, so nothing downloads.
+    #[tauri::command]
+    pub async fn thumbnail(path: PathBuf) -> Option<String> {
+        tauri::async_runtime::spawn_blocking(move || {
+            use base64::Engine as _;
+            use sbm_core::FileAvailability;
+            let cached_only = sbm_core::SystemFileAvailability.is_online_only(&path);
+            let png = sbm_thumbnail::thumbnail(&path, THUMBNAIL_SIZE, cached_only)?;
+            let base64 = base64::engine::general_purpose::STANDARD.encode(png);
+            Some(format!("data:image/png;base64,{base64}"))
+        })
+        .await
+        .ok()
+        .flatten()
+    }
+
     /// Opens `path` with its default app.
     #[tauri::command]
     pub fn open_file(app: AppHandle, path: PathBuf) -> Result<(), String> {
@@ -617,6 +636,7 @@ pub fn run() {
             commands::reveal_file,
             commands::copy_file,
             commands::preview_lines,
+            commands::thumbnail,
             commands::quit,
             commands::hide_launcher
         ])
