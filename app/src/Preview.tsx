@@ -1,4 +1,5 @@
 import type { ResultRow } from "./Launcher";
+import { Marked } from "./Marked";
 
 const MATCH_REASONS = {
   name: "Its name matches",
@@ -7,7 +8,7 @@ const MATCH_REASONS = {
 };
 
 /** The selected Result in full: its Content Match, where it lives, and why it matched. */
-export function Preview({ result }: { result: ResultRow }) {
+export function Preview({ result, query }: { result: ResultRow; query: string }) {
   const facts = [
     result.size !== null && size(result.size),
     result.modified !== null && `changed ${date(result.modified)}`,
@@ -17,7 +18,7 @@ export function Preview({ result }: { result: ResultRow }) {
     <section aria-label="Preview" className="flex min-w-0 flex-col gap-3">
       {result.snippet && (
         <blockquote className="rounded-lg border border-line bg-raised p-4 text-sm leading-relaxed">
-          {result.snippet}
+          <Marked text={result.snippet} query={query} />
         </blockquote>
       )}
       <div className="flex flex-col gap-0.5">

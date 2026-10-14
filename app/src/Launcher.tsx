@@ -151,7 +151,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
             </li>
           ))}
         </ul>
-        {result && <Preview result={result} />}
+        {result && <Preview result={result} query={query} />}
       </div>
     </section>
   );

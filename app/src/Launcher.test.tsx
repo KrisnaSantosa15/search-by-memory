@@ -178,6 +178,16 @@ describe("Launcher", () => {
     expect(within(preview).getByRole("heading")).toHaveTextContent("notes.md");
   });
 
+  it("marks the Query's words where they appear in the snippet", async () => {
+    render(<Launcher search={async () => [report]} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "Profit in");
+    await screen.findByRole("option");
+
+    const preview = screen.getByRole("region", { name: /preview/i });
+    const marks = preview.querySelectorAll("mark");
+    expect([...marks].map((mark) => mark.textContent)).toEqual(["profit", "in"]);
+  });
+
   it("hides with Escape", async () => {
     const act = actions();
     render(<Launcher search={async () => []} {...act} />);
