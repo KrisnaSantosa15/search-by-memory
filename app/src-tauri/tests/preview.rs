@@ -31,3 +31,14 @@ fn preview_holds_the_matched_lines_with_three_lines_around_them() {
         })
     );
 }
+
+#[test]
+fn long_match_is_cut_to_forty_lines_from_its_start() {
+    let folder = tempfile::tempdir().unwrap();
+    let path = numbered_file(folder.path(), 500);
+
+    let preview = text_preview(&path, Some((100, 300))).unwrap();
+
+    assert_eq!(preview.first_line, 97);
+    assert_eq!(preview.lines, lines(97..=136));
+}

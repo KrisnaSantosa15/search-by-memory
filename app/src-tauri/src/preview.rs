@@ -8,6 +8,8 @@ use serde::Serialize;
 
 /// Lines shown before and after the matched ones.
 const CONTEXT: u32 = 3;
+/// Lines shown at most; a longer match is cut, keeping its start.
+const MOST_LINES: u32 = 40;
 
 /// Some lines of a text file, as the Preview Pane shows them.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -23,7 +25,7 @@ pub struct TextPreview {
 pub fn text_preview(path: &Path, matched: Option<(u32, u32)>) -> Option<TextPreview> {
     let (start, end) = matched?;
     let first_line = start.saturating_sub(CONTEXT).max(1);
-    let last_line = end + CONTEXT;
+    let last_line = (end + CONTEXT).min(first_line + MOST_LINES - 1);
     let reader = BufReader::new(File::open(path).ok()?);
     let mut lines = Vec::new();
     for (number, line) in (1..).zip(reader.split(b'\n')) {
