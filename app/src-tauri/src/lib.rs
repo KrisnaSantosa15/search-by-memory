@@ -207,10 +207,16 @@ pub struct Dashboard {
     pub pending: usize,
     /// Every file modified after this time (Unix milliseconds) has its content indexed.
     pub ready_since: Option<u64>,
+    /// What indexing is doing, and why it waits, as the tray says it.
+    pub state: String,
+    /// Stopped by the user, not held back by the computer.
+    pub paused: bool,
 }
 
 pub fn dashboard(status: &Status) -> Dashboard {
     Dashboard {
+        state: indexing_state(status),
+        paused: status.paused,
         files: status.files,
         indexed: status.indexed,
         pending: status.pending,
