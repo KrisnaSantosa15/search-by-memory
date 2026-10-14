@@ -117,6 +117,13 @@
 - `sbm --accelerator <name>` (GPU falls back to CPU); default CUDA → DirectML → CPU on Windows, CPU elsewhere; prints the one in use and why others were skipped.
 - `sbm` smoke-tested on Windows (9 files, CUDA): index 4.8 s; fallback without CUDA DLLs lands on DirectML.
 
+### M4 — Throttling (`crates/core`, `crates/index`, `crates/engine`, `app/`)
+- `Activity` adapter + `ThrottleReason` (FullScreen, Battery, Busy); `Index::run_live_jobs`.
+- `Engine::set_activity(activity, quiet)`: while throttled and for the quiet period after, only Live Updates run; `Status.throttled`, `Status.paused`.
+- `SystemActivity` (Windows): full-screen/presentation (`SHQueryUserNotificationState`), on battery, other processes > 50% CPU (own process excluded; real-system tests).
+- App: quiet period 60 s; tray shows what indexing is doing and why it waits; tray pauses for 1 h / 8 h or resumes.
+- Not yet: GPU busy; Live Updates still use the GPU while full-screen; "until tomorrow" pause; CLI not throttled (by design).
+
 ## In progress
 - M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
   - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
