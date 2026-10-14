@@ -363,6 +363,20 @@ pub struct Plan {
     pub model: Vec<RemoteFile>,
 }
 
+impl Plan {
+    /// The embedding model, plus the CUDA runtime when `accelerator` needs it.
+    pub fn for_accelerator(accelerator: Accelerator) -> Self {
+        Self {
+            runtime: if accelerator == Accelerator::Cuda {
+                cuda_runtime()
+            } else {
+                Vec::new()
+            },
+            model: embedding_model(),
+        }
+    }
+}
+
 /// Installs everything in `plan` beneath the cache directory `cache`, reporting
 /// progress over all of it as one.
 pub fn prepare(

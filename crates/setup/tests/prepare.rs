@@ -7,7 +7,11 @@ use std::io::Write;
 use std::sync::atomic::AtomicBool;
 
 use common::FakeHttp;
-use sbm_setup::{CUDA_RUNTIME_DIR, EMBEDDING_MODEL_DIR, Finished, Plan, Progress, prepare};
+use sbm_embed_onnx::Accelerator;
+use sbm_setup::{
+    CUDA_RUNTIME_DIR, EMBEDDING_MODEL_DIR, Finished, Plan, Progress, cuda_runtime, embedding_model,
+    prepare,
+};
 use tempfile::TempDir;
 use zip::write::SimpleFileOptions;
 
@@ -57,4 +61,17 @@ fn runtime_and_model_are_installed_under_one_progress_bar() {
     assert_eq!(std::fs::read(model).unwrap(), b"model weights");
     let dll = cache.path().join(CUDA_RUNTIME_DIR).join("cudnn64_9.dll");
     assert_eq!(std::fs::read(dll).unwrap(), b"cudnn");
+}
+
+#[test]
+fn only_the_nvidia_choice_downloads_the_cuda_runtime() {
+    let cuda = Plan::for_accelerator(Accelerator::Cuda);
+    let directml = Plan::for_accelerator(Accelerator::DirectMl);
+    let cpu = Plan::for_accelerator(Accelerator::Cpu);
+
+    assert_eq!(cuda.runtime, cuda_runtime());
+    assert_eq!((directml.runtime, cpu.runtime.clone()), (vec![], vec![]));
+    for plan in [&cuda, &cpu] {
+        assert_eq!(plan.model, embedding_model());
+    }
 }
