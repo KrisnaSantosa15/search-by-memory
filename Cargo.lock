@@ -3542,6 +3542,7 @@ dependencies = [
  "sbm-core",
  "sbm-embed-onnx",
  "sbm-engine",
+ "sbm-index",
  "sbm-setup",
  "serde",
  "serde_json",

@@ -1,0 +1,57 @@
+//! Launcher: Results as rows the window shows to people.
+
+use std::path::PathBuf;
+
+use sbm_app::{ResultRow, result_row};
+use sbm_core::Location;
+use sbm_index::{MatchReason, SearchResult};
+
+fn result(location: Option<Location>, match_reason: MatchReason) -> SearchResult {
+    SearchResult {
+        path: PathBuf::from(r"D:\Work\Q3 Report.pdf"),
+        copies: vec![PathBuf::from(r"E:\Backup\Q3 Report.pdf")],
+        connected: true,
+        snippet: location.as_ref().map(|_| "net profit increased by 18%".to_string()),
+        location,
+        match_reason,
+    }
+}
+
+#[test]
+fn content_match_row_names_the_file_its_page_and_why_it_matched() {
+    let row = result_row(result(Some(Location::Page(14)), MatchReason::Both));
+
+    assert_eq!(
+        row,
+        ResultRow {
+            name: "Q3 Report.pdf".into(),
+            path: PathBuf::from(r"D:\Work\Q3 Report.pdf"),
+            copies: vec![PathBuf::from(r"E:\Backup\Q3 Report.pdf")],
+            connected: true,
+            snippet: Some("net profit increased by 18%".into()),
+            location: Some("Page 14".into()),
+            match_reason: "both".into(),
+        }
+    );
+}
+
+#[test]
+fn locations_read_as_lines_and_times() {
+    let label = |location| result_row(result(Some(location), MatchReason::Content)).location;
+
+    assert_eq!(label(Location::Lines { start: 3, end: 8 }).as_deref(), Some("Lines 3–8"));
+    assert_eq!(label(Location::Lines { start: 5, end: 5 }).as_deref(), Some("Line 5"));
+    let time = Location::Time {
+        start: std::time::Duration::from_secs(62),
+        end: std::time::Duration::from_secs(70),
+    };
+    assert_eq!(label(time).as_deref(), Some("1:02"));
+    assert_eq!(label(Location::WholeFile), None);
+}
+
+#[test]
+fn name_match_row_has_no_location() {
+    let row = result_row(result(None, MatchReason::Name));
+
+    assert_eq!((row.location, row.match_reason.as_str()), (None, "name"));
+}

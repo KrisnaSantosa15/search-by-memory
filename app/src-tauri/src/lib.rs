@@ -2,7 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
-use sbm_core::AppDirs;
+use sbm_core::{AppDirs, Location};
+use sbm_index::{MatchReason, SearchResult};
 use sbm_embed_onnx::Accelerator;
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
@@ -102,6 +103,59 @@ impl Settings {
         std::fs::create_dir_all(data)?;
         let json = serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?;
         std::fs::write(data.join(SETTINGS_FILE), json)
+    }
+}
+
+/// One Result as the launcher shows it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultRow {
+    /// The file name, e.g. `Q3 Report.pdf`.
+    pub name: String,
+    pub path: PathBuf,
+    /// Other paths with the same content.
+    pub copies: Vec<PathBuf>,
+    /// False while the file's drive is a Disconnected Drive.
+    pub connected: bool,
+    /// Verbatim text of the Content Match, if any.
+    pub snippet: Option<String>,
+    /// Where the snippet is, e.g. `Page 14`; `None` for the whole file or a Name Match.
+    pub location: Option<String>,
+    /// `name`, `content`, or `both`.
+    pub match_reason: String,
+}
+
+pub fn result_row(result: SearchResult) -> ResultRow {
+    ResultRow {
+        name: result
+            .path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        location: result.location.as_ref().and_then(location_label),
+        match_reason: match result.match_reason {
+            MatchReason::Name => "name",
+            MatchReason::Content => "content",
+            MatchReason::Both => "both",
+        }
+        .into(),
+        path: result.path,
+        copies: result.copies,
+        connected: result.connected,
+        snippet: result.snippet,
+    }
+}
+
+fn location_label(location: &Location) -> Option<String> {
+    match location {
+        Location::Page(page) => Some(format!("Page {page}")),
+        Location::Lines { start, end } if start == end => Some(format!("Line {start}")),
+        Location::Lines { start, end } => Some(format!("Lines {start}–{end}")),
+        Location::Time { start, .. } => {
+            let seconds = start.as_secs();
+            Some(format!("{}:{:02}", seconds / 60, seconds % 60))
+        }
+        Location::WholeFile => None,
     }
 }
 
