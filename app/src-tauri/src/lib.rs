@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use sbm_core::AppDirs;
 use sbm_embed_onnx::Accelerator;
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// One way to run the embedding model, as the onboarding speed step offers it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -74,6 +74,33 @@ pub fn folder_choices(home: &Path, drives: &[PathBuf]) -> Vec<FolderChoice> {
             picked: false,
         });
     std::iter::once(personal).chain(others).collect()
+}
+
+/// What onboarding decided; saved when it finishes, so the next start skips it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Settings {
+    /// The picked Accelerator's name, e.g. `cuda`.
+    pub accelerator: String,
+    /// The global shortcut that brings up search, e.g. `Alt+Space`.
+    pub hotkey: String,
+}
+
+const SETTINGS_FILE: &str = "settings.json";
+
+impl Settings {
+    /// The settings saved in the data directory `data`; `None` until onboarding
+    /// has finished (or if the file cannot be read).
+    pub fn load(data: &Path) -> Option<Settings> {
+        let json = std::fs::read(data.join(SETTINGS_FILE)).ok()?;
+        serde_json::from_slice(&json).ok()
+    }
+
+    pub fn save(&self, data: &Path) -> std::io::Result<()> {
+        std::fs::create_dir_all(data)?;
+        let json = serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?;
+        std::fs::write(data.join(SETTINGS_FILE), json)
+    }
 }
 
 /// What the window can call; thin wrappers over the functions above.

@@ -3505,8 +3505,10 @@ dependencies = [
  "sbm-engine",
  "sbm-setup",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
+ "tempfile",
 ]
 
 [[package]]
