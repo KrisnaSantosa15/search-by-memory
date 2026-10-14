@@ -237,6 +237,13 @@ impl Engine {
         Ok(())
     }
 
+    /// Turns every Default Exclusion back on; the files they match leave both indexes.
+    pub fn restore_default_exclusions(&self) -> Result<()> {
+        self.index.lock().unwrap().restore_default_exclusions()?;
+        self.request_pass();
+        Ok(())
+    }
+
     /// The Default Exclusions still on, followed by the user's.
     pub fn exclusions(&self) -> Result<Vec<Exclusion>> {
         self.index.lock().unwrap().exclusions()

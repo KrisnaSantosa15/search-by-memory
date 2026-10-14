@@ -457,3 +457,25 @@ fn files_beneath_a_removed_exclusion_become_searchable_again() {
     let results = engine.search("secret garden", View::File, 20).unwrap();
     assert!(results.iter().any(|r| r.path == diary), "{results:?}");
 }
+
+#[test]
+fn restored_default_exclusions_take_their_files_out_of_search() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "site/node_modules/lodash/readme.md",
+        "lodash\n",
+    );
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine
+        .remove_exclusion(&Exclusion::Name("node_modules".to_string()))
+        .unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    engine.restore_default_exclusions().unwrap();
+    engine.wait_until_idle();
+
+    assert_eq!(engine.exclusions().unwrap(), Exclusion::defaults());
+    assert_eq!(engine.search("lodash", View::File, 20).unwrap(), []);
+}
