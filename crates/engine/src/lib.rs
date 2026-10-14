@@ -12,6 +12,9 @@ use sbm_core::{
 use sbm_index::{Exclusion, Index, MatchReason, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
+/// Name Matches looked at per Result asked for, when only some files are kept.
+const CANDIDATES_PER_RESULT: usize = 10;
+
 const DATABASE: &str = "index.sqlite";
 const VECTORS: &str = "vectors.usearch";
 /// Files indexed between saves of the vector index.
@@ -233,14 +236,27 @@ impl Engine {
 
     /// Finds files by name and content; by name only until the model is loaded.
     pub fn search(&self, query: &str, view: View, limit: usize) -> Result<Vec<SearchResult>> {
+        self.search_where(query, view, limit, &|_| true)
+    }
+
+    /// Like `search`, over only the files `keep` accepts (e.g. code).
+    pub fn search_where(
+        &self,
+        query: &str,
+        view: View,
+        limit: usize,
+        keep: &dyn Fn(&Path) -> bool,
+    ) -> Result<Vec<SearchResult>> {
         let index = self.index.lock().unwrap();
         let Some(model) = self.shared.model.get() else {
             if view == View::Passage {
                 return Ok(Vec::new());
             }
             return Ok(index
-                .search_names(query, limit)?
+                .search_names(query, limit * CANDIDATES_PER_RESULT)?
                 .into_iter()
+                .filter(|name| keep(&name.path))
+                .take(limit)
                 .map(|name| SearchResult {
                     path: name.path,
                     copies: Vec::new(),
@@ -252,12 +268,13 @@ impl Engine {
                 })
                 .collect());
         };
-        index.search(
+        index.search_where(
             query,
             &*model.embedder,
             &SharedStore(&model.store),
             view,
             limit,
+            keep,
         )
     }
 

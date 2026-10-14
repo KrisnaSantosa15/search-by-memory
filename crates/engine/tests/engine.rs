@@ -287,3 +287,34 @@ fn model_that_cannot_be_loaded_is_reported_and_names_still_work() {
     let results = engine.search("recipe", View::File, 20).unwrap();
     assert_eq!(results.first().map(|r| &r.path), Some(&recipe));
 }
+
+#[test]
+fn search_where_keeps_only_the_files_asked_for_while_the_model_loads() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "recipe.txt", "slow cooked beef\n");
+    let code = write(folder.path(), "recipe.rs", "fn cook() {}\n");
+    let (release, gate) = mpsc::channel::<()>();
+    let engine = Engine::start_loading(
+        data.path(),
+        move || {
+            let _ = gate.recv();
+            Ok(LoadedModel {
+                embedder: Arc::new(BagOfWords),
+                device: "test".into(),
+            })
+        },
+        Box::new(NoJournal),
+    )
+    .unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    let is_code = |path: &std::path::Path| path.extension().is_some_and(|e| e == "rs");
+    let results = engine
+        .search_where("recipe", View::File, 20, &is_code)
+        .unwrap();
+
+    let found: Vec<_> = results.iter().map(|result| &result.path).collect();
+    assert_eq!(found, [&code]);
+    drop(release);
+}
