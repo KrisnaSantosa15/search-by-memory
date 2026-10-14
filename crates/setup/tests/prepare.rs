@@ -6,11 +6,11 @@ mod common;
 use std::io::Write;
 use std::sync::atomic::AtomicBool;
 
-use common::FakeHttp;
+use common::{FakeHttp, tgz};
 use sbm_embed_onnx::Accelerator;
 use sbm_setup::{
-    CUDA_RUNTIME_DIR, EMBEDDING_MODEL_DIR, Finished, Plan, Progress, cuda_runtime, embedding_model,
-    pdfium_runtime, prepare,
+    CUDA_RUNTIME_DIR, EMBEDDING_MODEL_DIR, Finished, PDFIUM_DIR, Plan, Progress, cuda_runtime,
+    embedding_model, pdfium_runtime, prepare,
 };
 use tempfile::TempDir;
 use zip::write::SimpleFileOptions;
@@ -23,7 +23,7 @@ fn archive(path: &str, content: &[u8]) -> Vec<u8> {
 }
 
 #[test]
-fn runtime_and_model_are_installed_under_one_progress_bar() {
+fn runtime_model_and_pdfium_are_installed_under_one_progress_bar() {
     let cache = TempDir::new().unwrap();
     let http = FakeHttp::default();
     let plan = Plan {
@@ -37,7 +37,11 @@ fn runtime_and_model_are_installed_under_one_progress_bar() {
             "onnx/model.onnx",
             b"model weights",
         )],
-        pdfium: Vec::new(),
+        pdfium: vec![http.serve(
+            "https://example.test/pdfium-win-x64.tgz",
+            "pdfium-win-x64.tgz",
+            &tgz(&[("bin/pdfium.dll", b"pdfium")]),
+        )],
     };
     let mut reports = Vec::new();
 
@@ -51,7 +55,7 @@ fn runtime_and_model_are_installed_under_one_progress_bar() {
     .unwrap();
 
     assert_eq!(finished, Finished::Complete);
-    let total = plan.runtime[0].size + plan.model[0].size;
+    let total = plan.runtime[0].size + plan.model[0].size + plan.pdfium[0].size;
     assert!(reports.iter().all(|report| report.total == total));
     assert!(reports.windows(2).all(|pair| pair[0].done <= pair[1].done));
     assert_eq!(reports.last(), Some(&Progress { done: total, total }));
@@ -62,6 +66,8 @@ fn runtime_and_model_are_installed_under_one_progress_bar() {
     assert_eq!(std::fs::read(model).unwrap(), b"model weights");
     let dll = cache.path().join(CUDA_RUNTIME_DIR).join("cudnn64_9.dll");
     assert_eq!(std::fs::read(dll).unwrap(), b"cudnn");
+    let pdfium = cache.path().join(PDFIUM_DIR).join("pdfium.dll");
+    assert_eq!(std::fs::read(pdfium).unwrap(), b"pdfium");
 }
 
 #[test]

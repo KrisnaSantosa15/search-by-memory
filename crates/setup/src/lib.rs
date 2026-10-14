@@ -433,25 +433,28 @@ pub fn prepare(
     cancel: &AtomicBool,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<Finished> {
-    let runtime_size: u64 = plan.runtime.iter().map(|file| file.size).sum();
-    let total = runtime_size + plan.model.iter().map(|file| file.size).sum::<u64>();
-    if !plan.runtime.is_empty() {
-        let finished = install_runtime(
-            &plan.runtime,
-            &cache.join(CUDA_RUNTIME_DIR),
-            http,
-            cancel,
-            &mut |runtime| {
-                progress(Progress {
-                    done: runtime.done,
-                    total,
-                })
-            },
-        )?;
+    let size = |files: &[RemoteFile]| files.iter().map(|file| file.size).sum::<u64>();
+    let total = size(&plan.runtime) + size(&plan.pdfium) + size(&plan.model);
+    // Parts in the order they install; each reports progress after the ones before.
+    let runtimes = [
+        (&plan.runtime, CUDA_RUNTIME_DIR, 0),
+        (&plan.pdfium, PDFIUM_DIR, size(&plan.runtime)),
+    ];
+    for (archives, dir, before) in runtimes {
+        if archives.is_empty() {
+            continue;
+        }
+        let finished = install_runtime(archives, &cache.join(dir), http, cancel, &mut |part| {
+            progress(Progress {
+                done: before + part.done,
+                total,
+            })
+        })?;
         if finished == Finished::Cancelled {
             return Ok(Finished::Cancelled);
         }
     }
+    let before = size(&plan.runtime) + size(&plan.pdfium);
     download(
         &plan.model,
         &cache.join(EMBEDDING_MODEL_DIR),
@@ -459,7 +462,7 @@ pub fn prepare(
         cancel,
         &mut |model| {
             progress(Progress {
-                done: runtime_size + model.done,
+                done: before + model.done,
                 total,
             })
         },

@@ -77,3 +77,17 @@ pub fn sha256(content: &[u8]) -> String {
         .map(|byte| format!("{byte:02x}"))
         .collect()
 }
+
+/// A gzipped tar archive holding `files` as (path, content).
+pub fn tgz(files: &[(&str, &[u8])]) -> Vec<u8> {
+    let gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    let mut tar = tar::Builder::new(gzip);
+    for (path, content) in files {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(content.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        tar.append_data(&mut header, path, *content).unwrap();
+    }
+    tar.into_inner().unwrap().finish().unwrap()
+}

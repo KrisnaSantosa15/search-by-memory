@@ -5,7 +5,7 @@ mod common;
 use std::io::Write;
 use std::sync::atomic::AtomicBool;
 
-use common::FakeHttp;
+use common::{FakeHttp, tgz};
 use sbm_setup::{Finished, install_runtime};
 use tempfile::TempDir;
 use zip::write::SimpleFileOptions;
@@ -130,20 +130,6 @@ fn cuda_runtime_manifest_matches_the_archives_that_passed_the_parity_gate() {
             assert_eq!(common::sha256(&content), archive.sha256, "{}", archive.path);
         }
     }
-}
-
-/// A gzipped tar archive holding `files` as (path, content).
-fn tgz(files: &[(&str, &[u8])]) -> Vec<u8> {
-    let gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-    let mut tar = tar::Builder::new(gzip);
-    for (path, content) in files {
-        let mut header = tar::Header::new_gnu();
-        header.set_size(content.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
-        tar.append_data(&mut header, path, *content).unwrap();
-    }
-    tar.into_inner().unwrap().finish().unwrap()
 }
 
 #[test]
