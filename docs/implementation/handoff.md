@@ -1,6 +1,6 @@
 # Handoff
 
-Snapshot for the next session or agent (2026-10-14, after the Engine was finished). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
+Snapshot for the next session or agent (2026-10-14, after the onboarding folders step). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
 
 ## State
 - **Development moved to Windows** (RTX 4060 8 GB). The workspace builds and all tests pass on Windows; Linux paths are unchanged.
@@ -14,11 +14,15 @@ Snapshot for the next session or agent (2026-10-14, after the Engine was finishe
 - **M4 Online-only Files**: done. `FileAvailability` adapter (`SystemFileAvailability`: Windows recall/offline attributes, never opens the file); Online-only Files are name-indexed only, and content-indexed once downloaded.
 - **M4 Live Updates**: done. `ChangeSource` trait, `Index::apply_changes`, `UsnJournal` adapter (`crates/change-usn`, no admin rights; ADR 0005); `sbm index` uses it.
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
+- **M3 desktop app** (`app/`): in progress. Tauri 2 + React + TypeScript + Tailwind 4, Vitest, pnpm (npm 11.4 crashes on install). `app/src-tauri` is `sbm-app`, a workspace member; it compiles in dev mode without `dist`, so `cargo test --workspace` needs no frontend build.
+  - Goal (agreed): easy for non-developers; every step has a working default, plain language (no "CUDA"/"DirectML" wording), one progress bar with time left, name search usable as soon as onboarding ends.
+  - Look (user's choice): like VoiceStudio (AGPL-3.0; ideas only, no code): dark plum surfaces, magenta accent, rounded bordered cards. Theme tokens in `app/src/index.css`.
+  - Onboarding done: speed step (`speed_choices`), download step (`setup::Plan` + `setup::prepare` + `setup::TimeLeft`; `prepare` command emits throttled `setup-progress`; "Try again" resumes), folders step (personal folder picked, other drives offered: the user's choice; `folder_choices`), then `start_indexing` starts the Engine (`start_loading` on the picked Accelerator, CPU fallback, USN Journal) and adds the folders. `run()` puts `<cache>/runtimes/cuda13` on `PATH` before any thread starts.
+  - Verified in the real window: speed step only (`pnpm tauri dev`). The full onboarding has not been run through the GUI: Continue on the folders step indexes the real personal folder into the shared data dir (`sbm` uses it too). Here the model is already in the cache; the CUDA runtime is not yet in `<cache>/runtimes/cuda13` (it lives in `%LOCALAPPDATA%/nvidia-cuda13`), so "Fastest" would download 1.9 GB.
+  - Code layout: plain, tested functions in `app/src-tauri/src/lib.rs` (`speed_choices`, `folder_choices`); thin `#[tauri::command]` wrappers in `mod commands` (untested glue). Frontend steps in `app/src/onboarding/`, each with a Vitest test; `App.tsx` drives the steps, tested with `mockIPC` (`shouldMockEvents`).
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
+  - M3: hotkey step and done step; remember that onboarding is finished (settings) so the next start opens the launcher; cancel during download; then the launcher (File view, Passage view, Detail Panel, global hotkey).
   - M4: throttling (full-screen, battery, busy; Live Updates exempt).
-  - M3 (in progress): Tauri 2 app (React + TypeScript + Tailwind + shadcn/Radix): onboarding wizard first (system check, speed, model download, folders, hotkey, done), then the launcher. Goal: easy for non-developers; every step has a working default, plain language (no "CUDA"/"DirectML" jargon), one progress bar with time left, name search usable as soon as onboarding ends. VoiceStudio (AGPL-3.0) is the UX and visual reference (the user wants the app to look like it: dark plum, magenta accent, rounded bordered cards): ideas only, no code.
-  - Done so far: `app/` (Vite + React + TS + Tailwind 4, Vitest, pnpm; npm 11.4 crashes on install) and `app/src-tauri` (`sbm-app`, workspace member; compiles in dev mode without `dist`, so `cargo test --workspace` needs no frontend build). Speed step works end to end on this machine (`pnpm tauri dev`). Download step: `setup::Plan` + `setup::prepare` + `setup::TimeLeft`, `prepare` command emits `setup-progress`; folders step + `start_indexing` (Engine on the picked Accelerator) follow; the full onboarding is not yet run through the GUI (it would index the real personal folder into the shared data dir) (the model is already in the cache here, the CUDA runtime is not in `<cache>/runtimes/cuda13`). Theme tokens in `app/src/index.css`.
-  - The app must put the CUDA runtime folder (`<cache>/runtimes/cuda13`) on `PATH` before loading the CUDA provider.
 - Tests: `cargo test --workspace` 190 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 13 passed.
 
 ## Workspace
