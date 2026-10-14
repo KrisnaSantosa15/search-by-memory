@@ -378,6 +378,28 @@ fn turned_off_default_exclusion_stays_off_and_lets_its_files_in() {
 }
 
 #[test]
+fn restored_default_exclusions_drop_their_files_on_the_next_scan() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "site/node_modules/lodash/readme.md",
+        "lodash\n",
+    );
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index
+        .remove_exclusion(&Exclusion::Name("node_modules".to_string()))
+        .unwrap();
+    index.scan_all().unwrap();
+
+    index.restore_default_exclusions().unwrap();
+    index.scan_all().unwrap();
+
+    assert_eq!(index.exclusions().unwrap(), Exclusion::defaults());
+    assert_eq!(index.search_names("lodash", 20).unwrap(), []);
+}
+
+#[test]
 fn content_progress_states_how_far_back_content_is_ready() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     let newest = write(folder.path(), "newest.txt", "budget for next year\n");

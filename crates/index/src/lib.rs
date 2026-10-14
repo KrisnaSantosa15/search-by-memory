@@ -445,6 +445,16 @@ impl Index {
         Ok(())
     }
 
+    /// Turns every Default Exclusion back on; the next scan, or apply_changes, drops
+    /// the files they match.
+    pub fn restore_default_exclusions(&mut self) -> Result<()> {
+        let tx = self.db.transaction()?;
+        tx.execute("DELETE FROM turned_off_defaults", [])?;
+        tx.execute("DELETE FROM change_cursors", [])?;
+        tx.commit()?;
+        Ok(())
+    }
+
     /// The Default Exclusions the user has not turned off, followed by the user's.
     pub fn exclusions(&self) -> Result<Vec<Exclusion>> {
         let saved: Vec<(Option<String>, Option<String>, Option<String>)> = self
