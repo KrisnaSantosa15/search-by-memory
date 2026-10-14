@@ -75,3 +75,18 @@ fn result_with_the_query_words_in_it_is_never_weaker() {
 
     assert!(!weaker(&results, &paths[1]));
 }
+
+#[test]
+fn result_found_by_its_name_is_never_weaker() {
+    let (_folder, index, store, paths) = indexed(&[
+        ("kitchen/a.txt", "beef coconut chili\n"),
+        (
+            "notes/coconut-ideas.txt",
+            "change the engine oil every five thousand miles\n",
+        ),
+    ]);
+
+    let results = search(&index, &store, "coconut");
+
+    assert!(!weaker(&results, &paths[1]));
+}
