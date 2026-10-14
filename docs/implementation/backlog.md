@@ -134,7 +134,8 @@
   - Done: pictures and videos shown as a large thumbnail (840 px) in the Preview Pane; `thumbnail` command takes a size.
   - Done: a PDF page scrolls to the first of the Query's words.
   - Done: asking which Copy starts on the one picked last time (WebView `localStorage`, still confirmed with Enter).
-  - Next: cancel during download; run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark; try PDFium for text extraction (scanned PDFs).
+  - Done: Cancel on the download step (`cancel_prepare`): back to the speed choices, download kept for resuming.
+  - Next: run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark; try PDFium for text extraction (scanned PDFs).
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
