@@ -203,7 +203,7 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
   * Navigable entirely via keyboard:
     * `Arrow Up` / `Arrow Down`: Move selection through Results (and through the Copies being chosen from).
     * The Preview Pane always shows the selected Result (layout after DigUp, decided 2026-10-14).
-    * `Enter`: Open the selected file with the system default handler. If the Result has several Copies, the Preview Pane asks which Copy to open (`Arrow Right` starts choosing, `Arrow Left` stops).
+    * `Enter`: Open the selected file with the system default handler. If the Result has several Copies, the Preview Pane asks which Copy to open (`Arrow Right` starts choosing, `Arrow Left` stops), starting on the Copy picked most recently.
     * `Ctrl + Enter` (or `Shift + Enter`): Reveal enclosing folder in File Explorer (asks which Copy when there are several).
     * `Ctrl + C`: Copy the file itself to the clipboard, to paste anywhere (asks which Copy when there are several).
     * `Escape`: Dismiss launcher window without interrupting background indexing.
