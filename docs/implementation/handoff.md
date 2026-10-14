@@ -1,6 +1,6 @@
 # Handoff
 
-Snapshot for the next session or agent (2026-10-14, after the launcher follow-ups, PDFium text extraction, and throttling). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
+Snapshot for the next session or agent (2026-10-14, after the launcher follow-ups, PDFium text extraction, throttling, and the Settings window). Progress lives in [`backlog.md`](backlog.md); rules in [`AGENTS.md`](../../AGENTS.md); terms in [`CONTEXT.md`](../../CONTEXT.md).
 
 ## State
 - **Development moved to Windows** (RTX 4060 8 GB). The workspace builds and all tests pass on Windows; Linux paths are unchanged.
@@ -13,6 +13,7 @@ Snapshot for the next session or agent (2026-10-14, after the launcher follow-up
 - **Setup** (`crates/setup`): done. Verified, resumable downloads (`download`, `Web`), pinned `embedding_model()` and `cuda_runtime()` manifests, `install_runtime`, `system_gpus` (DXGI), `speed_options` (recommendation).
 - **M4 Online-only Files**: done. `FileAvailability` adapter (`SystemFileAvailability`: Windows recall/offline attributes, never opens the file); Online-only Files are name-indexed only, and content-indexed once downloaded.
 - **M4 Throttling**: done (CPU side). `Activity` adapter + `ThrottleReason` in core; `SystemActivity` (Windows): full-screen/presentation via `SHQueryUserNotificationState` (QUNS_BUSY, D3D full screen, presentation), on battery via `GetSystemPowerStatus`, busy = other processes > 50% of all CPU time between samples ≥ 1 s apart (own process excluded). `Engine::set_activity(activity, quiet)`: while throttled and for `quiet` after, only `Index::run_live_jobs` runs; `Status.throttled` / `Status.paused`. The app uses a 60 s quiet period; the tray's first (disabled) entry and tooltip show `indexing_state` every 3 s; tray pauses 1 h / 8 h or resumes. `sbm index` is not throttled. Not done: GPU busy, Live Updates on CPU while full-screen (needs a second, CPU model), "until tomorrow".
+- **M4 Settings and Status window**: done. Tray "Settings…" opens a separate, framed window (`open_settings`, label `settings`, URL `index.html?view=settings`; `main.tsx` picks `Settings` by the query); only `main` hides on blur. `Settings.tsx` takes its IPC as props: Status tab (`dashboard` every 2 s: files, content %, `readySince`, `sizeOnDisk`, `indexing_state`, Pause/Resume; `failed_files`), Folders tab (`indexed_folders`, `pick_and_add_folder` / `pick_and_exclude_folder` via `tauri-plugin-dialog` 2.8.0, `remove_indexed_folder` after confirming; `exclusions` → `exclusion_list` marks defaults; `remove_exclusion`, `restore_default_exclusions`, `exclude_names`). Index: `remove_exclusion` (a default is recorded in `turned_off_defaults`, migration 11), `restore_default_exclusions`; both clear change cursors so the next pass rescans. Engine: `Status.size_on_disk` (database + journal files + vectors only), `indexed_folders`, `exclusions`, `remove_exclusion`, `restore_default_exclusions`. Checked in the real window on a scratch index (turn off `node_modules` → 4 files; restore → 3). Failed-file reasons are still raw extractor messages.
 - **M4 Live Updates**: done. `ChangeSource` trait, `Index::apply_changes`, `UsnJournal` adapter (`crates/change-usn`, no admin rights; ADR 0005); `sbm index` uses it.
 - **Deferred by the user**: all benchmarks: clean GPU throughput run (close GPU-using apps first), CPU int8/q4, end-to-end Benchmark through `sbm` (hybrid vs semantic-only).
 - **M3 desktop app** (`app/`): in progress. Tauri 2 + React + TypeScript + Tailwind 4, Vitest, pnpm (npm 11.4 crashes on install). `app/src-tauri` is `sbm-app`, a workspace member; it compiles in dev mode without `dist`, so `cargo test --workspace` needs no frontend build.
@@ -36,7 +37,7 @@ Snapshot for the next session or agent (2026-10-14, after the launcher follow-up
   - M3 launcher follow-ups: run the whole onboarding through the GUI once (indexes the real personal folder; check Alt + Space registers on Windows; PDFium now downloads too).
   - M4 throttling follow-ups: GPU busy detection; Live Updates on CPU while a full-screen app runs (PRD acceptance item); pause "until tomorrow".
   - PDFs indexed before PDFium was installed keep their pdf-extract Chunks (content hash unchanged); decide whether to re-extract them.
-- Tests: `cargo test --workspace` 229 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 52 passed.
+- Tests: `cargo test --workspace` 242 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 68 passed.
 
 ## Workspace
 | Path | Purpose |
@@ -141,6 +142,9 @@ PDFium lives in `<cache>/runtimes/pdfium` (`PDFIUM_DIR`), the CUDA runtime in `<
 - New dependencies are pinned (`=x.y.z`) to releases at least two weeks old (applies to downloaded runtimes too).
 - `gh` points to a different host; use `git ls-remote` for GitHub SHAs. Plain `curl` is blocked by a hook; use Python `urllib`.
 - Untracked `tools/**/__pycache__/*.pyc` files appear after pytest; do not commit them.
+- The CUDA embedding tests fall back to CPU and fail unless the CUDA runtime is on `PATH`: run `PATH="$LOCALAPPDATA/nvidia-cuda13/bin:$PATH" cargo test --workspace` (Git Bash). The app puts it there itself.
+- `cargo fmt --all` also rewrites `crates/extract/tests/pdf.rs` and `crates/index/tests/live_updates.rs` (already unformatted); format only the crates you touch (`cargo fmt -p <crate>`), or fix those two in their own commit.
+- Driving the tray: its menu items are not in UI Automation; right-click the tray button (in the hidden-icons flyout) and click the item by screen position. In PowerShell, `FindWindow($null, title)` passes `""`; take `MainWindowHandle` from `Get-Process sbm-app` instead.
 - Multi-line Python heredocs (`python - <<'EOF'`) sometimes fail to parse in the Bash tool; write the script to the scratchpad and run it instead.
 
 ## Open questions for the user
