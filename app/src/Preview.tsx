@@ -65,7 +65,7 @@ export function Preview({ result, query, copy, onOpen, onReveal }: Props) {
                 key={path}
                 role="option"
                 aria-selected={index === copy}
-                className="flex rounded-md px-2 py-1 text-sm aria-selected:bg-raised"
+                className="flex rounded-md border-l-2 border-transparent px-2 py-1 text-sm aria-selected:border-accent aria-selected:bg-accent-soft"
               >
                 <Path path={path} />
               </li>
