@@ -387,3 +387,14 @@ fn initial_indexing_goes_on_once_the_computer_has_been_quiet_for_the_quiet_perio
     assert_eq!((after.pending, after.throttled), (0, None));
     assert!(quiet_since.elapsed() >= quiet);
 }
+
+#[test]
+fn status_says_when_indexing_is_paused() {
+    let data = TempDir::new().unwrap();
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+
+    engine.pause();
+    assert!(engine.status().unwrap().paused);
+    engine.resume();
+    assert!(!engine.status().unwrap().paused);
+}

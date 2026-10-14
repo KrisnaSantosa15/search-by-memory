@@ -62,6 +62,8 @@ pub struct Status {
     pub model: ModelStatus,
     /// Why Initial Indexing is holding back, if it is; Live Updates go on.
     pub throttled: Option<ThrottleReason>,
+    /// Content indexing stopped by [`Engine::pause`].
+    pub paused: bool,
 }
 
 pub struct Engine {
@@ -269,6 +271,7 @@ impl Engine {
                 (None, None) => ModelStatus::Loading,
             },
             throttled: work.throttled,
+            paused: work.paused,
         })
     }
 
