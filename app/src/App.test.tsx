@@ -33,7 +33,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText(/searching is on its way/i)).toBeInTheDocument();
+    expect(await screen.findByRole("searchbox")).toBeInTheDocument();
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
   });
 

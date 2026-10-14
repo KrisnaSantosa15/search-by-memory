@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
-import { Launcher } from "./Launcher";
+import { Launcher, type ResultRow, type View } from "./Launcher";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { FoldersStep, type FolderChoice } from "./onboarding/FoldersStep";
@@ -11,6 +11,14 @@ import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 type DownloadProgress = { done: number; total: number; secondsLeft: number | null };
 
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
+
+const launcher = {
+  search: (query: string, view: View) => invoke<ResultRow[]>("search", { query, view }),
+  open: (path: string) => invoke("open_file", { path }),
+  reveal: (path: string) => invoke("reveal_file", { path }),
+  copyPath: (path: string) => navigator.clipboard.writeText(path),
+  hide: () => invoke("hide_launcher"),
+};
 
 export default function App() {
   // Onboarding finished before: the hotkey brought up the window.
@@ -55,7 +63,7 @@ export default function App() {
   }, [choice, attempt]);
 
   const step = () => {
-    if (finished) return <Launcher />;
+    if (finished) return <Launcher {...launcher} />;
     if (hotkey) {
       return (
         <DoneStep

@@ -1,12 +1,79 @@
-/** Stands in for the launcher until it is built: indexing goes on meanwhile. */
-export function Launcher() {
+import { useEffect, useState } from "react";
+
+/** One Result, as the Rust side sends it. */
+export type ResultRow = {
+  name: string;
+  path: string;
+  /** Other paths with the same content. */
+  copies: string[];
+  /** False while the file's drive is a Disconnected Drive. */
+  connected: boolean;
+  snippet: string | null;
+  /** Where the snippet is, e.g. `Page 14`. */
+  location: string | null;
+  matchReason: "name" | "content" | "both";
+};
+
+export type View = "file" | "passage";
+
+type Props = {
+  search: (query: string, view: View) => Promise<ResultRow[]>;
+  open: (path: string) => void;
+  reveal: (path: string) => void;
+  copyPath: (path: string) => void;
+  hide: () => void;
+};
+
+const MATCH_REASONS = { name: "name", content: "content", both: "name + content" };
+
+/** The search window: a Query box over its Results. */
+export function Launcher({ search }: Props) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<ResultRow[]>([]);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+    // Only the newest Query's Results are shown, whichever answers last.
+    let current = true;
+    search(query, "file").then((results) => current && setResults(results));
+    return () => {
+      current = false;
+    };
+  }, [search, query]);
+
   return (
-    <section className="flex flex-col gap-1">
-      <h1 className="text-xl font-semibold">Search by Memory</h1>
-      <p className="text-sm text-muted">
-        Searching is on its way in the next version. Your files keep becoming searchable in the
-        background.
-      </p>
+    <section className="flex flex-col gap-3">
+      <input
+        type="search"
+        autoFocus
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Type what you remember about the file…"
+        className="rounded-xl border border-line bg-panel px-4 py-3 text-lg outline-none focus:border-accent"
+      />
+      <ul role="listbox" aria-label="Results" className="flex flex-col gap-1">
+        {results.map((result) => (
+          <li
+            key={result.path}
+            role="option"
+            aria-selected={false}
+            className="flex flex-col gap-0.5 rounded-xl border border-transparent p-3"
+          >
+            <span className="flex items-baseline gap-2">
+              <span className="font-medium">{result.name}</span>
+              {result.location && <span className="text-sm text-muted">{result.location}</span>}
+              <span className="ml-auto text-xs text-muted">
+                {MATCH_REASONS[result.matchReason]}
+              </span>
+            </span>
+            {result.snippet && <span className="line-clamp-2 text-sm">{result.snippet}</span>}
+            <span className="truncate text-xs text-muted">{result.path}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
