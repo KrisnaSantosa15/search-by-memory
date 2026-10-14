@@ -131,7 +131,8 @@
   - Done: stage 3: `text_preview` (matched lines ± 3, at most 40, first 40 for name-only; streamed, lossy UTF-8) via `preview_lines`; rows carry `lineStart`/`lineEnd`; code shown in a numbered mono panel, text documents on the paper page, matched lines lit and Query words marked; snippet shown while loading or unreadable.
   - Done: stage 4a/4b: `code:` searches code only (`Index::search_where` / `Engine::search_where` filter before counting and Weaker Matches; icon turns to `</>`); `sbm-thumbnail` crate (Windows Shell thumbnails as PNG, thumbnail-only, cache-only for Online-only Files); rows show thumbnails or a kind icon.
   - Done: stage 4c: PDFium 7881 (`pdfium-render` 0.9.4) planned for every speed choice and installed by `prepare` (tgz runtimes: DLLs + licenses); `sbm-pdf` renders a page as PNG and marks the Query's words; rows carry `page`; `pdf_page` command; Preview Pane shows the matched page with highlighter marks.
-  - Next: images/videos as a large thumbnail in the Preview Pane; scroll a PDF page to its first mark; remember the chosen Copy; cancel during download; full onboarding not yet run through the GUI; tune `WEAKER_MARGIN`; try PDFium for text extraction (scanned PDFs). Tune `WEAKER_MARGIN` on the Benchmark. Also: remember the chosen Copy; cancel during download; full onboarding not yet run through the GUI.
+  - Done: pictures and videos shown as a large thumbnail (840 px) in the Preview Pane; `thumbnail` command takes a size.
+  - Next: scroll a PDF page to its first mark; remember the chosen Copy; cancel during download; run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark; try PDFium for text extraction (scanned PDFs).
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
