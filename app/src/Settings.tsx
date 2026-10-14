@@ -361,7 +361,9 @@ function folderOf(path: string): string {
 
 /** `Content index 34% — files since March 2025 are ready`. */
 function contentProgress({ indexed, pending, readySince }: Dashboard): string {
-  const percent = Math.floor((indexed * 100) / (indexed + pending));
+  const total = indexed + pending;
+  // Nothing to index yet is nothing left to do.
+  const percent = total === 0 ? 100 : Math.floor((indexed * 100) / total);
   const since =
     readySince === null
       ? ""

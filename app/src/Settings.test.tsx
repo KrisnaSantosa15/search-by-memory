@@ -57,6 +57,14 @@ describe("Settings", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the content index as complete before any file is found", async () => {
+    renderSettings({
+      dashboard: async () => ({ ...running, files: 0, indexed: 0, pending: 0, readySince: null }),
+    });
+
+    expect(await screen.findByText("Content index 100%")).toBeInTheDocument();
+  });
+
   it("shows how much disk the index takes", async () => {
     renderSettings();
 
