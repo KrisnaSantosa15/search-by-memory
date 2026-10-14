@@ -372,6 +372,23 @@ describe("Launcher", () => {
     expect(screen.getByRole("region", { name: /preview/i })).toHaveTextContent("Line 2");
   });
 
+  it("keeps the snippet in view while lines load, or when they cannot be read", async () => {
+    const retry = { ...report, name: "retry.ts", kind: "code" as const, lineStart: 8, lineEnd: 9 };
+    const notes = { ...retry, name: "gone.ts", path: "D:\\gone.ts" };
+    const previewLines = vi.fn((path: string) =>
+      path === notes.path ? Promise.resolve(null) : new Promise<null>(() => {}),
+    );
+    render(<Launcher search={async () => [retry, notes]} {...actions()} previewLines={previewLines} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findAllByRole("option");
+    const preview = screen.getByRole("region", { name: /preview/i });
+
+    expect(preview).toHaveTextContent("net profit increased by 18%");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(within(preview).getByRole("heading")).toHaveTextContent("gone.ts");
+    expect(preview).toHaveTextContent("net profit increased by 18%");
+  });
+
   it("hides with Escape", async () => {
     const spies = actions();
     render(<Launcher search={async () => []} {...spies} />);
