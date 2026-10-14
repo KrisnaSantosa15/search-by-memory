@@ -186,30 +186,30 @@ pub struct FailedFile {
     pub detail: String,
 }
 
-/// How `reason` is stored in `index_jobs.failure_reason`.
+/// How each reason is stored in `index_jobs.failure_reason`.
+const REASON_NAMES: [(Unreadable, &str); 7] = [
+    (Unreadable::PasswordProtected, "password_protected"),
+    (Unreadable::TooLarge, "too_large"),
+    (Unreadable::Damaged, "damaged"),
+    (Unreadable::InUse, "in_use"),
+    (Unreadable::NoAccess, "no_access"),
+    (Unreadable::Gone, "gone"),
+    (Unreadable::Other, "other"),
+];
+
 fn reason_name(reason: Unreadable) -> &'static str {
-    match reason {
-        Unreadable::PasswordProtected => "password_protected",
-        Unreadable::TooLarge => "too_large",
-        Unreadable::Damaged => "damaged",
-        Unreadable::InUse => "in_use",
-        Unreadable::NoAccess => "no_access",
-        Unreadable::Gone => "gone",
-        Unreadable::Other => "other",
-    }
+    REASON_NAMES
+        .iter()
+        .find(|(known, _)| *known == reason)
+        .map_or("other", |(_, name)| name)
 }
 
 /// The reason stored as `name`; names this version does not know are `Other`.
 fn reason_named(name: &str) -> Unreadable {
-    match name {
-        "password_protected" => Unreadable::PasswordProtected,
-        "too_large" => Unreadable::TooLarge,
-        "damaged" => Unreadable::Damaged,
-        "in_use" => Unreadable::InUse,
-        "no_access" => Unreadable::NoAccess,
-        "gone" => Unreadable::Gone,
-        _ => Unreadable::Other,
-    }
+    REASON_NAMES
+        .iter()
+        .find(|(_, known)| *known == name)
+        .map_or(Unreadable::Other, |(reason, _)| *reason)
 }
 
 /// Chunk size in characters: about 256 tokens of prose.
