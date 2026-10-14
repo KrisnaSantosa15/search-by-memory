@@ -49,3 +49,13 @@ fn dashboard_says_why_indexing_waits_and_whether_it_is_paused() {
     assert_eq!(dashboard(&paused).state, "Indexing is paused");
     assert!(dashboard(&paused).paused);
 }
+
+#[test]
+fn dashboard_reports_how_much_disk_the_indexes_take() {
+    let status = Status {
+        size_on_disk: 1_234_567_890,
+        ..Status::default()
+    };
+
+    assert_eq!(dashboard(&status).size_on_disk, 1_234_567_890);
+}

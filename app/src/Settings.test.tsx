@@ -13,6 +13,7 @@ const running: Dashboard = {
   readySince: midMarch2025,
   state: "Indexing: 660 files to go",
   paused: false,
+  sizeOnDisk: 1_234_567_890,
 };
 
 function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {}) {
@@ -39,6 +40,12 @@ describe("Settings", () => {
     expect(
       screen.getByText("Content index 34% — files since March 2025 are ready"),
     ).toBeInTheDocument();
+  });
+
+  it("shows how much disk the index takes", async () => {
+    renderSettings();
+
+    expect(await screen.findByText("The index takes 1.2 GB on disk")).toBeInTheDocument();
   });
 
   it("keeps the status up to date while it is open", async () => {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Path } from "./Path";
+import { size } from "./size";
 
 /** What the Status tab shows; see `Dashboard` in `src-tauri`. */
 export type Dashboard = {
@@ -12,6 +13,8 @@ export type Dashboard = {
   state: string;
   /** Stopped by the user, not held back by the computer. */
   paused: boolean;
+  /** Bytes the indexes take on disk. */
+  sizeOnDisk: number;
 };
 
 /** A file whose content could not be indexed. */
@@ -51,6 +54,7 @@ export function Settings({ dashboard, failedFiles, pause, resume }: Props) {
     <section className="flex flex-col gap-1 p-6">
       <h1 className="text-xl font-semibold">{status.files.toLocaleString()} files found</h1>
       <p className="text-sm text-muted">{contentProgress(status)}</p>
+      <p className="text-sm text-muted">The index takes {size(status.sizeOnDisk)} on disk</p>
       <p className="text-sm">{status.state}</p>
       <button
         type="button"

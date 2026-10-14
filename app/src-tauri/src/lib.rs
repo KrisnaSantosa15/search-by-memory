@@ -211,12 +211,15 @@ pub struct Dashboard {
     pub state: String,
     /// Stopped by the user, not held back by the computer.
     pub paused: bool,
+    /// Bytes the indexes take on disk.
+    pub size_on_disk: u64,
 }
 
 pub fn dashboard(status: &Status) -> Dashboard {
     Dashboard {
         state: indexing_state(status),
         paused: status.paused,
+        size_on_disk: status.size_on_disk,
         files: status.files,
         indexed: status.indexed,
         pending: status.pending,
