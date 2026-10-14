@@ -43,11 +43,13 @@ Snapshot for the next session or agent (2026-10-14, after launcher stage 4 in th
 | `crates/embed-onnx` | EmbeddingGemma 2 via ONNX Runtime (`OnnxEmbedder::load` / `load_on` / `load_first`, `skipped()`, `Accelerator::default_order`). |
 | `crates/store-usearch` | USearch `VectorStore` (`UsearchStore`: f16/i8, `save`, memory-mapped `open_view`). |
 | `crates/extract` | `TextExtractor`, `PdfExtractor` (pdf-extract), `DocxExtractor` (zip + quick-xml); `extractor_for(path)`; `chunk_sections` (sliding window, overlap). |
-| `crates/index` | SQLite (rusqlite, bundled FTS5): file catalog + Name Index (`scan`, `search_names`, `Exclusion`), Content Index (`index_content`, `remove_unreferenced_content`, `rebuild_vectors`), hybrid `search` (File/Passage view, `MatchReason`, `connected`); saved Indexed Folders and Exclusions, `scan_all`, `index_jobs` queue (`run_jobs`, `pending_jobs`, `failed_files`). Paths are normalized (`C:/a`, `C:\a`, `\\?\C:\a` are one file), then stored as volume ID + relative path. `Index::with_volumes` swaps the adapter (tests use a fake). |
+| `crates/index` | SQLite (rusqlite, bundled FTS5): file catalog + Name Index (`scan`, `search_names`, `Exclusion`), Content Index (`index_content`, `remove_unreferenced_content`, `rebuild_vectors`), hybrid `search` / `search_where(…, keep)` (File/Passage view, `MatchReason`, `connected`, `weaker`); saved Indexed Folders and Exclusions, `scan_all`, `index_jobs` queue (`run_jobs`, `pending_jobs`, `failed_files`). Paths are normalized (`C:/a`, `C:\a`, `\\?\C:\a` are one file), then stored as volume ID + relative path. `Index::with_volumes` swaps the adapter (tests use a fake). |
 | `crates/change-usn` | `UsnJournal`: the NTFS USN Journal as a `ChangeSource` (unprivileged read, paths by file ID); elsewhere always Lost. |
-| `crates/engine` | `Engine`: owns the indexes and embedder, loads the model in the background (`start_loading`), indexes in a background thread (own SQLite connection, vector store shared through an `RwLock`), answers `search` meanwhile. |
-| `crates/setup` | First-run setup: `download` (resume, SHA-256, cancel), `Web` (ureq), model and CUDA manifests, `install_runtime`, `system_gpus`, `speed_options`. |
-| `app/` | Desktop app: React frontend (`src/`, Vitest tests next to components); `src-tauri/` is the Tauri shell (`sbm-app`): plain tested functions in `lib.rs`, thin `#[tauri::command]` wrappers in `mod commands`. |
+| `crates/engine` | `Engine`: owns the indexes and embedder, loads the model in the background (`start_loading`), indexes in a background thread (own SQLite connection, vector store shared through an `RwLock`), answers `search` / `search_where` meanwhile. |
+| `crates/setup` | First-run setup: `download` (resume, SHA-256, cancel), `Web` (ureq), model, CUDA and PDFium manifests, `install_runtime` (zip or `.tgz`), `Plan` / `prepare` (one progress bar), `system_gpus`, `speed_options`. |
+| `crates/thumbnail` | `thumbnail(path, size, cached_only)`: the Windows Shell thumbnail as PNG (`IShellItemImageFactory`); `None` elsewhere. |
+| `crates/pdf` | `PdfPages` (PDFium via `pdfium-render`): `page(path, number, width, words)` → PNG + where the words sit. |
+| `app/` | Desktop app: React frontend (`src/`, Vitest tests next to components); `src-tauri/` is the Tauri shell (`sbm-app`): plain tested functions in `lib.rs` (`speed_choices`, `folder_choices`, `Settings`, `result_row`, `FileKind`) and `preview.rs` (`text_preview`), thin `#[tauri::command]` wrappers in `mod commands`. Frontend: `App.tsx` (onboarding steps, then `Launcher`), `Launcher.tsx`, `Preview.tsx`, `Lines.tsx`, `PdfPage.tsx`, `Thumbnail.tsx`, `Marked.tsx`, `Path.tsx`. |
 | `crates/cli` | `sbm` binary and the tested `index` / `search` / `folders` / `remove_folder` / `exclude` / `accelerator_option` / `printable` functions; `main.rs` is thin, untested glue. |
 | `crates/bench` | Dev-only measurements: `embed_throughput [--accelerator <name>]`, `retrieval_benchmark`, Benchmark parser, File-view metrics, Location-miss report. |
 | `benchmark/public/` | Public Corpus `manifest.toml` (74 files: URL, sha256, license) and `queries.toml` (58 labelled Queries). |
@@ -64,6 +66,7 @@ Snapshot for the next session or agent (2026-10-14, after launcher stage 4 in th
 - `sbm index` saves the vector file every 100 files; on every run the vector index is rebuilt from SQLite, so a crash between the two loses nothing.
 - Tests for this live in `crates/index/tests/{indexing,volumes}.rs`; shared fakes (`BagOfWords` counting embedder, `FakeVolumes`) in `tests/common/mod.rs`.
 - `apply_changes(source)` asks the `ChangeSource` for each connected volume's changes since its saved cursor. Reported paths inside Indexed Folders (minus Exclusions) are re-checked like a scan and queued as Live Updates (`index_jobs.live`, run before other jobs); a Lost history rescans that volume's Indexed Folders. Changes and the new cursor commit in one transaction. Adding an Indexed Folder or Exclusion deletes the affected cursors. Tests: `crates/index/tests/live_updates.rs` (`FakeChangeSource`), `crates/change-usn/tests/usn_journal.rs` (real journal on the temp folder).
+- Weaker Matches: `search_where` keeps the best semantic similarity per Result and which Results had a keyword hit; after fusing with Name Matches, content-only Results without the Query's words and more than `WEAKER_MARGIN` (0.08) below the best are `weaker`. `keep` filters paths before the limit and before this judgement (the launcher's `code:`). Tests: `crates/index/tests/{weaker_matches,filtered_search}.rs`.
 - Not done yet: throttling (M4); the dashboard counts exist (`pending_jobs`, `failed_files`) but nothing shows them except `sbm index`. Passage view intentionally omits name-only files.
 
 ## Directories (`AppDirs`)
@@ -73,6 +76,8 @@ Snapshot for the next session or agent (2026-10-14, after launcher stage 4 in th
 | Cache | `%LOCALAPPDATA%\search-by-memory\cache` | `~/.cache/search-by-memory` |
 | Model (`SBM_MODEL_DIR`) | `<cache>\models\embeddinggemma-2-onnx` | same under cache |
 | Public Corpus (`SBM_PUBLIC_CORPUS`) | `<cache>\public-corpus` | same under cache |
+
+PDFium lives in `<cache>/runtimes/pdfium` (`PDFIUM_DIR`), the CUDA runtime in `<cache>/runtimes/cuda13`. The app honours `SBM_DATA_DIR` like `sbm`.
 
 ## Run (Windows, Git Bash)
 - Rust 1.99 (rustup, MSVC) with VS Build Tools: `export PATH="$HOME/.cargo/bin:$PATH"`.
@@ -139,4 +144,5 @@ Snapshot for the next session or agent (2026-10-14, after launcher stage 4 in th
 1. NVIDIA licence: show cuDNN's NVIDIA SLA and ask for consent in onboarding before the CUDA runtime download? (Decided: the CUDA runtime is downloaded during onboarding only when the user picks the NVIDIA option.)
 2. Review the 58 drafted Queries in `benchmark/public/queries.toml`; license spot-checks above.
 3. f16 vs i8 and 256 vs 512 dims: confirm with the deferred Benchmark runs.
-4. PDF backend: keep pdf-extract, or move to pdfium/poppler for scanned PDFs.
+4. PDF backend: keep pdf-extract, or move to PDFium (now shipped for page previews) for scanned PDFs?
+5. Run the full onboarding through the GUI? It indexes the real personal folder into the shared data dir.
