@@ -353,3 +353,54 @@ fn unpack_dlls(archive: &Path, dir: &Path) -> Result<()> {
     }
     Ok(())
 }
+
+/// What to download for the speed the user picked.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Plan {
+    /// GPU runtime archives, installed into [`CUDA_RUNTIME_DIR`]; empty when none is needed.
+    pub runtime: Vec<RemoteFile>,
+    /// Embedding model files, saved into [`EMBEDDING_MODEL_DIR`].
+    pub model: Vec<RemoteFile>,
+}
+
+/// Installs everything in `plan` beneath the cache directory `cache`, reporting
+/// progress over all of it as one.
+pub fn prepare(
+    plan: &Plan,
+    cache: &Path,
+    http: &dyn Http,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<Finished> {
+    let runtime_size: u64 = plan.runtime.iter().map(|file| file.size).sum();
+    let total = runtime_size + plan.model.iter().map(|file| file.size).sum::<u64>();
+    if !plan.runtime.is_empty() {
+        let finished = install_runtime(
+            &plan.runtime,
+            &cache.join(CUDA_RUNTIME_DIR),
+            http,
+            cancel,
+            &mut |runtime| {
+                progress(Progress {
+                    done: runtime.done,
+                    total,
+                })
+            },
+        )?;
+        if finished == Finished::Cancelled {
+            return Ok(Finished::Cancelled);
+        }
+    }
+    download(
+        &plan.model,
+        &cache.join(EMBEDDING_MODEL_DIR),
+        http,
+        cancel,
+        &mut |model| {
+            progress(Progress {
+                done: runtime_size + model.done,
+                total,
+            })
+        },
+    )
+}
