@@ -34,6 +34,11 @@ export function HotkeyStep({ tryHotkey, onContinue }: Props) {
           {spoken(DEFAULT_HOTKEY)}
         </kbd>
       </div>
+      {free === false && (
+        <p className="rounded-xl border border-accent bg-accent-soft p-4 text-sm">
+          Another app already uses these keys. Press other keys you would like to use.
+        </p>
+      )}
       <button
         type="submit"
         disabled={!free}

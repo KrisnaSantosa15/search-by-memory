@@ -15,4 +15,11 @@ describe("HotkeyStep", () => {
     expect(tryHotkey).toHaveBeenCalledWith("Alt+Space");
     expect(onContinue).toHaveBeenCalledWith("Alt+Space");
   });
+
+  it("says when another app already uses Alt + Space and asks for other keys", async () => {
+    render(<HotkeyStep tryHotkey={async () => false} onContinue={() => {}} />);
+
+    expect(await screen.findByText(/another app already uses these keys/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
+  });
 });
