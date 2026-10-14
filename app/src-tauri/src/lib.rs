@@ -168,6 +168,8 @@ pub struct ResultRow {
     pub snippet: Option<String>,
     /// Where the snippet is, e.g. `Page 14`; `None` for the whole file or a Name Match.
     pub location: Option<String>,
+    /// The matched page (1-based), when the Location is a page.
+    pub page: Option<u32>,
     /// The matched lines (1-based, inclusive), when the Location is lines.
     pub line_start: Option<u32>,
     pub line_end: Option<u32>,
@@ -202,6 +204,10 @@ pub fn result_row(result: SearchResult) -> ResultRow {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default(),
         location: result.location.as_ref().and_then(location_label),
+        page: match result.location {
+            Some(Location::Page(page)) => Some(page),
+            _ => None,
+        },
         line_start: match result.location {
             Some(Location::Lines { start, .. }) => Some(start),
             _ => None,

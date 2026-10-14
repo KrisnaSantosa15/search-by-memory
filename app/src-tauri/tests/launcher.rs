@@ -37,6 +37,7 @@ fn content_match_row_names_the_file_its_page_and_why_it_matched() {
             modified: None,
             snippet: Some("net profit increased by 18%".into()),
             location: Some("Page 14".into()),
+            page: Some(14),
             line_start: None,
             line_end: None,
             match_reason: "both".into(),
@@ -142,4 +143,15 @@ fn row_carries_the_matched_line_numbers() {
 
     assert_eq!((lines.line_start, lines.line_end), (Some(8), Some(47)));
     assert_eq!((page.line_start, page.line_end), (None, None));
+}
+
+#[test]
+fn row_carries_the_matched_page_number() {
+    let page = result_row(result(Some(Location::Page(4)), MatchReason::Content));
+    let lines = result_row(result(
+        Some(Location::Lines { start: 1, end: 2 }),
+        MatchReason::Content,
+    ));
+
+    assert_eq!((page.page, lines.page), (Some(4), None));
 }
