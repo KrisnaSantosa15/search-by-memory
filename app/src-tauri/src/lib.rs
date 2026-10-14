@@ -254,8 +254,10 @@ mod commands {
     use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
     use sbm_engine::{Engine, LoadedModel};
     use sbm_index::View;
+    use sbm_pdf::PdfPages;
     use sbm_setup::{
-        EMBEDDING_MODEL_DIR, Finished, Plan, Progress, TimeLeft, Web, prepare as install,
+        EMBEDDING_MODEL_DIR, Finished, PDFIUM_DIR, Plan, Progress, TimeLeft, Web,
+        prepare as install,
     };
     use serde::Serialize;
     use tauri::menu::{Menu, MenuItem};
@@ -268,6 +270,8 @@ mod commands {
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
     const DIMENSIONS: usize = 256;
+    /// Pixels across a rendered PDF page: the Preview Pane is about 420 px, sharp at 2×.
+    const PDF_PAGE_WIDTH: u32 = 840;
     /// Thumbnail pixels on the longer side: the list shows 40 px, sharp at 2× scaling.
     const THUMBNAIL_SIZE: u32 = 80;
     /// Results the launcher shows, as the PRD's default top-K.
@@ -513,6 +517,55 @@ mod commands {
         .flatten()
     }
 
+    /// A page of a PDF as the Preview Pane shows it.
+    #[derive(Serialize)]
+    pub struct PdfPagePreview {
+        /// The page as a PNG `data:` URL.
+        image: String,
+        /// Where the Query's words sit, in fractions of the page from its top left.
+        marks: Vec<Mark>,
+    }
+
+    #[derive(Serialize)]
+    pub struct Mark {
+        left: f32,
+        top: f32,
+        width: f32,
+        height: f32,
+    }
+
+    /// Page `page` of the PDF `path`, with the words of `query` marked on it;
+    /// `None` when PDFium is missing or the page cannot be read.
+    #[tauri::command]
+    pub async fn pdf_page(path: PathBuf, page: u32, query: String) -> Option<PdfPagePreview> {
+        tauri::async_runtime::spawn_blocking(move || {
+            use base64::Engine as _;
+            let pdfium = PdfPages::load(&AppDirs::current().cache.join(PDFIUM_DIR)).ok()?;
+            let words: Vec<&str> = query
+                .split(|c: char| !c.is_alphanumeric())
+                .filter(|word| !word.is_empty())
+                .collect();
+            let rendered = pdfium.page(&path, page, PDF_PAGE_WIDTH, &words)?;
+            let base64 = base64::engine::general_purpose::STANDARD.encode(rendered.png);
+            Some(PdfPagePreview {
+                image: format!("data:image/png;base64,{base64}"),
+                marks: rendered
+                    .marks
+                    .into_iter()
+                    .map(|area| Mark {
+                        left: area.left,
+                        top: area.top,
+                        width: area.width,
+                        height: area.height,
+                    })
+                    .collect(),
+            })
+        })
+        .await
+        .ok()
+        .flatten()
+    }
+
     /// Opens `path` with its default app.
     #[tauri::command]
     pub fn open_file(app: AppHandle, path: PathBuf) -> Result<(), String> {
@@ -643,6 +696,7 @@ pub fn run() {
             commands::copy_file,
             commands::preview_lines,
             commands::thumbnail,
+            commands::pdf_page,
             commands::quit,
             commands::hide_launcher
         ])
