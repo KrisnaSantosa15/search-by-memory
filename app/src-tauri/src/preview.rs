@@ -21,9 +21,10 @@ pub struct TextPreview {
 }
 
 /// The lines `matched` (inclusive, 1-based) of the text file `path`, with a
-/// few lines around them; `None` when the file cannot be read.
+/// few lines around them, or its first lines without a match; `None` when the
+/// file cannot be read.
 pub fn text_preview(path: &Path, matched: Option<(u32, u32)>) -> Option<TextPreview> {
-    let (start, end) = matched?;
+    let (start, end) = matched.unwrap_or((1, MOST_LINES));
     let first_line = start.saturating_sub(CONTEXT).max(1);
     let last_line = (end + CONTEXT).min(first_line + MOST_LINES - 1);
     let reader = BufReader::new(File::open(path).ok()?);

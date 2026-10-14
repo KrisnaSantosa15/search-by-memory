@@ -42,3 +42,21 @@ fn long_match_is_cut_to_forty_lines_from_its_start() {
     assert_eq!(preview.first_line, 97);
     assert_eq!(preview.lines, lines(97..=136));
 }
+
+#[test]
+fn file_found_by_name_previews_its_first_lines() {
+    let folder = tempfile::tempdir().unwrap();
+    let path = numbered_file(folder.path(), 100);
+
+    let preview = text_preview(&path, None).unwrap();
+
+    assert_eq!(preview.first_line, 1);
+    assert_eq!(preview.lines, lines(1..=40));
+}
+
+#[test]
+fn missing_file_has_no_preview() {
+    let folder = tempfile::tempdir().unwrap();
+
+    assert_eq!(text_preview(&folder.path().join("gone.ts"), None), None);
+}
