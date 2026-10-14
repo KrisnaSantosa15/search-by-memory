@@ -350,3 +350,33 @@ fn exclusion_added_after_the_cursor_drops_matching_files() {
 
     assert_eq!(changes.removed, vec![draft]);
 }
+
+#[test]
+fn running_only_live_updates_leaves_initial_indexing_work_waiting() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(drive.path(), "inbox/old.txt", "notes from the team meeting\n");
+    let journal = FakeChangeSource::default();
+    let mut index = indexed_drive(&data, &drive, &journal);
+
+    let changed = write(drive.path(), "inbox/new.txt", "agenda for the team meeting\n");
+    journal.record("d-drive", "inbox/new.txt");
+    index.apply_changes(&journal).unwrap();
+    let mut store = store();
+    let done = index
+        .run_live_jobs(&BagOfWords::default(), &mut store, usize::MAX)
+        .unwrap();
+
+    assert_eq!(done, 1);
+    let results = index
+        .search(
+            "team meeting",
+            &BagOfWords::default(),
+            &store,
+            View::Passage,
+            20,
+        )
+        .unwrap();
+    let paths: Vec<_> = results.iter().map(|r| r.path.clone()).collect();
+    assert_eq!(paths, [changed]);
+    assert_eq!(index.pending_jobs().unwrap(), 1);
+}

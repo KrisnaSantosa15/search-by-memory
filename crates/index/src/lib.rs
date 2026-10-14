@@ -574,6 +574,27 @@ impl Index {
         store: &mut impl VectorStore,
         limit: usize,
     ) -> Result<usize> {
+        self.run_queued(embedder, store, limit, false)
+    }
+
+    /// Like `run_jobs`, but only Live Updates: Initial Indexing work waits, and
+    /// so does removing unused content (moves may still reuse it).
+    pub fn run_live_jobs(
+        &mut self,
+        embedder: &dyn EmbeddingProvider,
+        store: &mut impl VectorStore,
+        limit: usize,
+    ) -> Result<usize> {
+        self.run_queued(embedder, store, limit, true)
+    }
+
+    fn run_queued(
+        &mut self,
+        embedder: &dyn EmbeddingProvider,
+        store: &mut impl VectorStore,
+        limit: usize,
+        only_live: bool,
+    ) -> Result<usize> {
         // Files on a Disconnected Drive wait in the queue until it returns.
         let disconnected: Vec<String> = self
             .db
@@ -586,9 +607,10 @@ impl Index {
         let next_job = format!(
             "SELECT index_jobs.id, files.volume_id, files.relative_path
              FROM index_jobs JOIN files ON files.id = index_jobs.file_id
-             WHERE index_jobs.status = 'pending' AND files.volume_id NOT IN ({})
+             WHERE index_jobs.status = 'pending' AND files.volume_id NOT IN ({}) {}
              ORDER BY index_jobs.live DESC, index_jobs.priority DESC LIMIT 1",
-            vec!["?"; disconnected.len()].join(", ")
+            vec!["?"; disconnected.len()].join(", "),
+            if only_live { "AND index_jobs.live" } else { "" },
         );
         let mut done = 0;
         while done < limit {
@@ -601,7 +623,9 @@ impl Index {
                 )
                 .optional()?;
             let Some((job, volume_id, path)) = next else {
-                self.remove_unreferenced_content(store)?;
+                if !only_live {
+                    self.remove_unreferenced_content(store)?;
+                }
                 break;
             };
             let (path, _connected) = self.path_of(&volume_id, &path)?;
