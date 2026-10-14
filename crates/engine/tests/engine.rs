@@ -136,7 +136,10 @@ fn removed_indexed_folder_leaves_search_and_status() {
     engine.remove_indexed_folder(folder.path()).unwrap();
     engine.wait_until_idle();
 
-    assert_eq!(engine.search("beef coconut", View::Passage, 20).unwrap(), []);
+    assert_eq!(
+        engine.search("beef coconut", View::Passage, 20).unwrap(),
+        []
+    );
     assert_eq!(engine.search("recipe", View::File, 20).unwrap(), []);
     assert_eq!(engine.status().unwrap().files, 0);
 }
@@ -155,7 +158,9 @@ fn files_beneath_a_new_exclusion_leave_the_indexes() {
         .unwrap();
     engine.wait_until_idle();
 
-    let results = engine.search("secret garden diary", View::File, 20).unwrap();
+    let results = engine
+        .search("secret garden diary", View::File, 20)
+        .unwrap();
     assert!(results.iter().all(|r| r.path != diary), "{results:?}");
     assert_eq!(engine.status().unwrap().files, 1);
 }
