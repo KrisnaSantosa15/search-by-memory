@@ -17,9 +17,9 @@ Snapshot for the next session or agent (2026-10-14, after the Engine was finishe
 - **Next**: each needs its interface agreed with the user first (AGENTS.md):
   - M4: throttling (full-screen, battery, busy; Live Updates exempt).
   - M3 (in progress): Tauri 2 app (React + TypeScript + Tailwind + shadcn/Radix): onboarding wizard first (system check, speed, model download, folders, hotkey, done), then the launcher. Goal: easy for non-developers; every step has a working default, plain language (no "CUDA"/"DirectML" jargon), one progress bar with time left, name search usable as soon as onboarding ends. VoiceStudio (AGPL-3.0) is the UX and visual reference (the user wants the app to look like it: dark plum, magenta accent, rounded bordered cards): ideas only, no code.
-  - Done so far: `app/` (Vite + React + TS + Tailwind 4, Vitest, pnpm; npm 11.4 crashes on install) and `app/src-tauri` (`sbm-app`, workspace member; compiles in dev mode without `dist`, so `cargo test --workspace` needs no frontend build). Speed step works end to end on this machine (`pnpm tauri dev`). Theme tokens in `app/src/index.css`.
+  - Done so far: `app/` (Vite + React + TS + Tailwind 4, Vitest, pnpm; npm 11.4 crashes on install) and `app/src-tauri` (`sbm-app`, workspace member; compiles in dev mode without `dist`, so `cargo test --workspace` needs no frontend build). Speed step works end to end on this machine (`pnpm tauri dev`). Download step: `setup::Plan` + `setup::prepare` + `setup::TimeLeft`, `prepare` command emits `setup-progress`; the real download through the GUI is not smoke-tested yet (the model is already in the cache here, the CUDA runtime is not in `<cache>/runtimes/cuda13`). Theme tokens in `app/src/index.css`.
   - The app must put the CUDA runtime folder (`<cache>/runtimes/cuda13`) on `PATH` before loading the CUDA provider.
-- Tests: `cargo test --workspace` 184 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 3 passed.
+- Tests: `cargo test --workspace` 189 passed, 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 13 passed; `cd app && pnpm test` 10 passed.
 
 ## Workspace
 | Path | Purpose |
@@ -107,6 +107,7 @@ Snapshot for the next session or agent (2026-10-14, after the Engine was finishe
 - Unix `SystemVolumes` (mount point by device ID) compiles only on Unix and has not been run since the Windows move; an empty mount folder left behind by an unmounted drive counts as connected.
 
 ## Environment gotchas
+- D: was full (114 MB free) and broke the build; `target/debug/incremental` (compile cache only) was deleted to free space. `target` is ~25 GB.
 - `pnpm tauri dev` right after the previous app instance was killed can fail with WebView2 `0x800700AA` (resource in use); retry after a few seconds.
 - Screenshots of the app: `PrintWindow` on the window handle (never screen copy: it captures whatever is in front).
 - Windows: `core.autocrlf=true`. `.gitattributes` marks PDF/DOCX/PNG/ONNX binary; add new binary fixture types there, or CRLF conversion corrupts them.
