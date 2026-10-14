@@ -26,14 +26,14 @@ type Props = {
   search: (query: string) => Promise<ResultRow[]>;
   open: (path: string) => void;
   reveal: (path: string) => void;
-  copyPath: (path: string) => void;
+  copyFile: (path: string) => void;
   hide: () => void;
 };
 
 const MATCH_REASONS = { name: "name", content: "content", both: "name + content" };
 
 /** The search window: a Query box over its Results. */
-export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
+export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
@@ -99,7 +99,7 @@ export function Launcher({ search, open, reveal, copyPath, hide }: Props) {
     else if (event.key === "ArrowRight" && caretAtEnd && result && copy === null) setCopy(0);
     else if (event.key === "ArrowLeft" && copy !== null) setCopy(null);
     else if (event.key === "Enter") act(event.ctrlKey || event.shiftKey ? reveal : open);
-    else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyPath, false);
+    else if (event.key === "c" && event.ctrlKey && !textSelected) act(copyFile, false);
     else return;
     event.preventDefault();
   };

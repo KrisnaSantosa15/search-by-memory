@@ -19,7 +19,7 @@ const report: ResultRow = {
 const actions = () => ({
   open: vi.fn(),
   reveal: vi.fn(),
-  copyPath: vi.fn(),
+  copyFile: vi.fn(),
   hide: vi.fn(),
 });
 
@@ -78,7 +78,7 @@ describe("Launcher", () => {
     expect(spies.open).not.toHaveBeenCalled();
   });
 
-  it("copies the selected file's path with Ctrl + C", async () => {
+  it("copies the selected file with Ctrl + C", async () => {
     const spies = actions();
     render(<Launcher search={async () => [report]} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
@@ -86,7 +86,7 @@ describe("Launcher", () => {
 
     await userEvent.keyboard("{Control>}c{/Control}");
 
-    expect(spies.copyPath).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(spies.copyFile).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
   });
 
   it("leaves Ctrl + C to copy Query text that is selected", async () => {
@@ -98,7 +98,7 @@ describe("Launcher", () => {
 
     await userEvent.keyboard("{Control>}a{/Control}{Control>}c{/Control}");
 
-    expect(spies.copyPath).not.toHaveBeenCalled();
+    expect(spies.copyFile).not.toHaveBeenCalled();
   });
 
   it("asks which Copy to open when a Result has several, and opens the one picked", async () => {

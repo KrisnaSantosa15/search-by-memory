@@ -16,7 +16,7 @@ const launcher = {
   search: (query: string) => invoke<ResultRow[]>("search", { query, view: "file" }),
   open: (path: string) => invoke("open_file", { path }),
   reveal: (path: string) => invoke("reveal_file", { path }),
-  copyPath: (path: string) => navigator.clipboard.writeText(path),
+  copyFile: (path: string) => invoke("copy_file", { path }),
   hide: () => invoke("hide_launcher"),
 };
 
