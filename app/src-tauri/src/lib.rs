@@ -663,7 +663,10 @@ mod commands {
         let failed = engine.failed_files().map_err(|error| error.to_string())?;
         Ok(failed
             .into_iter()
-            .map(|(path, reason)| FailedFile { path, reason })
+            .map(|failed| FailedFile {
+                path: failed.path,
+                reason: failed.detail,
+            })
             .collect())
     }
 

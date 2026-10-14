@@ -6,7 +6,7 @@ use std::sync::Arc;
 use sbm_core::{ChangeSource, EmbeddingProvider, Result};
 use sbm_embed_onnx::Accelerator;
 use sbm_engine::{Engine, Status};
-use sbm_index::{Exclusion, Index, IndexedFolder, SearchResult, View};
+use sbm_index::{Exclusion, FailedFile, Index, IndexedFolder, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 const DATABASE: &str = "index.sqlite";
@@ -17,7 +17,7 @@ const VECTORS: &str = "vectors.usearch";
 pub struct IndexReport {
     pub status: Status,
     /// Files whose content could not be indexed, with the reason; they stay in the Name Index.
-    pub failed: Vec<(PathBuf, String)>,
+    pub failed: Vec<FailedFile>,
 }
 
 /// Adds `new_folders` to the Indexed Folders in `data_dir`, applies what

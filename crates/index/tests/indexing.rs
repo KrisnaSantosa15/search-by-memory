@@ -3,6 +3,7 @@
 mod common;
 
 use common::{BagOfWords, FakeVolumes, modified_days_ago, store, write};
+use sbm_core::Unreadable;
 use sbm_index::{Exclusion, Index, View};
 use tempfile::TempDir;
 
@@ -139,8 +140,8 @@ fn file_that_cannot_be_indexed_is_reported_and_does_not_block_others() {
     assert_eq!(index.pending_jobs().unwrap(), 0);
     let failed = index.failed_files().unwrap();
     assert_eq!(failed.len(), 1, "{failed:?}");
-    assert_eq!(failed[0].0, broken);
-    assert!(!failed[0].1.is_empty());
+    assert_eq!(failed[0].path, broken);
+    assert!(!failed[0].detail.is_empty());
     let results = index
         .search(
             "garden fence",
@@ -151,6 +152,25 @@ fn file_that_cannot_be_indexed_is_reported_and_does_not_block_others() {
         )
         .unwrap();
     assert_eq!(results[0].path, good);
+}
+
+#[test]
+fn damaged_file_is_reported_as_damaged_with_the_parser_message() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let broken = write(folder.path(), "broken.docx", "not really a zip archive");
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+
+    index
+        .run_jobs(&BagOfWords::default(), &mut store(), usize::MAX)
+        .unwrap();
+
+    let failed = index.failed_files().unwrap();
+    assert_eq!(failed.len(), 1, "{failed:?}");
+    assert_eq!(failed[0].path, broken);
+    assert_eq!(failed[0].reason, Unreadable::Damaged);
+    assert!(!failed[0].detail.is_empty());
 }
 
 #[test]

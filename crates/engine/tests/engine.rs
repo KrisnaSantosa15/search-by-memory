@@ -119,8 +119,8 @@ fn file_that_cannot_be_indexed_is_listed_with_the_reason() {
 
     let failed = engine.failed_files().unwrap();
     assert_eq!(failed.len(), 1, "{failed:?}");
-    assert_eq!(failed[0].0, broken);
-    assert!(!failed[0].1.is_empty());
+    assert_eq!(failed[0].path, broken);
+    assert!(!failed[0].detail.is_empty());
     assert_eq!(engine.status().unwrap().failed, 1);
 }
 

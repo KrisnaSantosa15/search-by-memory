@@ -4,7 +4,7 @@ use std::path::Path;
 
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::Event;
-use sbm_core::{ContentExtractor, Location, Result, Section};
+use sbm_core::{ContentExtractor, ExtractError, Location, Result, Section, Unreadable};
 
 /// Plain text, Markdown, and source code: the whole file as one line range.
 pub struct TextExtractor;
@@ -91,9 +91,9 @@ pub struct DocxExtractor;
 
 impl ContentExtractor for DocxExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
-        let mut archive = zip::ZipArchive::new(std::fs::File::open(path)?)?;
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(path)?).map_err(damaged)?;
         let document = std::io::BufReader::new(Limited {
-            inner: archive.by_name("word/document.xml")?,
+            inner: archive.by_name("word/document.xml").map_err(damaged)?,
             remaining: MAX_EXTRACTED_BYTES,
         });
         let mut reader = quick_xml::Reader::from_reader(document);
@@ -102,12 +102,12 @@ impl ContentExtractor for DocxExtractor {
         let mut lines = 0;
         let mut in_text = false;
         loop {
-            match reader.read_event_into(&mut buffer)? {
+            match reader.read_event_into(&mut buffer).map_err(damaged)? {
                 Event::Start(tag) if tag.name().as_ref() == "w:t" => in_text = true,
                 Event::End(tag) if tag.name().as_ref() == "w:t" => in_text = false,
                 Event::Text(content) if in_text => text.push_str(&content),
                 Event::GeneralRef(entity) if in_text => {
-                    if let Some(character) = entity.resolve_char_ref()? {
+                    if let Some(character) = entity.resolve_char_ref().map_err(damaged)? {
                         text.push(character);
                     } else if let Some(resolved) = resolve_predefined_entity(&entity) {
                         text.push_str(resolved);
@@ -130,6 +130,11 @@ impl ContentExtractor for DocxExtractor {
             text,
         }])
     }
+}
+
+/// A file that is not valid in its format.
+fn damaged(error: impl std::fmt::Display) -> ExtractError {
+    ExtractError::new(Unreadable::Damaged, error)
 }
 
 /// Extensions of plain text, Markdown, and source code files (FR-03).

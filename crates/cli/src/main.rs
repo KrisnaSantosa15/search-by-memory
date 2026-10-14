@@ -73,11 +73,11 @@ fn run(args: &[String]) -> Result<()> {
                 "{} files, {} with content indexed, {} pending, {} failed",
                 status.files, status.indexed, status.pending, status.failed
             );
-            for (path, error) in &report.failed {
+            for failed in &report.failed {
                 eprintln!(
                     "    skipped {}: {}",
-                    sbm_cli::printable(&path.to_string_lossy()),
-                    sbm_cli::printable(error)
+                    sbm_cli::printable(&failed.path.to_string_lossy()),
+                    sbm_cli::printable(&failed.detail)
                 );
             }
             Ok(())

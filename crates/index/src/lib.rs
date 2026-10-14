@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use sbm_core::{
     ChangeCursor, ChangeSource, Changes, Embedding, EmbeddingProvider, FileAvailability, Location,
-    Result, SystemFileAvailability, SystemVolumes, VectorStore, Volume, Volumes,
+    Result, SystemFileAvailability, SystemVolumes, Unreadable, VectorStore, Volume, Volumes,
 };
 use walkdir::WalkDir;
 
@@ -96,7 +96,7 @@ pub struct ScanChanges {
 
 /// Schema migrations in order; the database's `user_version` counts those applied.
 /// Append new migrations, never edit released ones.
-const MIGRATIONS: [&str; 11] = [
+const MIGRATIONS: [&str; 12] = [
     "CREATE TABLE files (
          id INTEGER PRIMARY KEY,
          path TEXT NOT NULL UNIQUE,
@@ -173,7 +173,34 @@ const MIGRATIONS: [&str; 11] = [
     "ALTER TABLE files ADD COLUMN is_online_only INTEGER NOT NULL DEFAULT 0;",
     // Default Exclusions the user turned off; defaults added later still apply (FR-03).
     "CREATE TABLE turned_off_defaults (pattern TEXT PRIMARY KEY);",
+    // Why a file failed, in terms the user can act on (FR-08); NULL is not known.
+    "ALTER TABLE index_jobs ADD COLUMN failure_reason TEXT;",
 ];
+
+/// A file whose content could not be indexed (FR-08).
+#[derive(Debug, Clone, PartialEq)]
+pub struct FailedFile {
+    pub path: PathBuf,
+    pub reason: Unreadable,
+    /// The underlying error message, for details.
+    pub detail: String,
+}
+
+/// How `reason` is stored in `index_jobs.failure_reason`.
+fn reason_name(reason: Unreadable) -> &'static str {
+    match reason {
+        Unreadable::Damaged => "damaged",
+        Unreadable::Other => "other",
+    }
+}
+
+/// The reason stored as `name`; names this version does not know are `Other`.
+fn reason_named(name: &str) -> Unreadable {
+    match name {
+        "damaged" => Unreadable::Damaged,
+        _ => Unreadable::Other,
+    }
+}
 
 /// Chunk size in characters: about 256 tokens of prose.
 const CHUNK_CHARS: usize = 1000;
@@ -693,9 +720,15 @@ impl Index {
                     "UPDATE index_jobs SET
                          retry_count = retry_count + 1,
                          error_message = ?2,
+                         failure_reason = ?4,
                          status = CASE WHEN retry_count + 1 >= ?3 THEN 'failed' ELSE status END
                      WHERE id = ?1",
-                    params![job, error.to_string(), ATTEMPTS_PER_FILE],
+                    params![
+                        job,
+                        error.to_string(),
+                        ATTEMPTS_PER_FILE,
+                        reason_name(Unreadable::of(error.as_ref())),
+                    ],
                 )?;
             }
             done += 1;
@@ -703,21 +736,30 @@ impl Index {
         Ok(done)
     }
 
-    /// Files whose content could not be indexed, with the last error.
-    pub fn failed_files(&self) -> Result<Vec<(PathBuf, String)>> {
-        let failed: Vec<(String, String, String)> = self
+    /// Files whose content could not be indexed, with why and the last error.
+    pub fn failed_files(&self) -> Result<Vec<FailedFile>> {
+        let failed: Vec<(String, String, String, Option<String>)> = self
             .db
             .prepare(
-                "SELECT files.volume_id, files.relative_path, index_jobs.error_message
+                "SELECT files.volume_id, files.relative_path, index_jobs.error_message,
+                        index_jobs.failure_reason
                  FROM index_jobs JOIN files ON files.id = index_jobs.file_id
                  WHERE index_jobs.status = 'failed'
                  ORDER BY files.relative_path",
             )?
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?
             .collect::<rusqlite::Result<_>>()?;
         failed
             .into_iter()
-            .map(|(volume_id, path, error)| Ok((self.path_of(&volume_id, &path)?.0, error)))
+            .map(|(volume_id, path, detail, reason)| {
+                Ok(FailedFile {
+                    path: self.path_of(&volume_id, &path)?.0,
+                    reason: reason.as_deref().map_or(Unreadable::Other, reason_named),
+                    detail,
+                })
+            })
             .collect()
     }
 
@@ -1195,7 +1237,7 @@ fn queue_job(db: &Connection, file_id: i64, mtime_ns: i64, live: bool) -> Result
     db.execute(
         "INSERT INTO index_jobs (file_id, priority, created_at, live) VALUES (?1, ?2, ?3, ?4)
          ON CONFLICT (file_id) DO UPDATE SET
-             priority = excluded.priority, status = 'pending', retry_count = 0, error_message = NULL,
+             priority = excluded.priority, status = 'pending', retry_count = 0, error_message = NULL, failure_reason = NULL,
              live = max(live, excluded.live)",
         params![file_id, mtime_ns, now, live],
     )?;

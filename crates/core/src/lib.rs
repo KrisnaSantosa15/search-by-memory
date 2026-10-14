@@ -49,6 +49,54 @@ pub struct Section {
     pub text: String,
 }
 
+/// Why the content of a file could not be read, in terms a user can act on (FR-08).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unreadable {
+    /// Not a valid file of its format, or cut short.
+    Damaged,
+    /// None of the above, or not known.
+    Other,
+}
+
+impl Unreadable {
+    /// The reason behind `error`, from the first [`ExtractError`] in its chain.
+    pub fn of(error: &(dyn std::error::Error + 'static)) -> Self {
+        let mut next = Some(error);
+        while let Some(error) = next {
+            if let Some(extract) = error.downcast_ref::<ExtractError>() {
+                return extract.reason;
+            }
+            next = error.source();
+        }
+        Unreadable::Other
+    }
+}
+
+/// A file a [`ContentExtractor`] could not read, with the reason and the
+/// underlying message.
+#[derive(Debug)]
+pub struct ExtractError {
+    pub reason: Unreadable,
+    pub detail: String,
+}
+
+impl ExtractError {
+    pub fn new(reason: Unreadable, detail: impl std::fmt::Display) -> Self {
+        Self {
+            reason,
+            detail: detail.to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for ExtractError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.detail)
+    }
+}
+
+impl std::error::Error for ExtractError {}
+
 /// Reads the text content of files in a supported format, never modifying them.
 pub trait ContentExtractor {
     fn extract(&self, path: &std::path::Path) -> Result<Vec<Section>>;

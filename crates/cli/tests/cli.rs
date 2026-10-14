@@ -115,7 +115,7 @@ fn unreadable_file_is_reported_and_the_rest_still_indexed() {
     .unwrap();
 
     assert_eq!(report.failed.len(), 1);
-    assert_eq!(report.failed[0].0, broken);
+    assert_eq!(report.failed[0].path, broken);
     assert_eq!(results[0].path, recipe);
 }
 
