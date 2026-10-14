@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use common::{BagOfWords, BrokenJournal, NoJournal, write};
 use sbm_engine::Engine;
-use sbm_index::View;
+use sbm_index::{Exclusion, View};
 use tempfile::TempDir;
 
 #[test]
@@ -139,4 +139,23 @@ fn removed_indexed_folder_leaves_search_and_status() {
     assert_eq!(engine.search("beef coconut", View::Passage, 20).unwrap(), []);
     assert_eq!(engine.search("recipe", View::File, 20).unwrap(), []);
     assert_eq!(engine.status().unwrap().files, 0);
+}
+
+#[test]
+fn files_beneath_a_new_exclusion_leave_the_indexes() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "notes.txt", "shopping list\n");
+    let diary = write(folder.path(), "private/diary.txt", "secret garden plans\n");
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    engine
+        .add_exclusion(Exclusion::Folder(folder.path().join("private")))
+        .unwrap();
+    engine.wait_until_idle();
+
+    let results = engine.search("secret garden diary", View::File, 20).unwrap();
+    assert!(results.iter().all(|r| r.path != diary), "{results:?}");
+    assert_eq!(engine.status().unwrap().files, 1);
 }

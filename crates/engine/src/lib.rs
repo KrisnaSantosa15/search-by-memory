@@ -9,7 +9,7 @@ use std::time::Duration;
 use sbm_core::{
     ChangeSource, Embedding, EmbeddingProvider, Neighbor, Result, VectorId, VectorStore,
 };
-use sbm_index::{Index, SearchResult, View};
+use sbm_index::{Exclusion, Index, SearchResult, View};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 const DATABASE: &str = "index.sqlite";
@@ -107,6 +107,13 @@ impl Engine {
             .lock()
             .unwrap()
             .remove_indexed_folder(folder, &mut SharedStore(&self.shared.store))
+    }
+
+    /// Remembers `exclusion`; files it matches leave both indexes.
+    pub fn add_exclusion(&self, exclusion: Exclusion) -> Result<()> {
+        self.index.lock().unwrap().add_exclusion(exclusion)?;
+        self.request_pass();
+        Ok(())
     }
 
     /// Blocks until all work queued so far is done.
