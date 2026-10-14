@@ -126,7 +126,7 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
 | Component | Initial Technology | Responsibility |
 | :--- | :--- | :--- |
 | **Desktop Shell** | **Tauri 2** | Window lifecycle, desktop system tray, secure IPC, native packaging. |
-| **Frontend UI** | **React + TypeScript** | Launcher UI, keyboard navigation, File/Passage views, Detail Panel, settings, indexing dashboard. |
+| **Frontend UI** | **React + TypeScript** | Launcher UI, keyboard navigation, File view with Preview Pane, settings, indexing dashboard. |
 | **Application Core** | **Rust** | Search orchestration, rank fusion, file scheduling, throttling, SQLite interaction, memory bounds. |
 | **Embedding Runtime** | **ONNX Runtime (`ort`) in Rust + EmbeddingGemma 2** | In-process embedding of Queries and Chunks; GPU via CUDA/DirectML execution providers with CPU fallback. No Python ships with the app ([ADR 0001](adr/0001-onnx-runtime-in-rust-python-as-dev-tooling-only.md)). |
 | **Dev Tooling** | **Python** (offline only) | Benchmark runner, embedding-dimension experiments, ONNX-vs-PyTorch parity checks. |
@@ -162,8 +162,8 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
 * **Embedding Model**: Google EmbeddingGemma 2 running locally via ONNX Runtime.
 * **Vector Store**: USearch with persistent on-disk index, rebuildable from SQLite.
 * **Metadata & State Storage**: SQLite handling file catalog, content hashes, Chunks, and index statuses.
-* **Result Presentation**: File view (default) and Passage view; filename, formatted path, Snippet, page/line reference, Match Reason, and file icon.
-* **Direct Actions**: Open with default application, reveal in system file explorer, copy path.
+* **Result Presentation**: File view, grouped by kind of file, with a Preview Pane for the selected Result; filename, formatted path, Snippet with the Query's words marked, page/line reference, Match Reason, and file icon. Weaker Matches are collapsed.
+* **Direct Actions**: Open with default application, reveal in system file explorer, copy the file.
 * **Background Incremental Indexing**: Newest-first Initial Indexing, prioritized Live Updates, and content-hash reuse for moved, renamed, and copied files.
 * **Crash Recovery & Resume**: Resumption of interrupted indexing jobs upon restart.
 * **Automatic Throttling**: Indexing pauses for full-screen apps, battery power, and busy CPU/GPU.
@@ -201,14 +201,13 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
   * Opens within $\le 300\text{ ms}$ from warm background state.
   * Auto-focuses query input immediately upon opening.
   * Navigable entirely via keyboard:
-    * `Arrow Up` / `Arrow Down`: Move selection through Results (and through rows of an open Detail Panel).
-    * `Arrow Right`: Open the selected Result's Detail Panel (other Content Matches in the file, and its Copies). `Arrow Left`: Close it.
-    * `Enter`: Open the selected file with the system default handler. If the Result has several Copies, `Enter` opens the Detail Panel so the user chooses which Copy to open.
+    * `Arrow Up` / `Arrow Down`: Move selection through Results (and through the Copies being chosen from).
+    * The Preview Pane always shows the selected Result (layout after DigUp, decided 2026-10-14).
+    * `Enter`: Open the selected file with the system default handler. If the Result has several Copies, the Preview Pane asks which Copy to open (`Arrow Right` starts choosing, `Arrow Left` stops).
     * `Ctrl + Enter` (or `Shift + Enter`): Reveal enclosing folder in File Explorer (asks which Copy when there are several).
-    * `Ctrl + C`: Copy file path to clipboard (asks which Copy when there are several).
-    * A view toggle switches between File view and Passage view.
+    * `Ctrl + C`: Copy the file itself to the clipboard, to paste anywhere (asks which Copy when there are several).
     * `Escape`: Dismiss launcher window without interrupting background indexing.
-  * Opening a specific page from the Detail Panel uses the Copy the user last chose for that file, or the first listed Copy.
+  * Opening a specific page uses the Copy the user last chose for that file, or the first listed Copy.
 * **Acceptance Criteria**:
   * [ ] Launcher appears instantly on global hotkey trigger.
   * [ ] Selecting a result opens the target file in the correct default application.
@@ -225,7 +224,8 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
   * The three ranked lists are merged with rank fusion (e.g., Reciprocal Rank Fusion): a file ranking well in several lists rises above files ranking well in only one.
   * An exact filename match is always placed at the top.
   * **File view** (default): one Result per file (grouping its Copies), ranked by its single best Content Match or its Name Match; returns configurable top-$K$ (default: 20).
-  * **Passage view**: one Result per Content Match; files found only by name do not appear.
+  * **Passage view** (index API and Benchmark only, not in the launcher): one Result per Content Match; files found only by name do not appear.
+  * **Weaker Matches**: Results far below the best ones are collapsed under a "weaker matches" group instead of being listed with them.
   * Every Result shows a truthful **Match Reason**: `name`, `content`, or both.
   * Raw similarity scores are used as ranking indicators, not as probability truth values.
 * **Acceptance Criteria**:
@@ -351,39 +351,27 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
 
 ## 8. UX & Keyboard-First Interaction Design
 
-The launcher UI follows the minimalist aesthetic of modern search launchers (e.g., Spotlight, Raycast, PowerToys Run).
+The launcher is a frameless floating panel in the style of DigUp (github.com/ARahim3/DigUp; layout and behaviour only, with its own colours): Results on the left, a Preview Pane on the right, status and key hints at the bottom.
 
 ### UI Layout
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ 🔍  Type what you remember about the file...          [ Esc]│
-├─────────────────────────────────────────────────────────────┤
-│ 📄 Quarterly Financial Report Q3.docx   (Page 14)   content │
-│    "...net profit increased by 18% following the launch..." │
-│    D:\Work\Finances\2026\Q3_Report.docx                     │
-├─────────────────────────────────────────────────────────────┤
-│ 🦀 auth_service.rs                (Line 142)   name+content │
-│    "pub async fn refresh_jwt_token(token: &str) -> Result"  │
-│    D:\Projects\backend\src\auth_service.rs                  │
-├─────────────────────────────────────────────────────────────┤
-│ 📑 slides.pdf          (Page 14)  +2 matches · 3 copies  ▸  │
-│    "...query, key and value vectors are projected..."       │
-│    D:\Projects\ml-course\week3\slides.pdf                   │
-├─────────────────────────────────────────────────────────────┤
-│ [↵ Open] [→ Details] [Ctrl+↵ Reveal] [Ctrl+C Copy Path] 24ms│
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Detail Panel (`Arrow Right`)
-```
-▸ slides.pdf  (Page 14)  name+content
-    More matches in this file
-      Page 4   "...query, key and value vectors..."
-      Page 31  "...multi-head attention combines..."
-    Copies
-      D:\Downloads\slides.pdf
-      C:\Users\<name>\Desktop\slides.pdf
-      D:\Projects\ml-course\week3\slides.pdf
+┌──────────────────────────────────────────────────────────────┐
+│ ⌕  net profit went up after the launch                       │
+├────────────────────────────┬─────────────────────────────────┤
+│ Documents                  │  ┌───────────────────────────┐  │
+│ ▌Q3 Report.docx   Page 14  │  │ …net profit increased by  │  │
+│    …net profit increased…  │  │ 18% following the launch… │  │
+│  slides.pdf       Page 4   │  └───────────────────────────┘  │
+│    …key and value vectors… │  Q3 Report.docx                 │
+│ Code                       │  D:\Work\Finances\2026          │
+│  auth_service.rs  Line 142 │  Word document, 2.1 MB,         │
+│    pub async fn refresh…   │  changed 3 October 2026         │
+│ › 5 weaker matches         │  Name and contents match        │
+│                            │  [Open]  [Show in folder]       │
+│                            │  Copies: 2 more places          │
+├────────────────────────────┴─────────────────────────────────┤
+│ 3 results, 5 weaker      ↵ Open  Ctrl+↵ Show  Ctrl+C Copy    │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### UX Design Rules:
@@ -442,7 +430,7 @@ graph TD
   * Implement sliding-window chunking, content-hash keyed Chunks, and keyword + semantic retrieval with rank fusion.
   * End-to-end command-line retrieval verification against the Benchmark.
 * **Milestone 3 — Desktop Launcher UI**:
-  * Build Tauri 2 + React + TypeScript launcher with File view, Passage view, and Detail Panel.
+  * Build Tauri 2 + React + TypeScript launcher with File view and Preview Pane.
   * Implement global hotkey registration with conflict handling, keyboard navigation, and file launch actions.
 * **Milestone 4 — Indexing Reliability & Monitoring**:
   * Implement USN Journal change source, newest-first prioritization, and Live Updates.
