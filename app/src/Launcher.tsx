@@ -21,6 +21,20 @@ export type ResultRow = {
   /** Where the snippet is, e.g. `Page 14`. */
   location: string | null;
   matchReason: "name" | "content" | "both";
+  kind: Kind;
+  /** A Weaker Match, folded away below the others. */
+  weaker: boolean;
+};
+
+type Kind = "document" | "code" | "image" | "audio" | "video" | "other";
+
+const GROUP_NAMES: Record<Kind, string> = {
+  document: "Documents",
+  code: "Code",
+  image: "Images",
+  audio: "Audio",
+  video: "Video",
+  other: "Other files",
 };
 
 type Props = {
@@ -60,7 +74,7 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
     search(query).then((results) => {
       if (!current) return;
       setSearching(false);
-      setResults(results);
+      setResults(inGroupOrder(results));
       setSelected(0);
       setCopy(null);
     });
@@ -119,41 +133,28 @@ export function Launcher({ search, open, reveal, copyFile, hide }: Props) {
         />
       </label>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        <ul
+        <div
           role="listbox"
           aria-label="Results"
-          className="flex flex-col gap-0.5 overflow-y-auto border-r border-line p-2"
+          className="flex flex-col gap-3 overflow-y-auto border-r border-line p-2"
         >
-          {results.map((result, index) => (
-            <li
-              key={`${result.path}#${index}`}
-              role="option"
-              aria-selected={index === selected}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setSelected(index)}
-              className="flex cursor-default flex-col gap-0.5 rounded-md border-l-2 border-transparent px-3 py-2 aria-selected:border-accent aria-selected:bg-accent-soft"
-            >
-              <span className="flex min-w-0 items-baseline gap-2">
-                <span className="truncate font-medium">{result.name}</span>
-                {result.location && (
-                  <span className="shrink-0 rounded bg-raised px-1.5 text-xs text-muted">
-                    {result.location}
-                  </span>
-                )}
-              </span>
-              {result.snippet ? (
-                <span className="truncate text-sm text-muted">
-                  <Marked text={result.snippet} query={query} />
-                </span>
-              ) : (
-                <span className="flex text-sm text-muted">
-                  <Path path={result.folder} />
-                </span>
-              )}
-              {!result.connected && <span className="text-xs text-accent">Drive not connected</span>}
-            </li>
+          {groups(results).map(({ kind, first, members }) => (
+            <div key={kind} role="group" aria-label={GROUP_NAMES[kind]} className="flex flex-col gap-0.5">
+              <p aria-hidden className="px-3 pt-1 text-xs font-medium text-muted">
+                {GROUP_NAMES[kind]}
+              </p>
+              {members.map((result, offset) => (
+                <Row
+                  key={`${result.path}#${first + offset}`}
+                  result={result}
+                  query={query}
+                  selected={first + offset === selected}
+                  onSelect={() => setSelected(first + offset)}
+                />
+              ))}
+            </div>
           ))}
-        </ul>
+        </div>
         <div className="min-h-0 overflow-y-auto p-5">
           {result ? (
             <Preview
@@ -197,6 +198,56 @@ function SearchIcon() {
       <path d="m15.5 15.5 5 5" />
     </svg>
   );
+}
+
+/** One Result in the list: its name, Location, and snippet or folder. */
+function Row(props: { result: ResultRow; query: string; selected: boolean; onSelect: () => void }) {
+  const { result, query } = props;
+  return (
+    <div
+      role="option"
+      aria-selected={props.selected}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={props.onSelect}
+      className="flex cursor-default flex-col gap-0.5 rounded-md border-l-2 border-transparent px-3 py-2 aria-selected:border-accent aria-selected:bg-accent-soft"
+    >
+      <span className="flex min-w-0 items-baseline gap-2">
+        <span className="truncate font-medium">{result.name}</span>
+        {result.location && (
+          <span className="shrink-0 rounded bg-raised px-1.5 text-xs text-muted">
+            {result.location}
+          </span>
+        )}
+      </span>
+      {result.snippet ? (
+        <span className="truncate text-sm text-muted">
+          <Marked text={result.snippet} query={query} />
+        </span>
+      ) : (
+        <span className="flex text-sm text-muted">
+          <Path path={result.folder} />
+        </span>
+      )}
+      {!result.connected && <span className="text-xs text-accent">Drive not connected</span>}
+    </div>
+  );
+}
+
+/** `results` with each kind kept together, kinds in the order of their best Result. */
+function inGroupOrder(results: ResultRow[]): ResultRow[] {
+  return groups(results).flatMap((group) => group.members);
+}
+
+/** Runs of Results of one kind; `first` is the index of a group's first Result. */
+function groups(results: ResultRow[]) {
+  const byKind = new Map<Kind, ResultRow[]>();
+  for (const result of results) byKind.set(result.kind, [...(byKind.get(result.kind) ?? []), result]);
+  let first = 0;
+  return [...byKind].map(([kind, members]) => {
+    const group = { kind, first, members };
+    first += members.length;
+    return group;
+  });
 }
 
 const KEYS = [

@@ -11,6 +11,8 @@ const report: ResultRow = {
   connected: true,
   size: 2_100_000,
   modified: Date.UTC(2026, 9, 3),
+  kind: "document",
+  weaker: false,
   snippet: "net profit increased by 18%",
   location: "Page 14",
   matchReason: "both",
@@ -60,6 +62,23 @@ describe("Launcher", () => {
 
     expect(screen.getByRole("option", { name: /notes\.md/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("searchbox")).toHaveFocus();
+  });
+
+  it("groups Results by kind, each group in the order of its best Result", async () => {
+    const retry = { ...report, name: "retry.ts", path: "D:\\code\\retry.ts", kind: "code" as const };
+    const lease = { ...report, name: "lease.pdf", path: "D:\\lease.pdf" };
+    render(<Launcher search={async () => [report, retry, lease]} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findAllByRole("option");
+
+    const groups = screen.getAllByRole("group");
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["Documents", "Code"]);
+    expect(within(groups[0]).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      expect.stringContaining("Q3 Report.pdf"),
+      expect.stringContaining("lease.pdf"),
+    ]);
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("option", { name: /lease\.pdf/ })).toHaveAttribute("aria-selected", "true");
   });
 
   it("opens the selected file with Enter", async () => {
