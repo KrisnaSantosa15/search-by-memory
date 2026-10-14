@@ -258,7 +258,7 @@ mod commands {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     use tauri_plugin_opener::OpenerExt;
 
-    use super::{FolderChoice, ResultRow, Settings, SpeedChoice, data_dir};
+    use super::{FolderChoice, ResultRow, Settings, SpeedChoice, TextPreview, data_dir};
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
     const DIMENSIONS: usize = 256;
@@ -477,6 +477,20 @@ mod commands {
         Ok(results.into_iter().map(super::result_row).collect())
     }
 
+    /// The lines of `path` around `lineStart`–`lineEnd`, or its first lines.
+    #[tauri::command]
+    pub async fn preview_lines(
+        path: PathBuf,
+        line_start: Option<u32>,
+        line_end: Option<u32>,
+    ) -> Option<TextPreview> {
+        let matched = line_start.zip(line_end);
+        tauri::async_runtime::spawn_blocking(move || super::text_preview(&path, matched))
+            .await
+            .ok()
+            .flatten()
+    }
+
     /// Opens `path` with its default app.
     #[tauri::command]
     pub fn open_file(app: AppHandle, path: PathBuf) -> Result<(), String> {
@@ -605,6 +619,7 @@ pub fn run() {
             commands::open_file,
             commands::reveal_file,
             commands::copy_file,
+            commands::preview_lines,
             commands::quit,
             commands::hide_launcher
         ])
