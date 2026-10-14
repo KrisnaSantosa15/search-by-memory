@@ -83,19 +83,23 @@ The label on a Result stating truthfully why it was returned: by name, by conten
 _Avoid_: Explanation, badge, justification
 
 **Result**:
-One row in the launcher's result list; what it represents depends on the active view.
+One row in the launcher's result list: one file (with its Copies), found by a Name Match, Content Matches, or both.
 _Avoid_: Item, entry
 
 **File view**:
-The default view, in which each Result is one file found by a Name Match, Content Matches, or both, shown with its best Content Match (if any) and its other Content Matches available on demand.
+The way the launcher lists Results: one per file, shown with its best Content Match (if any).
 _Avoid_: Grouped view, document view
 
-**Detail Panel**:
-The expandable area beneath a File-view Result listing the file's other Content Matches and its Copies, each of which can be opened directly.
-_Avoid_: Dropdown, drawer, submenu, expansion
+**Preview Pane**:
+The right-hand side of the launcher, showing the selected Result: its best Content Match with the Query's words marked, where the file is, why it matched, its Copies, and the actions to open or show it.
+_Avoid_: Detail Panel, sidebar, inspector
+
+**Weaker Match**:
+A Result that is related to the Query but much less so than the best ones; listed under a collapsed group so it never crowds the strong Results.
+_Avoid_: Low-score hit, noise
 
 **Passage view**:
-The alternate view, in which each Result is one Content Match, so a single file may appear several times and files found only by name do not appear.
+One Result per Content Match, so a single file may appear several times. Kept in the index API and the Benchmark; the launcher does not show it.
 _Avoid_: Chunk view, flat view
 
 ### Evaluation
