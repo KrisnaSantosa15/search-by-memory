@@ -64,11 +64,14 @@ pub struct Status {
     pub throttled: Option<ThrottleReason>,
     /// Content indexing stopped by [`Engine::pause`].
     pub paused: bool,
+    /// Bytes the indexes take on disk.
+    pub size_on_disk: u64,
 }
 
 pub struct Engine {
     shared: Arc<Shared>,
     index: Mutex<Index>,
+    data_dir: PathBuf,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -192,6 +195,7 @@ impl Engine {
         Ok(Self {
             shared,
             index: Mutex::new(index),
+            data_dir: data_dir.to_path_buf(),
             worker: Some(worker),
         })
     }
@@ -272,6 +276,7 @@ impl Engine {
             },
             throttled: work.throttled,
             paused: work.paused,
+            size_on_disk: size_on_disk(&self.data_dir),
         })
     }
 
@@ -353,6 +358,24 @@ fn model_with_vectors(loaded: LoadedModel, database: &Path) -> Result<Model> {
 
 /// Indexes until the Engine stops: a pass whenever one is asked for, and one
 /// every `CHANGE_POLL` to pick up Live Updates.
+/// Bytes taken by the indexes in `dir`: the database with its journal files, and
+/// the vectors. A file that vanishes meanwhile counts as none.
+fn size_on_disk(dir: &Path) -> u64 {
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            name.starts_with(DATABASE) || name == VECTORS
+        })
+        .filter_map(|entry| entry.metadata().ok())
+        .filter(|metadata| metadata.is_file())
+        .map(|metadata| metadata.len())
+        .sum()
+}
+
 fn run_worker(index: &mut Index, shared: &Shared, changes: &dyn ChangeSource, data_dir: &Path) {
     loop {
         let target = {

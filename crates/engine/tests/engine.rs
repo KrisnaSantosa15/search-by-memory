@@ -398,3 +398,25 @@ fn status_says_when_indexing_is_paused() {
     engine.resume();
     assert!(!engine.status().unwrap().paused);
 }
+
+#[test]
+fn status_reports_how_much_disk_the_indexes_take() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "recipe.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+    let on_disk: u64 = std::fs::read_dir(data.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().metadata().unwrap().len())
+        .sum();
+    // The app keeps its settings beside the indexes; they are not part of them.
+    write(data.path(), "settings.json", "{\"hotkey\":\"Alt+Space\"}");
+
+    assert!(on_disk > 0);
+    assert_eq!(engine.status().unwrap().size_on_disk, on_disk);
+}
