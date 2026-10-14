@@ -113,10 +113,16 @@ pub struct ResultRow {
     /// The file name, e.g. `Q3 Report.pdf`.
     pub name: String,
     pub path: PathBuf,
+    /// The folder holding `path`.
+    pub folder: PathBuf,
     /// Other paths with the same content.
     pub copies: Vec<PathBuf>,
     /// False while the file's drive is a Disconnected Drive.
     pub connected: bool,
+    /// Bytes; `None` when the file cannot be read now.
+    pub size: Option<u64>,
+    /// Last change, in milliseconds since 1970; `None` when the file cannot be read now.
+    pub modified: Option<u64>,
     /// Verbatim text of the Content Match, if any.
     pub snippet: Option<String>,
     /// Where the snippet is, e.g. `Page 14`; `None` for the whole file or a Name Match.
@@ -126,7 +132,22 @@ pub struct ResultRow {
 }
 
 pub fn result_row(result: SearchResult) -> ResultRow {
+    // A Disconnected Drive is not asked: a missing network share can take long to answer.
+    let metadata = result
+        .connected
+        .then(|| std::fs::metadata(&result.path).ok())
+        .flatten();
     ResultRow {
+        folder: result
+            .path
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default(),
+        size: metadata.as_ref().map(|metadata| metadata.len()),
+        modified: metadata
+            .and_then(|metadata| metadata.modified().ok())
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|since| since.as_millis() as u64),
         name: result
             .path
             .file_name()

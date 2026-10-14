@@ -26,8 +26,11 @@ fn content_match_row_names_the_file_its_page_and_why_it_matched() {
         ResultRow {
             name: "Q3 Report.pdf".into(),
             path: PathBuf::from(r"D:\Work\Q3 Report.pdf"),
+            folder: PathBuf::from(r"D:\Work"),
             copies: vec![PathBuf::from(r"E:\Backup\Q3 Report.pdf")],
             connected: true,
+            size: None,
+            modified: None,
             snippet: Some("net profit increased by 18%".into()),
             location: Some("Page 14".into()),
             match_reason: "both".into(),
@@ -47,6 +50,33 @@ fn locations_read_as_lines_and_times() {
     };
     assert_eq!(label(time).as_deref(), Some("1:02"));
     assert_eq!(label(Location::WholeFile), None);
+}
+
+#[test]
+fn row_says_where_the_file_is_how_big_and_when_it_changed() {
+    let folder = tempfile::tempdir().unwrap();
+    let path = folder.path().join("notes.md");
+    std::fs::write(&path, "twelve bytes").unwrap();
+    let changed = std::fs::metadata(&path).unwrap().modified().unwrap();
+    let found = SearchResult {
+        path: path.clone(),
+        ..result(None, MatchReason::Name)
+    };
+
+    let row = result_row(found);
+
+    assert_eq!(row.folder, folder.path());
+    assert_eq!(row.size, Some(12));
+    let millis = changed.duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+    assert_eq!(row.modified, Some(millis));
+}
+
+#[test]
+fn row_for_a_file_that_cannot_be_read_has_no_size_or_date() {
+    let row = result_row(result(None, MatchReason::Name));
+
+    assert_eq!(row.folder, PathBuf::from(r"D:\Work"));
+    assert_eq!((row.size, row.modified), (None, None));
 }
 
 #[test]
