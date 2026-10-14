@@ -27,7 +27,7 @@ type Props = {
 const MATCH_REASONS = { name: "name", content: "content", both: "name + content" };
 
 /** The search window: a Query box over its Results. */
-export function Launcher({ search }: Props) {
+export function Launcher({ search, open }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
@@ -51,8 +51,10 @@ export function Launcher({ search }: Props) {
 
   const onKeyDown = (event: KeyboardEvent) => {
     const last = results.length - 1;
+    const result = results[selected];
     if (event.key === "ArrowDown") setSelected((index) => Math.min(index + 1, last));
     else if (event.key === "ArrowUp") setSelected((index) => Math.max(index - 1, 0));
+    else if (event.key === "Enter" && result) open(result.path);
     else return;
     event.preventDefault();
   };

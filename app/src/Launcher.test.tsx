@@ -49,4 +49,16 @@ describe("Launcher", () => {
     await userEvent.keyboard("{ArrowDown}{ArrowUp}{ArrowUp}");
     expect(first).toHaveAttribute("aria-selected", "true");
   });
+
+  it("opens the selected file with Enter", async () => {
+    const act = actions();
+    render(<Launcher search={async () => [report]} {...act} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option");
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(act.open).toHaveBeenCalledWith("D:\\Work\\Q3 Report.pdf");
+    expect(act.reveal).not.toHaveBeenCalled();
+  });
 });
