@@ -419,6 +419,9 @@ pub fn prepare(
     )
 }
 
+/// How long a download runs before its speed is trusted for an estimate.
+const MEASURE_BEFORE_ESTIMATING: Duration = Duration::from_secs(3);
+
 /// Estimates how long a download still takes from its speed so far.
 #[derive(Debug, Clone, Copy)]
 pub struct TimeLeft {
@@ -434,6 +437,10 @@ impl TimeLeft {
     /// Time left at `progress`, `elapsed` after the download started.
     pub fn estimate(&self, progress: Progress, elapsed: Duration) -> Option<Duration> {
         let fetched = progress.done.saturating_sub(self.start);
+        // The first seconds of a download are too noisy to extrapolate from.
+        if fetched == 0 || elapsed < MEASURE_BEFORE_ESTIMATING {
+            return None;
+        }
         let rate = fetched as f64 / elapsed.as_secs_f64();
         let left = progress.total.saturating_sub(progress.done);
         Some(Duration::from_secs_f64(left as f64 / rate))
