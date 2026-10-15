@@ -48,6 +48,26 @@ def test_missing_file_is_downloaded_into_the_corpus(tmp_path, server):
     assert (corpus / "papers/paper.pdf").read_bytes() == b"%PDF paper"
 
 
+def test_unreachable_file_does_not_stop_the_others_and_is_reported(tmp_path, server):
+    served, base_url = server
+    (served / "paper.pdf").write_bytes(b"%PDF paper")
+    manifest = write_manifest(
+        tmp_path / "manifest.toml",
+        [
+            # Nothing listens on port 1: the connection is refused, as from a site that is down.
+            {"path": "law.pdf", "url": "http://127.0.0.1:1/law.pdf", "sha256": sha256(b"law"), "license": "PD"},
+            {"path": "paper.pdf", "url": f"{base_url}/paper.pdf", "sha256": sha256(b"%PDF paper"), "license": "CC-BY-4.0"},
+        ],
+    )
+    corpus = tmp_path / "corpus"
+
+    unreachable = fetch_corpus(manifest, corpus)
+
+    assert (corpus / "paper.pdf").read_bytes() == b"%PDF paper"
+    assert unreachable == ["law.pdf"]
+    assert not (corpus / "law.pdf").exists()
+
+
 def test_hash_mismatch_fails_and_leaves_no_file_behind(tmp_path, server):
     served, base_url = server
     (served / "paper.pdf").write_bytes(b"tampered")
