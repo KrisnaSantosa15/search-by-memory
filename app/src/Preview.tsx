@@ -6,6 +6,7 @@ import { Path } from "./Path";
 import { type LoadPdfPage, PdfPage, type PdfPagePreview } from "./PdfPage";
 import { size } from "./size";
 import type { LoadThumbnail } from "./Thumbnail";
+import { Button } from "./ui/Button";
 
 /** How large a picture or video is asked for: the Preview Pane's width at 2× scaling. */
 const PICTURE_SIZE = 840;
@@ -205,18 +206,13 @@ function Page(props: { location: string | null; children: ReactNode }) {
 /** A button that leaves the keyboard in the Query box. */
 function Action(props: { onClick: () => void; primary?: boolean; children: string }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant={props.primary ? "primary" : "outline"}
       onMouseDown={(event) => event.preventDefault()}
       onClick={props.onClick}
-      className={
-        props.primary
-          ? "rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink hover:bg-accent-hover"
-          : "rounded-md border border-line px-3 py-1.5 text-sm hover:bg-raised"
-      }
     >
       {props.children}
-    </button>
+    </Button>
   );
 }
 
