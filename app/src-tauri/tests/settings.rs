@@ -21,3 +21,18 @@ fn without_saved_settings_onboarding_is_not_finished() {
 
     assert_eq!(Settings::load(data.path()), None);
 }
+
+#[test]
+fn forgotten_settings_send_the_next_start_back_to_onboarding() {
+    let data = tempfile::tempdir().unwrap();
+    let settings = Settings {
+        accelerator: "cuda".into(),
+        hotkey: "Alt+Space".into(),
+    };
+    settings.save(data.path()).unwrap();
+
+    Settings::forget(data.path()).unwrap();
+    Settings::forget(data.path()).unwrap();
+
+    assert_eq!(Settings::load(data.path()), None);
+}

@@ -112,6 +112,15 @@ impl Settings {
         let json = serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?;
         std::fs::write(data.join(SETTINGS_FILE), json)
     }
+
+    /// Removes the saved settings, so the next start shows onboarding; fine
+    /// when there are none.
+    pub fn forget(data: &Path) -> std::io::Result<()> {
+        match std::fs::remove_file(data.join(SETTINGS_FILE)) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            result => result,
+        }
+    }
 }
 
 /// What a file is, so the launcher can group Results by it.
