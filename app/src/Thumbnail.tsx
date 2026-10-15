@@ -1,3 +1,4 @@
+import { AudioLines, Clapperboard, File, FileCode2, FileText, Image, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Kind } from "./Launcher";
 
@@ -51,7 +52,7 @@ export function Thumbnail({ path, kind, connected, load }: Props) {
       <img
         src={picture}
         alt=""
-        className="size-10 shrink-0 rounded border border-line bg-raised object-cover"
+        className="size-10 shrink-0 rounded-lg border border-line bg-raised object-cover"
       />
     );
   }
@@ -67,27 +68,25 @@ const KIND_NAMES: Record<Kind, string> = {
   other: "File",
 };
 
-/** A quiet drawing of what kind of file it is: a page, brackets, a note, a frame. */
+/** What kind of file it is, as a tinted icon on a tile, the way VoiceStudio tints its places. */
+const KIND_ICONS: Record<Kind, { Icon: LucideIcon; tint: string }> = {
+  document: { Icon: FileText, tint: "text-sky-600 dark:text-sky-400" },
+  code: { Icon: FileCode2, tint: "text-emerald-600 dark:text-emerald-400" },
+  image: { Icon: Image, tint: "text-fuchsia-600 dark:text-fuchsia-400" },
+  audio: { Icon: AudioLines, tint: "text-amber-600 dark:text-amber-400" },
+  video: { Icon: Clapperboard, tint: "text-violet-600 dark:text-violet-400" },
+  other: { Icon: File, tint: "text-muted" },
+};
+
 function KindIcon({ kind }: { kind: Kind }) {
+  const { Icon, tint } = KIND_ICONS[kind];
   return (
-    <svg
+    <span
       role="img"
       aria-label={KIND_NAMES[kind]}
-      viewBox="0 0 40 40"
-      className="size-10 shrink-0 text-muted"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      className={`grid size-10 shrink-0 place-items-center rounded-lg border border-line bg-raised ${tint}`}
     >
-      <path d="M11 5h13l7 7v23H11z" className="fill-raised" />
-      <path d="M24 5v7h7" />
-      {kind === "document" && <path d="M15 19h12M15 23h12M15 27h8" />}
-      {kind === "code" && <path d="m17 20-3 3 3 3m6-6 3 3-3 3" />}
-      {kind === "image" && <path d="m14 29 5-6 4 4 3-3 3 5M24 19h.01" />}
-      {kind === "audio" && <path d="M19 28v-9l7-2v9M19 28a2 2 0 1 1-4 0 2 2 0 0 1 4 0m7-2a2 2 0 1 1-4 0 2 2 0 0 1 4 0" />}
-      {kind === "video" && <path d="m18 19 7 4-7 4z" />}
-    </svg>
+      <Icon aria-hidden className="size-5" strokeWidth={1.75} />
+    </span>
   );
 }
