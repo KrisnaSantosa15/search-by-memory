@@ -64,6 +64,8 @@ pub struct Status {
     pub throttled: Option<ThrottleReason>,
     /// Content indexing stopped by [`Engine::pause`].
     pub paused: bool,
+    /// When a pause from [`Engine::pause_until`] ends by itself.
+    pub paused_until: Option<SystemTime>,
     /// Bytes the indexes take on disk.
     pub size_on_disk: u64,
 }
@@ -313,6 +315,7 @@ impl Engine {
             },
             throttled: work.throttled,
             paused: work.paused,
+            paused_until: work.paused_until,
             size_on_disk: size_on_disk(&self.data_dir),
         })
     }

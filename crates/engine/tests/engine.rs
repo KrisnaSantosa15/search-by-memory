@@ -415,6 +415,25 @@ fn indexing_paused_until_a_time_resumes_by_itself_once_it_passes() {
 }
 
 #[test]
+fn status_says_until_when_indexing_is_paused() {
+    let data = TempDir::new().unwrap();
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    let tomorrow = SystemTime::now() + Duration::from_secs(24 * 60 * 60);
+
+    engine.pause_until(tomorrow);
+    let timed = engine.status().unwrap();
+    engine.pause();
+    let indefinite = engine.status().unwrap();
+    engine.pause_until(tomorrow);
+    engine.resume();
+    let resumed = engine.status().unwrap();
+
+    assert_eq!((timed.paused, timed.paused_until), (true, Some(tomorrow)));
+    assert_eq!((indefinite.paused, indefinite.paused_until), (true, None));
+    assert_eq!((resumed.paused, resumed.paused_until), (false, None));
+}
+
+#[test]
 fn status_says_when_indexing_is_paused() {
     let data = TempDir::new().unwrap();
     let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
