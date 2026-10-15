@@ -163,7 +163,9 @@
   - Done: full onboarding run through the GUI (Fast/DirectML, scratch data dir and home); one run indexed no content for 11 min, not reproduced in 5 reruns.
   - Next: tune `WEAKER_MARGIN` on the Benchmark.
 - App redesign (user, 2026-10-15): VoiceStudio Classic look app-wide; one-location onboarding with a visible indexing step; Settings + live dashboard; features beyond DigUp.
-  - In progress: stage 1: VoiceStudio Classic tokens (dark + light), Inter, lucide icons, base components; launcher restyled, behavior unchanged.
+  - Done: stage 1: VoiceStudio Classic tokens (dark + light by OS theme), Inter bundled, lucide icons; `Button` (primary/outline/ghost/danger, never submits unless asked) used across onboarding, Settings, Preview; launcher restyled (chrome list, pill chips, key caps, tinted kind tiles); Query box without spell-check. Checked in the real window (dark).
+  - Next: stage 2: onboarding with one location and a visible indexing step.
+  - Found: while Initial Indexing runs (debug build, DirectML), a Query stayed "Searching…" for over 10 s; check whether Query embedding waits behind indexing batches.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
