@@ -3,7 +3,7 @@
 mod common;
 
 use std::sync::{Arc, mpsc};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use common::{
     BagOfWords, BrokenJournal, ChangingActivity, NoJournal, RecordingJournal, SteadyActivity, write,
@@ -386,6 +386,32 @@ fn initial_indexing_goes_on_once_the_computer_has_been_quiet_for_the_quiet_perio
     let after = engine.status().unwrap();
     assert_eq!((after.pending, after.throttled), (0, None));
     assert!(quiet_since.elapsed() >= quiet);
+}
+
+#[test]
+fn indexing_paused_until_a_time_resumes_by_itself_once_it_passes() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let recipe = write(
+        folder.path(),
+        "recipe.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.pause_until(SystemTime::now() + Duration::from_millis(300));
+
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+    let paused = engine.status().unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while engine.status().unwrap().pending > 0 && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert_eq!((paused.pending, paused.paused), (1, true));
+    let after = engine.status().unwrap();
+    assert_eq!((after.pending, after.paused), (0, false));
+    let results = engine.search("beef coconut", View::Passage, 20).unwrap();
+    assert_eq!(results[0].path, recipe);
 }
 
 #[test]

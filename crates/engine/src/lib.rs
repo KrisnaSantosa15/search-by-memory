@@ -121,6 +121,8 @@ struct Work {
     stop: bool,
     /// No content is indexed while paused.
     paused: bool,
+    /// When a pause ends by itself, if it does.
+    paused_until: Option<SystemTime>,
     /// Why the last pass stopped early, if it did.
     error: Option<String>,
     /// Why the model could not be loaded, if it could not.
@@ -262,11 +264,21 @@ impl Engine {
 
     /// Stops indexing content until [`Engine::resume`]; the Name Index stays current.
     pub fn pause(&self) {
-        self.shared.work.lock().unwrap().paused = true;
+        let mut work = self.shared.work.lock().unwrap();
+        (work.paused, work.paused_until) = (true, None);
+    }
+
+    /// Like [`Engine::pause`], until `when` has passed; the wall clock decides,
+    /// so a computer asleep meanwhile resumes on waking.
+    pub fn pause_until(&self, when: SystemTime) {
+        let mut work = self.shared.work.lock().unwrap();
+        (work.paused, work.paused_until) = (true, Some(when));
     }
 
     pub fn resume(&self) {
-        self.shared.work.lock().unwrap().paused = false;
+        let mut work = self.shared.work.lock().unwrap();
+        (work.paused, work.paused_until) = (false, None);
+        drop(work);
         self.request_pass();
     }
 
@@ -407,6 +419,12 @@ fn run_worker(index: &mut Index, shared: &Shared, changes: &dyn ChangeSource, da
             let mut work = shared.work.lock().unwrap();
             if work.stop {
                 return;
+            }
+            if work
+                .paused_until
+                .is_some_and(|until| until <= SystemTime::now())
+            {
+                (work.paused, work.paused_until) = (false, None);
             }
             // A poll pass counts as asked for, so `wait_until_idle` waits for it too.
             if work.requested == work.completed {
