@@ -37,7 +37,25 @@ impl ContentExtractor for TextExtractor {
 
 /// PDF documents: one Section per page. Read with PDFium where setup installed
 /// it (it also reads the invisible OCR layer of scans), else with pdf-extract.
-pub struct PdfExtractor;
+/// A PDF with more text than the limit is refused as too large.
+pub struct PdfExtractor {
+    max_text_bytes: u64,
+}
+
+impl PdfExtractor {
+    pub const fn with_limit(max_text_bytes: u64) -> Self {
+        Self { max_text_bytes }
+    }
+}
+
+static PDF: PdfExtractor = PdfExtractor::with_limit(MAX_EXTRACTED_BYTES);
+
+impl Default for PdfExtractor {
+    /// Limited like the other extractors (FR-03).
+    fn default() -> Self {
+        Self::with_limit(MAX_EXTRACTED_BYTES)
+    }
+}
 
 impl ContentExtractor for PdfExtractor {
     fn extract(&self, path: &Path) -> Result<Vec<Section>> {
@@ -55,6 +73,12 @@ impl ContentExtractor for PdfExtractor {
                 .map_err(|_| format!("PDF parser crashed on {}", path.display()))?
                 .map_err(pdf_extract_error)?,
         };
+        let text_bytes: u64 = pages.iter().map(|page| page.len() as u64).sum();
+        if text_bytes > self.max_text_bytes {
+            return Err(
+                ExtractError::new(Unreadable::TooLarge, "content too large to index").into(),
+            );
+        }
         Ok(pages
             .into_iter()
             .enumerate()
@@ -185,7 +209,7 @@ pub fn extractor_for(path: &Path) -> Option<&'static dyn ContentExtractor> {
     }
     let extension = path.extension()?.to_string_lossy().to_lowercase();
     match extension.as_str() {
-        "pdf" => Some(&PdfExtractor),
+        "pdf" => Some(&PDF),
         "docx" => Some(&DocxExtractor),
         _ if TEXT_EXTENSIONS.contains(&extension.as_str()) => Some(&TextExtractor),
         _ => None,
