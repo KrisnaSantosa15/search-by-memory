@@ -480,8 +480,8 @@ source = "Commons File:Borobudur-Nothwest-view.jpg, Gunawan Kartapranata"
 
 [[file]]
 path = "media/images/komodo-dragon.jpg"
-url = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Komodo_dragon_%28Varanus_komodoensis%29.jpg/1280px-Komodo_dragon_%28Varanus_komodoensis%29.jpg"
-sha256 = "f94fedbd79c2ea3f5a43d2b829c8abc81e16dfc9301413527038e6812935e4f8"
+url = "https://upload.wikimedia.org/wikipedia/commons/e/e8/Komodo_dragon_%28Varanus_komodoensis%29.jpg"
+sha256 = "c8248eb0816ab896b4edd4431b3303c1d841b38920e389225d4503bdd8d432a5"
 license = "CC-BY-SA-4.0"
 source = "Commons File:Komodo dragon (Varanus komodoensis).jpg, Scottish wildlife photographer (Wikidata Q54800218)"
 
@@ -501,8 +501,8 @@ source = "Commons File:Jukung Pasar Terapung.jpg, Muhammad Haris"
 
 [[file]]
 path = "media/images/jakarta-traffic.jpg"
-url = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Traffic_jam_in_Duren_Tiga_bus_stop%2C_Jakarta%2C_August_2024.jpg/1280px-Traffic_jam_in_Duren_Tiga_bus_stop%2C_Jakarta%2C_August_2024.jpg"
-sha256 = "56ce81cfba9ad8f6b43b1427a6dd2224b59915a5cad3359a12e76f896e847d37"
+url = "https://upload.wikimedia.org/wikipedia/commons/6/6b/Traffic_jam_in_Duren_Tiga_bus_stop%2C_Jakarta%2C_August_2024.jpg"
+sha256 = "cdcb7596d6e75735717c87d727c94397c0f885372e86a0c3bb030629be1c982d"
 license = "CC-BY-SA-4.0"
 source = "Commons File:Traffic jam in Duren Tiga bus stop, Jakarta, August 2024.jpg, Dede2008"
 
