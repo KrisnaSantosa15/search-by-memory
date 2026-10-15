@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Path } from "./Path";
 import { size } from "./size";
+import { Button } from "./ui/Button";
 
 /** What the Status tab shows; see `Dashboard` in `src-tauri`. */
 export type Dashboard = {
@@ -149,13 +150,12 @@ function FoldersTab(props: FoldersProps) {
         <h2 id="indexed-folders" className="font-semibold">
           Indexed Folders
         </h2>
-        <button
-          type="button"
+        <Button
+          variant="primary"
           onClick={add}
-          className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
         >
           Add folder…
-        </button>
+        </Button>
       </div>
       <ul
         aria-labelledby="indexed-folders"
@@ -173,30 +173,27 @@ function FoldersTab(props: FoldersProps) {
               {removing === path ? (
                 <>
                   <span className="text-muted">Its files leave the search.</span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="danger"
                     onClick={() => remove(path)}
-                    className="rounded-lg bg-accent px-3 py-1 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
                   >
                     Stop searching it
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => setRemoving(null)}
-                    className="rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
                   >
                     Keep
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   aria-label={`Remove ${path}`}
                   onClick={() => setRemoving(path)}
-                  className="rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
                 >
                   Remove
-                </button>
+                </Button>
               )}
             </span>
           </li>
@@ -232,13 +229,12 @@ function Exclusions(props: FoldersProps) {
           Exclusions
         </h2>
         {list.defaultsTurnedOff && (
-          <button
-            type="button"
+          <Button
+            variant="outline"
             onClick={() => change(restoreDefaults)}
-            className="rounded-lg border border-line bg-raised px-4 py-1.5 text-sm transition-colors hover:border-accent"
           >
             Restore defaults
-          </button>
+          </Button>
         )}
       </div>
       <p className="text-sm text-muted">Files here are never opened or searched.</p>
@@ -258,14 +254,14 @@ function Exclusions(props: FoldersProps) {
                 Default
               </span>
             )}
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               aria-label={`${isDefault(row) ? "Turn off" : "Remove"} ${label(row)}`}
               onClick={() => change(() => removeExclusion(row))}
-              className="ml-auto shrink-0 rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
+              className="ml-auto shrink-0"
             >
               {isDefault(row) ? "Turn off" : "Remove"}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
@@ -285,22 +281,21 @@ function Exclusions(props: FoldersProps) {
           onChange={(event) => setPattern(event.target.value)}
           className="min-w-0 flex-1 rounded-lg border border-line bg-panel px-3 py-1.5 text-sm placeholder:text-muted"
         />
-        <button
+        <Button
+          variant="outline"
           type="submit"
           disabled={!pattern.trim()}
-          className="rounded-lg border border-line bg-raised px-4 py-1.5 text-sm transition-colors hover:border-accent disabled:opacity-50 disabled:hover:border-line"
         >
           Exclude
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="outline"
           onClick={async () => {
             if (await excludeFolder()) await refresh();
           }}
-          className="rounded-lg border border-line bg-raised px-4 py-1.5 text-sm transition-colors hover:border-accent"
         >
           Exclude a folder…
-        </button>
+        </Button>
       </form>
     </>
   );
@@ -340,13 +335,13 @@ function StatusTab({ dashboard, failedFiles, pause, resume, purge }: StatusProps
       <p className="text-sm text-muted">{contentProgress(status)}</p>
       <p className="text-sm text-muted">The index takes {size(status.sizeOnDisk)} on disk</p>
       <p className="text-sm">{status.state}</p>
-      <button
-        type="button"
+      <Button
+        variant="outline"
         onClick={() => toggle().then(refresh)}
-        className="self-start rounded-lg border border-line bg-raised px-4 py-1.5 text-sm transition-colors hover:border-accent"
+        className="self-start"
       >
         {status.paused ? "Resume indexing" : "Pause indexing"}
-      </button>
+      </Button>
       {failed.length > 0 && <FailedFiles files={failed} />}
       <DeleteIndex purge={purge} />
     </section>
@@ -359,13 +354,13 @@ function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
 
   if (!asking) {
     return (
-      <button
-        type="button"
+      <Button
+        variant="ghost"
         onClick={() => setAsking(true)}
-        className="mt-6 self-start rounded-lg px-3 py-1 text-sm text-muted transition-colors hover:text-ink"
+        className="mt-6 self-start"
       >
         Delete index…
-      </button>
+      </Button>
     );
   }
   return (
@@ -375,20 +370,18 @@ function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
         not touched. Setup starts again.
       </p>
       <span className="flex gap-2">
-        <button
-          type="button"
+        <Button
+          variant="danger"
           onClick={purge}
-          className="rounded-lg bg-accent px-3 py-1 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
         >
           Delete index and start over
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
           onClick={() => setAsking(false)}
-          className="rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
         >
           Keep
-        </button>
+        </Button>
       </span>
     </div>
   );
