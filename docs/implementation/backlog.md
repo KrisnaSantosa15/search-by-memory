@@ -122,7 +122,8 @@
 - `Engine::set_activity(activity, quiet)`: while throttled and for the quiet period after, only Live Updates run; `Status.throttled`, `Status.paused`.
 - `SystemActivity` (Windows): full-screen/presentation (`SHQueryUserNotificationState`), on battery, other processes > 50% CPU (own process excluded; real-system tests).
 - App: quiet period 60 s; tray shows what indexing is doing and why it waits; tray pauses for 1 h / 8 h or resumes.
-- Not yet: GPU busy; Live Updates still use the GPU while full-screen; "until tomorrow" pause; CLI not throttled (by design).
+- Timed pauses end in the Engine (`pause_until`, wall clock, survives sleep); `Status.paused_until`; tray "until tomorrow" = next 06:00 local (jiff); tray and Settings say "paused until 14:30" / "until tomorrow 06:00".
+- Not yet: GPU busy; Live Updates still use the GPU while full-screen; CLI not throttled (by design).
 
 ### M4 — Settings and Status window (`crates/index`, `crates/engine`, `app/`)
 - Tray "Settings…" opens a separate window (`?view=settings`); only the launcher hides on blur.
@@ -133,7 +134,6 @@
 - Failed files say why in plain words (`Unreadable`: password, damaged, too large, in use, no access, gone, other; stored per job, migration 12); raw message under Details.
 
 ## In progress
-- M4 throttling: timed pause in the Engine (`pause_until`), tray "until tomorrow" (next 06:00 local), state says until when.
 - M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
   - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
   - Done: dark plum theme with magenta accent (VoiceStudio look, ideas only).
