@@ -133,8 +133,15 @@
 - Checked in the real window on a scratch index.
 - Failed files say why in plain words (`Unreadable`: password, damaged, too large, in use, no access, gone, other; stored per job, migration 12); raw message under Details.
 
+### MVP gaps
+- PDF text beyond 50 MB refused as too large (`PdfExtractor::with_limit`; `default()` = 50 MB).
+- Purge (FR-06): `Engine::purge` erases database, journal files, vectors (waits for a loading model); Settings "Delete index…" confirms, forgets `settings.json`, releases the hotkey, main window back to onboarding.
+- `search_latency` (`crates/bench`): Public Corpus (71 files), File view, 58 Queries × 3: CUDA p50 24 ms / p95 33 ms; CPU p50 71 ms / p95 135 ms; target ≤ 1 s met.
+- `fetch_public_corpus.py`: an unreachable site no longer stops the run; missing files listed.
+- Installer: `pnpm bundle` → per-user NSIS setup (47 MB) with DirectML + ONNX Runtime CUDA provider DLLs; silent install, start (CUDA loaded), uninstall verified clean.
+- Not yet: launcher appear time (≤ 300 ms) unmeasured; Purge not tried in the real window; installer unsigned.
+
 ## In progress
-- MVP gaps: PDF text capped at 50 MB; Purge (Settings, back to onboarding); speed targets measured on the Public Corpus; NSIS per-user installer.
 - M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
   - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
   - Done: dark plum theme with magenta accent (VoiceStudio look, ideas only).
