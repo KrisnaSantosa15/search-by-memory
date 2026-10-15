@@ -404,9 +404,13 @@ fn size_on_disk(dir: &Path) -> u64 {
 fn run_worker(index: &mut Index, shared: &Shared, changes: &dyn ChangeSource, data_dir: &Path) {
     loop {
         let target = {
-            let work = shared.work.lock().unwrap();
+            let mut work = shared.work.lock().unwrap();
             if work.stop {
                 return;
+            }
+            // A poll pass counts as asked for, so `wait_until_idle` waits for it too.
+            if work.requested == work.completed {
+                work.requested += 1;
             }
             work.requested
         };
