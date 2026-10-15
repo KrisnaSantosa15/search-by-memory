@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "../ui/Button";
 
 /** One way to run the embedding model, as the Rust side offers it. */
 export type SpeedChoice = {
@@ -23,7 +24,7 @@ export function SpeedStep({ choices, onContinue }: Props) {
 
   return (
     <form
-      className="flex flex-col gap-5"
+     className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         if (picked) onContinue(picked);
@@ -39,12 +40,12 @@ export function SpeedStep({ choices, onContinue }: Props) {
           return (
             <label
               key={choice.id}
-              className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-panel p-4 transition-colors hover:bg-raised has-checked:border-accent has-checked:bg-accent-soft"
+             className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-panel p-4 transition-colors hover:bg-raised has-checked:border-accent has-checked:bg-accent-soft"
             >
               <input
                 type="radio"
                 name="speed"
-                className="mt-1 accent-accent"
+               className="mt-1 accent-accent"
                 checked={picked === choice.id}
                 onChange={() => setPicked(choice.id)}
               />
@@ -63,12 +64,13 @@ export function SpeedStep({ choices, onContinue }: Props) {
           );
         })}
       </div>
-      <button
+      <Button
+        variant="primary"
         type="submit"
-        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
+        className="self-end"
       >
         Continue
-      </button>
+      </Button>
     </form>
   );
 }

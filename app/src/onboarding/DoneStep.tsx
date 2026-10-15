@@ -1,4 +1,5 @@
 import { spoken } from "./HotkeyStep";
+import { Button } from "../ui/Button";
 
 type Props = {
   hotkey: string;
@@ -22,13 +23,13 @@ export function DoneStep({ hotkey, onFinish }: Props) {
           {spoken(hotkey)}
         </kbd>
       </div>
-      <button
-        type="button"
+      <Button
+        variant="primary"
         onClick={onFinish}
-        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
+        className="self-end"
       >
         Start searching
-      </button>
+      </Button>
     </section>
   );
 }

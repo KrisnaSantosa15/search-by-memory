@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "../ui/Button";
 
 /** A folder the Rust side offers to make searchable. */
 export type FolderChoice = {
@@ -26,7 +27,7 @@ export function FoldersStep({ choices, onContinue }: Props) {
 
   return (
     <form
-      className="flex flex-col gap-5"
+     className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         onContinue(choices.map((choice) => choice.path).filter((path) => picked.has(path)));
@@ -42,11 +43,11 @@ export function FoldersStep({ choices, onContinue }: Props) {
         {choices.map((choice) => (
           <label
             key={choice.path}
-            className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-panel p-4 transition-colors hover:bg-raised has-checked:border-accent has-checked:bg-accent-soft"
+           className="flex cursor-pointer items-start gap-3 rounded-xl border border-line bg-panel p-4 transition-colors hover:bg-raised has-checked:border-accent has-checked:bg-accent-soft"
           >
             <input
               type="checkbox"
-              className="mt-1 accent-accent"
+             className="mt-1 accent-accent"
               checked={picked.has(choice.path)}
               onChange={() => toggle(choice.path)}
             />
@@ -57,13 +58,14 @@ export function FoldersStep({ choices, onContinue }: Props) {
           </label>
         ))}
       </div>
-      <button
+      <Button
+        variant="primary"
         type="submit"
         disabled={picked.size === 0}
-        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-accent-ink transition-colors hover:bg-accent-hover disabled:opacity-40"
+        className="self-end"
       >
         Continue
-      </button>
+      </Button>
     </form>
   );
 }

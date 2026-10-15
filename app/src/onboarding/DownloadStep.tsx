@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 type Props = {
   /** Bytes on disk so far, out of `total`. */
   done: number;
@@ -28,7 +29,7 @@ export function DownloadStep({ done, total, secondsLeft, onRetry, onCancel }: Pr
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={percent}
-          className="h-2 overflow-hidden rounded-full bg-raised"
+         className="h-2 overflow-hidden rounded-full bg-raised"
         >
           <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${percent}%` }} />
         </div>
@@ -43,13 +44,13 @@ export function DownloadStep({ done, total, secondsLeft, onRetry, onCancel }: Pr
           <p className="text-sm">
             The download stopped. Check your internet connection; it picks up where it left off.
           </p>
-          <button
-            type="button"
+          <Button
+            variant="primary"
             onClick={onRetry}
-            className="shrink-0 rounded-lg bg-accent px-4 py-2 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
+            className="shrink-0"
           >
             Try again
-          </button>
+          </Button>
         </div>
       )}
       {onRetry && <CancelButton onClick={onCancel} />}
@@ -59,13 +60,13 @@ export function DownloadStep({ done, total, secondsLeft, onRetry, onCancel }: Pr
 
 function CancelButton({ onClick }: { onClick: () => void }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
       onClick={onClick}
-      className="self-start rounded-lg border border-line px-4 py-2 text-sm transition-colors hover:bg-raised"
+      className="self-start"
     >
       Cancel
-    </button>
+    </Button>
   );
 }
 

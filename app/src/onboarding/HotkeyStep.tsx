@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useEffect, useState } from "react";
+import { Button } from "../ui/Button";
 
 /** The shortcut offered first, in the form the Rust side registers. */
 const DEFAULT_HOTKEY = "Alt+Space";
@@ -32,7 +33,7 @@ export function HotkeyStep({ tryHotkey, onContinue }: Props) {
 
   return (
     <form
-      className="flex flex-col gap-5"
+     className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         onContinue(hotkey);
@@ -49,7 +50,7 @@ export function HotkeyStep({ tryHotkey, onContinue }: Props) {
         type="button"
         aria-label="Keys for search"
         onKeyDown={record}
-        className="flex justify-center rounded-xl border border-line bg-panel p-6 transition-colors hover:bg-raised focus:border-accent focus:outline-none"
+       className="flex justify-center rounded-xl border border-line bg-panel p-6 transition-colors hover:bg-raised focus:border-accent focus:outline-none"
       >
         <kbd className="rounded-lg border border-line bg-raised px-4 py-2 text-lg font-medium">
           {spoken(hotkey)}
@@ -60,13 +61,14 @@ export function HotkeyStep({ tryHotkey, onContinue }: Props) {
           Another app already uses these keys. Press other keys you would like to use.
         </p>
       )}
-      <button
+      <Button
+        variant="primary"
         type="submit"
         disabled={!free}
-        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-accent-ink transition-colors hover:bg-accent-hover disabled:opacity-40"
+        className="self-end"
       >
         Continue
-      </button>
+      </Button>
     </form>
   );
 }
