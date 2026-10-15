@@ -524,3 +524,29 @@ fn restored_default_exclusions_take_their_files_out_of_search() {
     assert_eq!(engine.exclusions().unwrap(), Exclusion::defaults());
     assert_eq!(engine.search("lodash", View::File, 20).unwrap(), []);
 }
+
+#[test]
+fn purge_erases_the_indexes_from_disk_and_leaves_other_files() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        folder.path(),
+        "recipe.txt",
+        "slow cooked beef in coconut milk\n",
+    );
+    let settings = write(data.path(), "settings.json", "{}");
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    engine.purge().unwrap();
+
+    let left: Vec<_> = std::fs::read_dir(data.path())
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    assert_eq!(left, vec![settings]);
+    let reopened = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    reopened.wait_until_idle();
+    assert!(reopened.indexed_folders().unwrap().is_empty());
+    assert_eq!(reopened.status().unwrap().files, 0);
+}

@@ -320,6 +320,18 @@ impl Engine {
         })
     }
 
+    /// Stops indexing and erases the indexes from disk (FR-06): the catalog,
+    /// Chunks, embeddings, Indexed Folders, Exclusions, and vectors. Other
+    /// files in the data directory stay.
+    pub fn purge(self) -> Result<()> {
+        let data_dir = self.data_dir.clone();
+        drop(self);
+        for file in index_files(&data_dir) {
+            std::fs::remove_file(file.path())?;
+        }
+        Ok(())
+    }
+
     /// Files whose content could not be indexed, with the reason.
     pub fn failed_files(&self) -> Result<Vec<FailedFile>> {
         self.index.lock().unwrap().failed_files()
@@ -396,11 +408,8 @@ fn model_with_vectors(loaded: LoadedModel, database: &Path) -> Result<Model> {
     })
 }
 
-/// Indexes until the Engine stops: a pass whenever one is asked for, and one
-/// every `CHANGE_POLL` to pick up Live Updates.
-/// Bytes taken by the indexes in `dir`: the database with its journal files, and
-/// the vectors. A file that vanishes meanwhile counts as none.
-fn size_on_disk(dir: &Path) -> u64 {
+/// The indexes' files in `dir`: the database with its journal files, and the vectors.
+fn index_files(dir: &Path) -> impl Iterator<Item = std::fs::DirEntry> {
     std::fs::read_dir(dir)
         .into_iter()
         .flatten()
@@ -410,12 +419,19 @@ fn size_on_disk(dir: &Path) -> u64 {
             let name = name.to_string_lossy();
             name.starts_with(DATABASE) || name == VECTORS
         })
+}
+
+/// Bytes taken by the indexes in `dir`. A file that vanishes meanwhile counts as none.
+fn size_on_disk(dir: &Path) -> u64 {
+    index_files(dir)
         .filter_map(|entry| entry.metadata().ok())
         .filter(|metadata| metadata.is_file())
         .map(|metadata| metadata.len())
         .sum()
 }
 
+/// Indexes until the Engine stops: a pass whenever one is asked for, and one
+/// every `CHANGE_POLL` to pick up Live Updates.
 fn run_worker(index: &mut Index, shared: &Shared, changes: &dyn ChangeSource, data_dir: &Path) {
     loop {
         let target = {
