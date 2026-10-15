@@ -550,3 +550,30 @@ fn purge_erases_the_indexes_from_disk_and_leaves_other_files() {
     assert!(reopened.indexed_folders().unwrap().is_empty());
     assert_eq!(reopened.status().unwrap().files, 0);
 }
+
+#[test]
+fn purge_while_the_model_loads_leaves_no_index_behind() {
+    let data = TempDir::new().unwrap();
+    let (release, gate) = mpsc::channel::<()>();
+    let engine = Engine::start_loading(
+        data.path(),
+        move || {
+            let _ = gate.recv();
+            Ok(LoadedModel {
+                embedder: Arc::new(BagOfWords),
+                device: "test".into(),
+            })
+        },
+        Box::new(NoJournal),
+    )
+    .unwrap();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(100));
+        let _ = release.send(());
+    });
+
+    engine.purge().unwrap();
+    std::thread::sleep(Duration::from_millis(500));
+
+    assert_eq!(std::fs::read_dir(data.path()).unwrap().count(), 0);
+}

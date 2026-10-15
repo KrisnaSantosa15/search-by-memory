@@ -75,6 +75,8 @@ pub struct Engine {
     index: Mutex<Index>,
     data_dir: PathBuf,
     worker: Option<JoinHandle<()>>,
+    /// Loads the model, from [`Engine::start_loading`].
+    loader: Option<JoinHandle<()>>,
 }
 
 struct Shared {
@@ -158,10 +160,15 @@ impl Engine {
         changes: Box<dyn ChangeSource + Send>,
     ) -> Result<Self> {
         std::fs::create_dir_all(data_dir)?;
-        let engine = Self::launch(data_dir, OnceLock::new(), changes)?;
+        let mut engine = Self::launch(data_dir, OnceLock::new(), changes)?;
         let (shared, database) = (engine.shared.clone(), data_dir.join(DATABASE));
-        std::thread::spawn(move || {
-            let loaded = load().and_then(|loaded| model_with_vectors(loaded, &database));
+        engine.loader = Some(std::thread::spawn(move || {
+            let loaded = load();
+            if shared.work.lock().unwrap().stop {
+                // Stopped, perhaps purged, meanwhile: leave the database alone.
+                return;
+            }
+            let loaded = loaded.and_then(|loaded| model_with_vectors(loaded, &database));
             let mut work = shared.work.lock().unwrap();
             match loaded {
                 Ok(model) => {
@@ -171,7 +178,7 @@ impl Engine {
                 Err(error) => work.model_error = Some(error.to_string()),
             }
             shared.changed.notify_all();
-        });
+        }));
         Ok(engine)
     }
 
@@ -201,6 +208,7 @@ impl Engine {
             index: Mutex::new(index),
             data_dir: data_dir.to_path_buf(),
             worker: Some(worker),
+            loader: None,
         })
     }
 
@@ -323,9 +331,12 @@ impl Engine {
     /// Stops indexing and erases the indexes from disk (FR-06): the catalog,
     /// Chunks, embeddings, Indexed Folders, Exclusions, and vectors. Other
     /// files in the data directory stay.
-    pub fn purge(self) -> Result<()> {
-        let data_dir = self.data_dir.clone();
+    pub fn purge(mut self) -> Result<()> {
+        let (data_dir, loader) = (self.data_dir.clone(), self.loader.take());
         drop(self);
+        if let Some(loader) = loader {
+            let _ = loader.join();
+        }
         for file in index_files(&data_dir) {
             std::fs::remove_file(file.path())?;
         }
