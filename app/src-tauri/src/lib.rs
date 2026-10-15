@@ -417,9 +417,9 @@ fn location_label(location: &Location) -> Option<String> {
 /// What the window can call; thin wrappers over the functions above.
 mod commands {
     use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
-    use std::time::{Duration, Instant};
+    use std::time::{Duration, Instant, SystemTime};
 
     use sbm_change_usn::UsnJournal;
     use sbm_core::{AppDirs, SystemActivity};
@@ -998,35 +998,20 @@ mod commands {
         }
     }
 
-    /// Counts manual pauses and resumes, so a timed pause only ends itself
-    /// when nothing was chosen since.
-    static PAUSES: AtomicU64 = AtomicU64::new(0);
-
-    /// Pauses indexing until `duration` has passed or the user resumes it.
-    fn pause_for(app: &AppHandle, duration: Duration) {
-        if with_engine(app, Engine::pause).is_none() {
-            return;
-        }
-        let pause = PAUSES.fetch_add(1, Ordering::SeqCst) + 1;
-        let app = app.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(duration);
-            if PAUSES.load(Ordering::SeqCst) == pause {
-                with_engine(&app, Engine::resume);
-            }
-        });
+    /// Pauses indexing until `when` or until the user resumes it; the Engine
+    /// resumes by itself.
+    fn pause_until(app: &AppHandle, when: SystemTime) {
+        with_engine(app, |engine| engine.pause_until(when));
     }
 
     /// Pauses indexing until the user resumes it, as the Settings window does.
     #[tauri::command]
     pub fn pause_indexing(app: AppHandle) {
-        PAUSES.fetch_add(1, Ordering::SeqCst);
         with_engine(&app, Engine::pause);
     }
 
     #[tauri::command]
     pub fn resume_indexing(app: AppHandle) {
-        PAUSES.fetch_add(1, Ordering::SeqCst);
         with_engine(&app, Engine::resume);
     }
 
@@ -1065,6 +1050,13 @@ mod commands {
                     true,
                     None::<&str>,
                 )?,
+                &MenuItem::with_id(
+                    app,
+                    "pause-tomorrow",
+                    "Pause indexing until tomorrow",
+                    true,
+                    None::<&str>,
+                )?,
                 &MenuItem::with_id(app, "resume", "Resume indexing", true, None::<&str>)?,
                 &MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?,
             ],
@@ -1075,8 +1067,14 @@ mod commands {
             .on_menu_event(|app, event| match event.id.as_ref() {
                 "show" => show(app),
                 "settings" => open_settings(app),
-                "pause-1h" => pause_for(app, Duration::from_secs(60 * 60)),
-                "pause-8h" => pause_for(app, Duration::from_secs(8 * 60 * 60)),
+                "pause-1h" => pause_until(app, SystemTime::now() + Duration::from_secs(60 * 60)),
+                "pause-8h" => {
+                    pause_until(app, SystemTime::now() + Duration::from_secs(8 * 60 * 60))
+                }
+                "pause-tomorrow" => pause_until(
+                    app,
+                    super::next_morning(&jiff::Zoned::now()).timestamp().into(),
+                ),
                 "resume" => resume_indexing(app.clone()),
                 "quit" => app.exit(0),
                 _ => {}
