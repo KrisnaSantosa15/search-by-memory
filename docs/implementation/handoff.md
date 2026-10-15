@@ -41,7 +41,7 @@ Snapshot for the next session or agent (2026-10-15, after the launcher follow-up
   - M3 launcher follow-ups: run the whole onboarding through the GUI once (indexes the real personal folder; check Alt + Space registers on Windows; PDFium now downloads too).
   - M4 throttling follow-ups: GPU busy detection; Live Updates on CPU while a full-screen app runs (PRD acceptance item).
   - Look at failure reasons, "paused until", and Delete index in the real Settings window (scratch index); measure the launcher's appear time. Both need no full-screen app in front.
-  - Public Corpus: `jdih.kemenkeu.go.id` (UU 27/2022, a Target of id-001/id-002) timed out on 2026-10-15; Wikimedia regenerated the `komodo-dragon.jpg` and `jakarta-traffic.jpg` thumbnails (sha256 drift; pin originals or re-pin, the user's call). Until then `every_public_target_file_is_in_the_public_corpus` fails on this machine.
+  - Public Corpus: `jdih.kemenkeu.go.id` (UU 27/2022, a Target of id-001/id-002) timed out on 2026-10-15; retry later (the user's call). Until then `every_public_target_file_is_in_the_public_corpus` fails on this machine. `komodo-dragon.jpg` and `jakarta-traffic.jpg` now pin the original Commons files (14.7 and 3.4 MB): Wikimedia regenerates 1280px thumbnails, so their sha256 drifted. Four other images still use thumbnail URLs and may drift the same way.
   - PDFs indexed before PDFium was installed keep their pdf-extract Chunks (content hash unchanged); decide whether to re-extract them.
 - Tests: `cargo test --workspace` 255 passed, 1 failed (missing corpus files, above), 1 ignored (i8 recall, deliberate); `cd tools && uv run pytest` 14 passed; `cd app && pnpm test` 71 passed.
 
