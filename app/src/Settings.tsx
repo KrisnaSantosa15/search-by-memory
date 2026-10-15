@@ -56,6 +56,8 @@ type StatusProps = {
   failedFiles: () => Promise<FailedFile[]>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
+  /** Erases the index from disk and starts setup again. */
+  purge: () => Promise<void>;
 };
 
 type FoldersProps = {
@@ -313,7 +315,7 @@ function label(row: ExclusionRow): string {
   return row.kind === "name" ? row.pattern : row.path;
 }
 
-function StatusTab({ dashboard, failedFiles, pause, resume }: StatusProps) {
+function StatusTab({ dashboard, failedFiles, pause, resume, purge }: StatusProps) {
   const [status, setStatus] = useState<Dashboard | null>(null);
   const [failed, setFailed] = useState<FailedFile[]>([]);
 
@@ -346,7 +348,49 @@ function StatusTab({ dashboard, failedFiles, pause, resume }: StatusProps) {
         {status.paused ? "Resume indexing" : "Pause indexing"}
       </button>
       {failed.length > 0 && <FailedFiles files={failed} />}
+      <DeleteIndex purge={purge} />
     </section>
+  );
+}
+
+/** Erases the index after the user confirms it (FR-06). */
+function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
+  const [asking, setAsking] = useState(false);
+
+  if (!asking) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAsking(true)}
+        className="mt-6 self-start rounded-lg px-3 py-1 text-sm text-muted transition-colors hover:text-ink"
+      >
+        Delete index…
+      </button>
+    );
+  }
+  return (
+    <div className="mt-6 flex flex-col gap-2 rounded-xl border border-line bg-panel p-4 text-sm">
+      <p>
+        This erases everything Search by Memory knows about your files. Your files themselves are
+        not touched. Setup starts again.
+      </p>
+      <span className="flex gap-2">
+        <button
+          type="button"
+          onClick={purge}
+          className="rounded-lg bg-accent px-3 py-1 font-medium text-canvas transition-colors hover:bg-accent-hover"
+        >
+          Delete index and start over
+        </button>
+        <button
+          type="button"
+          onClick={() => setAsking(false)}
+          className="rounded-lg px-3 py-1 text-muted transition-colors hover:text-ink"
+        >
+          Keep
+        </button>
+      </span>
+    </div>
   );
 }
 

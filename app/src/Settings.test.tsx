@@ -37,6 +37,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     excludeFolder: vi.fn(async () => false),
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
+    purge: vi.fn(async () => {}),
     ...overrides,
   };
   render(<Settings {...props} />);
@@ -150,6 +151,16 @@ describe("Settings", () => {
     expect(await screen.findByText("Indexing is paused")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Resume indexing" }));
     expect(props.resume).toHaveBeenCalled();
+  });
+
+  it("deletes the index once the user confirms it", async () => {
+    const props = renderSettings();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Delete index…" }));
+    expect(props.purge).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Delete index and start over" }));
+
+    expect(props.purge).toHaveBeenCalled();
   });
 
   it("lists the Indexed Folders and says which drives are disconnected", async () => {

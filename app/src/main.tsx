@@ -25,6 +25,7 @@ const settings = {
   excludeFolder: () => invoke<boolean>("pick_and_exclude_folder"),
   pause: () => invoke<void>("pause_indexing"),
   resume: () => invoke<void>("resume_indexing"),
+  purge: () => invoke<void>("purge_index"),
 };
 
 // The Settings window opens this page with `?view=settings`; the main window without.

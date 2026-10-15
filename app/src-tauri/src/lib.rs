@@ -625,6 +625,30 @@ mod commands {
         window.hide().map_err(|error| error.to_string())
     }
 
+    /// Erases the index (FR-06) and the saved settings, and starts onboarding
+    /// again in the main window. Async: the Engine may finish a batch first.
+    #[tauri::command]
+    pub async fn purge_index(app: AppHandle) -> Result<(), String> {
+        let engine = app.state::<Running>().0.lock().unwrap().take();
+        if let Some(engine) = engine {
+            engine.purge().map_err(|error| error.to_string())?;
+        }
+        Settings::forget(&data_dir()).map_err(|error| error.to_string())?;
+        let _ = app.global_shortcut().unregister_all();
+        app.state::<Launching>().0.store(false, Ordering::Relaxed);
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.set_skip_taskbar(false);
+            let _ = window.set_always_on_top(false);
+            // Starts the page again, which finds no settings and shows onboarding.
+            let _ = window.eval("location.reload()");
+            show(&app);
+        }
+        if let Some(settings) = app.get_webview_window("settings") {
+            let _ = settings.close();
+        }
+        Ok(())
+    }
+
     /// Ends the app, indexing included.
     #[tauri::command]
     pub fn quit(app: AppHandle) {
@@ -1178,6 +1202,7 @@ pub fn run() {
             commands::preview_lines,
             commands::thumbnail,
             commands::pdf_page,
+            commands::purge_index,
             commands::quit,
             commands::hide_launcher
         ])
