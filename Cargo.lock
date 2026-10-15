@@ -3962,8 +3962,11 @@ dependencies = [
 name = "sbm-bench"
 version = "0.1.0"
 dependencies = [
+ "sbm-change-usn",
  "sbm-core",
  "sbm-embed-onnx",
+ "sbm-engine",
+ "sbm-index",
  "sbm-store-usearch",
  "serde",
  "tempfile",
