@@ -163,6 +163,16 @@ describe("Settings", () => {
     expect(props.purge).toHaveBeenCalled();
   });
 
+  it("keeps the index when the user changes their mind", async () => {
+    const props = renderSettings();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Delete index…" }));
+    await userEvent.click(screen.getByRole("button", { name: "Keep" }));
+
+    expect(props.purge).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Delete index…" })).toBeInTheDocument();
+  });
+
   it("lists the Indexed Folders and says which drives are disconnected", async () => {
     renderSettings({
       folders: async () => [
