@@ -28,7 +28,7 @@ export function CodeLines(props: Props) {
     <LineList
       {...props}
       numbered
-      className="max-h-56 overflow-auto rounded-md border border-line bg-canvas py-2 font-mono text-[12.5px] leading-relaxed"
+      className="max-h-56 overflow-auto rounded-md border border-line bg-chrome py-2 font-mono text-[12.5px] leading-relaxed"
       lineClassName="flex whitespace-pre aria-[current]:bg-accent-soft"
     />
   );
