@@ -2,6 +2,7 @@
 
 use std::time::{Duration, UNIX_EPOCH};
 
+use jiff::Zoned;
 use sbm_app::dashboard;
 use sbm_core::ThrottleReason;
 use sbm_engine::Status;
@@ -16,7 +17,7 @@ fn dashboard_reports_files_found_and_how_far_content_search_reaches() {
         ..Status::default()
     };
 
-    let dashboard = dashboard(&status);
+    let dashboard = dashboard(&status, &Zoned::now());
     assert_eq!(
         (
             dashboard.files,
@@ -42,12 +43,15 @@ fn dashboard_says_why_indexing_waits_and_whether_it_is_paused() {
     };
 
     assert_eq!(
-        dashboard(&held).state,
+        dashboard(&held, &Zoned::now()).state,
         "Indexing waits until the computer is plugged in"
     );
-    assert!(!dashboard(&held).paused);
-    assert_eq!(dashboard(&paused).state, "Indexing is paused");
-    assert!(dashboard(&paused).paused);
+    assert!(!dashboard(&held, &Zoned::now()).paused);
+    assert_eq!(
+        dashboard(&paused, &Zoned::now()).state,
+        "Indexing is paused"
+    );
+    assert!(dashboard(&paused, &Zoned::now()).paused);
 }
 
 #[test]
@@ -57,5 +61,8 @@ fn dashboard_reports_how_much_disk_the_indexes_take() {
         ..Status::default()
     };
 
-    assert_eq!(dashboard(&status).size_on_disk, 1_234_567_890);
+    assert_eq!(
+        dashboard(&status, &Zoned::now()).size_on_disk,
+        1_234_567_890
+    );
 }

@@ -14,15 +14,15 @@ fn held_back_indexing_says_why() {
     };
 
     assert_eq!(
-        indexing_state(&held(ThrottleReason::FullScreen)),
+        indexing_state(&held(ThrottleReason::FullScreen), &Zoned::now()),
         "Indexing waits while a full-screen app is open"
     );
     assert_eq!(
-        indexing_state(&held(ThrottleReason::Battery)),
+        indexing_state(&held(ThrottleReason::Battery), &Zoned::now()),
         "Indexing waits until the computer is plugged in"
     );
     assert_eq!(
-        indexing_state(&held(ThrottleReason::Busy)),
+        indexing_state(&held(ThrottleReason::Busy), &Zoned::now()),
         "Indexing waits while the computer is busy"
     );
 }
@@ -34,12 +34,18 @@ fn running_indexing_says_how_many_files_are_left_or_that_all_are_done() {
         ..Status::default()
     };
 
-    assert_eq!(indexing_state(&pending(1)), "Indexing: 1 file to go");
     assert_eq!(
-        indexing_state(&pending(12_345)),
+        indexing_state(&pending(1), &Zoned::now()),
+        "Indexing: 1 file to go"
+    );
+    assert_eq!(
+        indexing_state(&pending(12_345), &Zoned::now()),
         "Indexing: 12,345 files to go"
     );
-    assert_eq!(indexing_state(&pending(0)), "All files are indexed");
+    assert_eq!(
+        indexing_state(&pending(0), &Zoned::now()),
+        "All files are indexed"
+    );
 }
 
 #[test]
@@ -51,7 +57,7 @@ fn paused_indexing_says_so_whatever_else_holds_it_back() {
         ..Status::default()
     };
 
-    assert_eq!(indexing_state(&paused), "Indexing is paused");
+    assert_eq!(indexing_state(&paused, &Zoned::now()), "Indexing is paused");
 }
 
 /// `time` in Jakarta, e.g. "2026-10-15T22:00".

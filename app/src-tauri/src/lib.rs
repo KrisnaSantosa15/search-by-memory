@@ -201,7 +201,7 @@ pub fn next_morning(now: &Zoned) -> Zoned {
     )
 }
 
-pub fn indexing_state(status: &Status) -> String {
+pub fn indexing_state(status: &Status, _now: &Zoned) -> String {
     if status.paused {
         return "Indexing is paused".into();
     }
@@ -235,9 +235,9 @@ pub struct Dashboard {
     pub size_on_disk: u64,
 }
 
-pub fn dashboard(status: &Status) -> Dashboard {
+pub fn dashboard(status: &Status, now: &Zoned) -> Dashboard {
     Dashboard {
-        state: indexing_state(status),
+        state: indexing_state(status, now),
         paused: status.paused,
         size_on_disk: status.size_on_disk,
         files: status.files,
@@ -692,7 +692,7 @@ mod commands {
         let running = running.0.lock().unwrap();
         let engine = running.as_ref().ok_or("search has not started yet")?;
         let status = engine.status().map_err(|error| error.to_string())?;
-        Ok(super::dashboard(&status))
+        Ok(super::dashboard(&status, &jiff::Zoned::now()))
     }
 
     #[tauri::command]
@@ -1079,7 +1079,7 @@ mod commands {
             loop {
                 let status = with_engine(&app, Engine::status);
                 if let Some(Ok(status)) = status {
-                    let text = super::indexing_state(&status);
+                    let text = super::indexing_state(&status, &jiff::Zoned::now());
                     let _ = state.set_text(&text);
                     let _ = tray.set_tooltip(Some(format!("Search by Memory: {text}")));
                 }
