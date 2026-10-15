@@ -2,8 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
-use jiff::Zoned;
 use jiff::civil::Date;
+use jiff::{Timestamp, Zoned};
 use sbm_core::{AppDirs, Location, ThrottleReason, Unreadable};
 use sbm_embed_onnx::Accelerator;
 use sbm_engine::Status;
@@ -201,9 +201,20 @@ pub fn next_morning(now: &Zoned) -> Zoned {
     )
 }
 
-pub fn indexing_state(status: &Status, _now: &Zoned) -> String {
+pub fn indexing_state(status: &Status, now: &Zoned) -> String {
     if status.paused {
-        return "Indexing is paused".into();
+        let until = status
+            .paused_until
+            .and_then(|until| Timestamp::try_from(until).ok());
+        let Some(until) = until.map(|until| until.to_zoned(now.time_zone().clone())) else {
+            return "Indexing is paused".into();
+        };
+        let day = if until.date() == now.date() {
+            ""
+        } else {
+            "tomorrow "
+        };
+        return format!("Indexing is paused until {day}{}", until.strftime("%H:%M"));
     }
     match status.throttled {
         Some(ThrottleReason::FullScreen) => "Indexing waits while a full-screen app is open".into(),

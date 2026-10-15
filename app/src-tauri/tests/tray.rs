@@ -80,3 +80,22 @@ fn pause_until_tomorrow_ends_at_the_next_six_in_the_morning() {
         jakarta("2026-10-17T06:00")
     );
 }
+
+#[test]
+fn timed_pause_says_until_when() {
+    let paused_until = |time: &str| Status {
+        paused: true,
+        paused_until: Some(jakarta(time).timestamp().into()),
+        ..Status::default()
+    };
+    let now = jakarta("2026-10-15T13:30");
+
+    assert_eq!(
+        indexing_state(&paused_until("2026-10-15T14:30"), &now),
+        "Indexing is paused until 14:30"
+    );
+    assert_eq!(
+        indexing_state(&paused_until("2026-10-16T06:00"), &now),
+        "Indexing is paused until tomorrow 06:00"
+    );
+}
