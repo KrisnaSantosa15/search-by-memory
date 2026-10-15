@@ -44,6 +44,12 @@ describe("Launcher", () => {
     expect(result).toHaveTextContent("net profit increased by 18%");
   });
 
+  it("does not mark the Query's words as misspelt, since file names and code are not prose", () => {
+    render(<Launcher search={async () => []} {...actions()} />);
+
+    expect(screen.getByRole("searchbox")).toHaveAttribute("spellcheck", "false");
+  });
+
   it("selects the first Result and moves the selection with the arrow keys", async () => {
     const notes = { ...report, name: "notes.md", path: "D:\\notes.md" };
     render(<Launcher search={async () => [report, notes]} {...actions()} />);

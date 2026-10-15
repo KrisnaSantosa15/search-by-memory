@@ -165,6 +165,7 @@ export function Launcher(props: Props) {
           type="search"
           ref={box}
           autoFocus
+          spellCheck={false}
           value={typed}
           onChange={(event) => setTyped(event.target.value)}
           onKeyDown={onKeyDown}
