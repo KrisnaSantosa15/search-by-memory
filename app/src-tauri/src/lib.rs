@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use jiff::Zoned;
+use jiff::civil::Date;
 use sbm_core::{AppDirs, Location, ThrottleReason, Unreadable};
 use sbm_embed_onnx::Accelerator;
 use sbm_engine::Status;
@@ -181,6 +183,24 @@ pub struct ResultRow {
 }
 
 /// What indexing is doing, as the tray says it.
+/// When a pause "until tomorrow" ends: the first 06:00 after `now`, in its time zone.
+pub fn next_morning(now: &Zoned) -> Zoned {
+    let morning = |date: Date| {
+        date.at(6, 0, 0, 0)
+            .to_zoned(now.time_zone().clone())
+            .expect("a date far from the end of the calendar")
+    };
+    let today = morning(now.date());
+    if today > *now {
+        return today;
+    }
+    morning(
+        now.date()
+            .tomorrow()
+            .expect("not the last day of the calendar"),
+    )
+}
+
 pub fn indexing_state(status: &Status) -> String {
     if status.paused {
         return "Indexing is paused".into();

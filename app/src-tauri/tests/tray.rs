@@ -1,6 +1,7 @@
 //! The tray: what indexing is doing, in plain words.
 
-use sbm_app::indexing_state;
+use jiff::Zoned;
+use sbm_app::{indexing_state, next_morning};
 use sbm_core::ThrottleReason;
 use sbm_engine::Status;
 
@@ -51,4 +52,25 @@ fn paused_indexing_says_so_whatever_else_holds_it_back() {
     };
 
     assert_eq!(indexing_state(&paused), "Indexing is paused");
+}
+
+/// `time` in Jakarta, e.g. "2026-10-15T22:00".
+fn jakarta(time: &str) -> Zoned {
+    format!("{time}[Asia/Jakarta]").parse().unwrap()
+}
+
+#[test]
+fn pause_until_tomorrow_ends_at_the_next_six_in_the_morning() {
+    assert_eq!(
+        next_morning(&jakarta("2026-10-15T22:00")),
+        jakarta("2026-10-16T06:00")
+    );
+    assert_eq!(
+        next_morning(&jakarta("2026-10-16T01:00")),
+        jakarta("2026-10-16T06:00")
+    );
+    assert_eq!(
+        next_morning(&jakarta("2026-10-16T06:00")),
+        jakarta("2026-10-17T06:00")
+    );
 }
