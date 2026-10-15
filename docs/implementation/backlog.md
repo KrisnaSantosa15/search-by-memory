@@ -134,6 +134,7 @@
 - Failed files say why in plain words (`Unreadable`: password, damaged, too large, in use, no access, gone, other; stored per job, migration 12); raw message under Details.
 
 ## In progress
+- MVP gaps: PDF text capped at 50 MB; Purge (Settings, back to onboarding); speed targets measured on the Public Corpus; NSIS per-user installer.
 - M3 desktop app (`app/`: Tauri 2 + React + TypeScript + Tailwind, Vitest; pnpm).
   - Done: Tauri shell (`sbm-app`, workspace member) with `speed_choices` command; onboarding speed step (plain language, recommended picked, no CUDA/DirectML wording).
   - Done: dark plum theme with magenta accent (VoiceStudio look, ideas only).
