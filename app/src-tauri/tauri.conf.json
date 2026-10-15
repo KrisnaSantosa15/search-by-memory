@@ -33,12 +33,24 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "publisher": "Search by Memory",
+    "shortDescription": "Find files by what you remember of them",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "../../target/release/DirectML.dll": "DirectML.dll",
+      "../../target/release/onnxruntime_providers_shared.dll": "onnxruntime_providers_shared.dll",
+      "../../target/release/onnxruntime_providers_cuda.dll": "onnxruntime_providers_cuda.dll"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
   }
 }
