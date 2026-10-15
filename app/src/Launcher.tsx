@@ -1,3 +1,4 @@
+import { CodeXml, Search } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { LoadLines } from "./Lines";
 import { Marked } from "./Marked";
@@ -158,7 +159,7 @@ export function Launcher(props: Props) {
 
   return (
     <section className="flex h-full flex-col">
-      <label data-tauri-drag-region className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-4">
+      <label data-tauri-drag-region className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-5">
         <SearchIcon code={onlyCode} />
         <input
           type="search"
@@ -168,18 +169,18 @@ export function Launcher(props: Props) {
           onChange={(event) => setTyped(event.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Describe the file you remember"
-          className="min-w-0 flex-1 bg-transparent font-display text-xl font-light outline-none placeholder:text-muted/70 [&::-webkit-search-cancel-button]:hidden"
+          className="min-w-0 flex-1 bg-transparent text-lg tracking-[-0.01em] outline-none placeholder:text-muted/70 [&::-webkit-search-cancel-button]:hidden"
         />
       </label>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
         <div
           role="listbox"
           aria-label="Results"
-          className="flex flex-col gap-3 overflow-y-auto border-r border-line p-2"
+          className="flex flex-col gap-3 overflow-y-auto border-r border-line bg-chrome/40 p-2"
         >
           {groups(strong).map(({ kind, first, members }) => (
             <div key={kind} role="group" aria-label={GROUP_NAMES[kind]} className="flex flex-col gap-0.5">
-              <p aria-hidden className="px-3 pt-1 text-xs font-medium text-muted">
+              <p aria-hidden className="px-3 pt-1.5 pb-0.5 text-xs font-semibold text-muted">
                 {GROUP_NAMES[kind]}
               </p>
               {members.map((result, offset) => (
@@ -205,7 +206,7 @@ export function Launcher(props: Props) {
                   setSelected(strong.length);
                   setUnfolded((unfolded) => !unfolded);
                 }}
-                className="flex cursor-default items-center gap-2 rounded-md border-l-2 border-transparent px-3 py-2 text-sm text-muted aria-selected:border-accent aria-selected:bg-accent-soft"
+                className="flex cursor-default items-center gap-2 rounded-[10px] border-l-2 border-transparent px-3 py-2 text-sm text-muted hover:bg-hover/60 aria-selected:border-accent aria-selected:bg-accent-soft"
               >
                 <span aria-hidden className={unfolded ? "rotate-90" : ""}>
                   ›
@@ -255,12 +256,14 @@ export function Launcher(props: Props) {
           )}
         </div>
       </div>
-      <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-line px-5 py-2.5 text-xs text-muted">
+      <footer className="flex h-10 shrink-0 items-center justify-between gap-4 border-t border-line px-5 text-xs text-muted">
         <p role="status">{status(query, searching, strong.length, faint.length)}</p>
         <ul aria-label="Keys" className="flex gap-4">
           {KEYS.map(([keys, action]) => (
             <li key={action}>
-              <kbd className="mr-1 font-sans text-ink">{keys}</kbd>
+              <kbd className="mr-1.5 rounded-md border border-line bg-raised px-1.5 py-0.5 font-sans text-[11px] text-ink">
+                {keys}
+              </kbd>
               {action}
             </li>
           ))}
@@ -270,29 +273,16 @@ export function Launcher(props: Props) {
   );
 }
 
-/** The magnifier in front of the Query box. */
+/** The magnifier in front of the Query box; brackets while searching code. */
 function SearchIcon({ code }: { code: boolean }) {
+  const Icon = code ? CodeXml : Search;
   return (
-    <svg
+    <Icon
       role="img"
       aria-label={code ? "Searching code" : "Search"}
-      viewBox="0 0 24 24"
-      className="size-6 shrink-0 text-accent"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {code ? (
-        <path d="m8 7-5 5 5 5m8-10 5 5-5 5m-2.5-12-3 14" />
-      ) : (
-        <>
-          <circle cx="10.5" cy="10.5" r="6.5" />
-          <path d="m15.5 15.5 5 5" />
-        </>
-      )}
-    </svg>
+      className="size-5 shrink-0 text-accent"
+      strokeWidth={1.75}
+    />
   );
 }
 
@@ -319,7 +309,7 @@ function Row(props: {
       aria-selected={props.selected}
       onMouseDown={(event) => event.preventDefault()}
       onClick={props.onSelect}
-      className="flex cursor-default items-center gap-3 rounded-md border-l-2 border-transparent px-3 py-2 aria-selected:border-accent aria-selected:bg-accent-soft"
+      className="flex cursor-default items-center gap-3 rounded-[10px] border-l-2 border-transparent px-3 py-2 hover:bg-hover/60 aria-selected:border-accent aria-selected:bg-accent-soft"
     >
       <Thumbnail
         path={result.path}
@@ -331,7 +321,7 @@ function Row(props: {
         <span className="flex min-w-0 items-baseline gap-2">
           <span className="truncate font-medium">{result.name}</span>
           {result.location && (
-            <span className="shrink-0 rounded bg-raised px-1.5 text-xs text-muted">
+            <span className="shrink-0 rounded-full border border-line bg-raised px-2 font-mono text-[11px] tabular-nums text-muted">
               {result.location}
             </span>
           )}
@@ -345,7 +335,7 @@ function Row(props: {
             <Path path={result.folder} />
           </span>
         )}
-        {!result.connected && <span className="text-xs text-accent">Drive not connected</span>}
+        {!result.connected && <span className="text-xs text-warning">Drive not connected</span>}
       </span>
     </div>
   );
