@@ -160,7 +160,10 @@
   - Done: asking which Copy starts on the one picked last time (WebView `localStorage`, still confirmed with Enter).
   - Done: Cancel on the download step (`cancel_prepare`): back to the speed choices, download kept for resuming.
   - Done: PDF text read with PDFium where installed, pdf-extract as fallback (ADR 0006); scans' invisible OCR layers now indexed.
-  - Next: run the full onboarding through the GUI; tune `WEAKER_MARGIN` on the Benchmark.
+  - Done: full onboarding run through the GUI (Fast/DirectML, scratch data dir and home); one run indexed no content for 11 min, not reproduced in 5 reruns.
+  - Next: tune `WEAKER_MARGIN` on the Benchmark.
+- App redesign (user, 2026-10-15): VoiceStudio Classic look app-wide; one-location onboarding with a visible indexing step; Settings + live dashboard; features beyond DigUp.
+  - In progress: stage 1: VoiceStudio Classic tokens (dark + light), Inter, lucide icons, base components; launcher restyled, behavior unchanged.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
