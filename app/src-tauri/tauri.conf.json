@@ -42,11 +42,6 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "resources": {
-      "../../target/release/DirectML.dll": "DirectML.dll",
-      "../../target/release/onnxruntime_providers_shared.dll": "onnxruntime_providers_shared.dll",
-      "../../target/release/onnxruntime_providers_cuda.dll": "onnxruntime_providers_cuda.dll"
-    },
     "windows": {
       "nsis": {
         "installMode": "currentUser"
