@@ -10,6 +10,7 @@ import {
   type FailedFile,
   type IndexedFolder,
 } from "./Settings";
+import "@fontsource-variable/inter";
 import "./index.css";
 
 const settings = {
