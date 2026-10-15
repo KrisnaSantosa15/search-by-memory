@@ -1,29 +1,60 @@
 @import "tailwindcss";
 
 /*
- * "Archive at night": ink-slate glass, paper-white text, and one lamplight
- * amber, used for what the user acts on and for the Query's words found in a
- * file, like a highlighter on a page.
+ * "VoiceStudio Classic": charcoal-plum glass, lavender text, and one rose
+ * action colour, used for what the user acts on, for the selected row, and for
+ * the Query's words found in a file. Dark by default; light follows Windows.
  */
 @theme {
-  --font-sans: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Inter Variable", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
-  --color-glass: rgb(29 34 48 / 0.86);
-  --color-canvas: #1d2230;
-  --color-panel: #222838;
-  --color-raised: #2b3245;
-  --color-line: #363e54;
-  --color-ink: #ece7dc;
-  --color-muted: #98a0b3;
-  --color-accent: #e3a646;
-  --color-accent-hover: #edb862;
-  --color-accent-soft: rgb(227 166 70 / 0.14);
-  --color-mark: rgb(227 166 70 / 0.32);
+  --color-glass: rgb(33 28 41 / 0.86);
+  --color-canvas: #211c29;
+  --color-chrome: #191420;
+  --color-panel: #302638;
+  --color-raised: #382c42;
+  --color-hover: #403049;
+  --color-active: #50365c;
+  --color-line: rgb(217 185 237 / 0.14);
+  --color-ink: #eee5f4;
+  --color-muted: #b8a5c3;
+  --color-accent: #d3869b;
+  --color-accent-hover: #b16286;
+  --color-accent-ink: #1d2021;
+  --color-accent-soft: rgb(211 134 155 / 0.14);
+  --color-mark: rgb(211 134 155 / 0.32);
+  --color-danger: #fb4934;
+  --color-warning: #fabd2f;
+  /* The paper page a text preview is set on, light in both themes. */
+  --color-paper: #f6f0f8;
+  --color-paper-ink: #2a2230;
 }
 
 /* Base rules sit in a layer, so Tailwind utilities (e.g. `outline-none`) override them. */
 @layer base {
+  @media (prefers-color-scheme: light) {
+    :root {
+      --color-glass: rgb(250 246 252 / 0.86);
+      --color-canvas: #faf6fc;
+      --color-chrome: #eee5f2;
+      --color-panel: #fffbff;
+      --color-raised: #ffffff;
+      --color-hover: #eadff0;
+      --color-active: #e5d3ee;
+      --color-line: rgb(100 65 125 / 0.15);
+      --color-ink: #392c42;
+      --color-muted: #796784;
+      --color-accent: #8f3f71;
+      --color-accent-hover: #7b305e;
+      --color-accent-ink: #ffffff;
+      --color-accent-soft: rgb(143 63 113 / 0.1);
+      --color-mark: rgb(143 63 113 / 0.22);
+      --color-danger: #9d0006;
+      --color-warning: #af3a03;
+    }
+  }
+
   /* The window is see-through; the glass is drawn by the page so the OS blur shows. */
   html,
   body,
@@ -33,7 +64,9 @@
     background: transparent;
     color: var(--color-ink);
     font-family: var(--font-sans);
-    color-scheme: dark;
+    font-size: 14px;
+    line-height: 20px;
+    color-scheme: light dark;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -44,7 +77,7 @@
     padding: 0 1px;
   }
 
-  /* Thin, quiet scrollbars, so the dark panel is not cut by light gutters. */
+  /* Thin, quiet scrollbars, so the panel is not cut by light gutters. */
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--color-line) transparent;
@@ -67,6 +100,18 @@
 
   /* On the paper page the highlighter is stronger, as ink on paper takes it. */
   .page mark {
-    background: rgb(227 166 70 / 0.55);
+    background: rgb(211 134 155 / 0.5);
   }
+}
+
+/*
+ * A window's glass: the translucent canvas with faint rose light from the
+ * corners, as VoiceStudio's glass mode draws it.
+ */
+@utility surface {
+  background:
+    radial-gradient(ellipse at 2% 4%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 48%),
+    radial-gradient(ellipse at 96% 96%, color-mix(in srgb, var(--color-accent) 6%, transparent), transparent 52%),
+    radial-gradient(ellipse at 80% 0%, rgb(173 130 217 / 0.03), transparent 42%),
+    var(--color-glass);
 }

@@ -34,7 +34,7 @@ const settingsWindow = new URLSearchParams(location.search).get("view") === "set
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {settingsWindow ? (
-      <div className="min-h-full bg-canvas">
+      <div className="min-h-full surface">
         <Settings {...settings} />
       </div>
     ) : (

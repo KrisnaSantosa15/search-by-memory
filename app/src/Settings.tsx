@@ -152,7 +152,7 @@ function FoldersTab(props: FoldersProps) {
         <button
           type="button"
           onClick={add}
-          className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-canvas transition-colors hover:bg-accent-hover"
+          className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-accent-ink transition-colors hover:bg-accent-hover"
         >
           Add folder…
         </button>
@@ -176,7 +176,7 @@ function FoldersTab(props: FoldersProps) {
                   <button
                     type="button"
                     onClick={() => remove(path)}
-                    className="rounded-lg bg-accent px-3 py-1 font-medium text-canvas transition-colors hover:bg-accent-hover"
+                    className="rounded-lg bg-accent px-3 py-1 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
                   >
                     Stop searching it
                   </button>
@@ -378,7 +378,7 @@ function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
         <button
           type="button"
           onClick={purge}
-          className="rounded-lg bg-accent px-3 py-1 font-medium text-canvas transition-colors hover:bg-accent-hover"
+          className="rounded-lg bg-accent px-3 py-1 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
         >
           Delete index and start over
         </button>

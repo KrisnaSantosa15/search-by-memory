@@ -124,14 +124,14 @@ export default function App() {
 
   if (finished) {
     return (
-      <div className="h-full bg-glass">
+      <div className="h-full surface">
         <Launcher {...launcher} />
       </div>
     );
   }
   // The window has no frame: this strip moves it, and quits onboarding.
   return (
-    <div className="flex h-full flex-col bg-glass">
+    <div className="flex h-full flex-col surface">
       <header data-tauri-drag-region className="flex h-10 shrink-0 items-center justify-between pl-5">
         <span data-tauri-drag-region className="text-xs text-muted">
           Search by Memory

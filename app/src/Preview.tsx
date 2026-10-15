@@ -191,7 +191,7 @@ function usePicture(result: ResultRow, load: LoadThumbnail): string | null {
 /** Text on a sheet of paper, where the highlighter marks show best. */
 function Page(props: { location: string | null; children: ReactNode }) {
   return (
-    <figure className="page relative rounded-md bg-ink px-5 pt-4 pb-9 text-[13px] leading-relaxed text-canvas shadow-lg shadow-black/30">
+    <figure className="page relative rounded-md bg-paper px-5 pt-4 pb-9 text-[13px] leading-relaxed text-paper-ink shadow-lg shadow-black/30">
       {props.children}
       {props.location && (
         <figcaption className="absolute bottom-2.5 left-3 rounded bg-canvas/80 px-1.5 text-xs text-ink">
@@ -211,7 +211,7 @@ function Action(props: { onClick: () => void; primary?: boolean; children: strin
       onClick={props.onClick}
       className={
         props.primary
-          ? "rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-canvas hover:bg-accent-hover"
+          ? "rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-ink hover:bg-accent-hover"
           : "rounded-md border border-line px-3 py-1.5 text-sm hover:bg-raised"
       }
     >

@@ -25,7 +25,7 @@ export function DoneStep({ hotkey, onFinish }: Props) {
       <button
         type="button"
         onClick={onFinish}
-        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-canvas transition-colors hover:bg-accent-hover"
+        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
       >
         Start searching
       </button>

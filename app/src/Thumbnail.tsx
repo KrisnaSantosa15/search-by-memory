@@ -51,7 +51,7 @@ export function Thumbnail({ path, kind, connected, load }: Props) {
       <img
         src={picture}
         alt=""
-        className="size-10 shrink-0 rounded border border-line bg-ink object-cover"
+        className="size-10 shrink-0 rounded border border-line bg-raised object-cover"
       />
     );
   }

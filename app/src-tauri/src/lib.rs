@@ -1023,7 +1023,7 @@ mod commands {
         .title("Search by Memory Settings")
         .inner_size(720.0, 560.0)
         .min_inner_size(520.0, 400.0)
-        .background_color(tauri::window::Color(0x1d, 0x22, 0x30, 0xff))
+        .background_color(tauri::window::Color(0x21, 0x1c, 0x29, 0xff))
         .center()
         .build();
         if let Err(error) = window {

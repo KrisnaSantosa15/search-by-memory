@@ -65,7 +65,7 @@ export function SpeedStep({ choices, onContinue }: Props) {
       </div>
       <button
         type="submit"
-        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-canvas transition-colors hover:bg-accent-hover"
+        className="self-end rounded-lg bg-accent px-5 py-2 font-medium text-accent-ink transition-colors hover:bg-accent-hover"
       >
         Continue
       </button>
