@@ -102,6 +102,37 @@ impl Exclusion {
     }
 }
 
+/// How much a folder would add to the index: what a scan of it would find.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Estimate {
+    pub files: u64,
+    pub bytes: u64,
+}
+
+/// What a scan of `folder` with `exclusions` would find, without indexing it;
+/// unreadable entries are skipped.
+pub fn estimate(folder: &Path, exclusions: &[Exclusion]) -> Estimate {
+    walk(folder, exclusions)
+        .flatten()
+        .filter(|entry| entry.file_type().is_file())
+        .filter_map(|entry| entry.metadata().ok())
+        .fold(Estimate::default(), |sum, metadata| Estimate {
+            files: sum.files + 1,
+            bytes: sum.bytes + metadata.len(),
+        })
+}
+
+/// Everything beneath `folder` but what `exclusions` leave out; `folder` itself
+/// is never left out.
+fn walk<'a>(
+    folder: &Path,
+    exclusions: &'a [Exclusion],
+) -> walkdir::FilterEntry<walkdir::IntoIter, impl FnMut(&walkdir::DirEntry) -> bool + 'a> {
+    WalkDir::new(folder).into_iter().filter_entry(move |entry| {
+        entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry.path()))
+    })
+}
+
 /// A folder or whole drive the user has chosen to make searchable.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IndexedFolder {
