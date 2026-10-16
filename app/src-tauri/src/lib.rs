@@ -829,14 +829,14 @@ mod commands {
     use std::time::{Duration, Instant, SystemTime};
 
     use sbm_change_usn::UsnJournal;
-    use sbm_core::{AppDirs, SystemActivity};
+    use sbm_core::{AppDirs, Processor, SystemActivity, SystemUsage};
     use sbm_embed_onnx::{Accelerator, DEFAULT_MAX_TOKENS, OnnxEmbedder};
     use sbm_engine::{Engine, LoadedModel};
     use sbm_index::{Exclusion, View};
     use sbm_pdf::PdfPages;
     use sbm_setup::{
-        EMBEDDING_MODEL_DIR, Finished, PDFIUM_DIR, Plan, Progress, TimeLeft, Web,
-        prepare as install,
+        EMBEDDING_MODEL_DIR, Finished, Gpu, PDFIUM_DIR, Plan, Progress, TimeLeft, Web,
+        prepare as install, system_gpus,
     };
     use serde::Serialize;
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -849,8 +849,8 @@ mod commands {
     use tauri_plugin_opener::OpenerExt;
 
     use super::{
-        Dashboard, DownloadRow, ExclusionList, ExclusionRow, FailedRow, Filters, Searched,
-        Settings, SpeedChoice, TextPreview, data_dir, failed_row,
+        Dashboard, DeviceUsage, DownloadRow, ExclusionList, ExclusionRow, FailedRow, Filters,
+        Searched, Settings, SpeedChoice, TextPreview, data_dir, failed_row,
     };
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
@@ -1275,6 +1275,35 @@ mod commands {
             download: downloading.progress(),
             ..super::dashboard(&status, &jiff::Zoned::now())
         })
+    }
+
+    /// The sampler behind the Engine monitor, with the parts of the computer
+    /// that do not change while it runs.
+    pub struct Monitor {
+        usage: SystemUsage,
+        processor: Option<Processor>,
+        gpus: Vec<Gpu>,
+    }
+
+    impl Default for Monitor {
+        fn default() -> Self {
+            Self {
+                usage: SystemUsage::default(),
+                processor: sbm_core::processor(),
+                gpus: system_gpus(),
+            }
+        }
+    }
+
+    /// How busy this computer is, and how much of that is this app, since the last call.
+    #[tauri::command]
+    pub async fn device_usage(monitor: State<'_, Monitor>) -> Result<DeviceUsage, String> {
+        let usage = monitor.usage.sample();
+        Ok(super::device_usage(
+            &usage,
+            monitor.processor.as_ref(),
+            &monitor.gpus,
+        ))
     }
 
     #[tauri::command]
@@ -1721,6 +1750,7 @@ pub fn run() {
         .manage(commands::Launching::default())
         .manage(commands::Preparing::default())
         .manage(commands::Downloading::default())
+        .manage(commands::Monitor::default())
         .on_window_event(|window, event| {
             let launching = window
                 .state::<commands::Launching>()
@@ -1785,7 +1815,8 @@ pub fn run() {
             commands::hide_launcher,
             commands::open_search,
             commands::change_hotkey,
-            commands::download_model
+            commands::download_model,
+            commands::device_usage
         ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
