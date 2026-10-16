@@ -53,7 +53,7 @@ describe("IndexingStep", () => {
             pending: 655,
             failed: 5,
             current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf",
-            state: "Indexing waits until the computer is plugged in",
+            state: "Indexing: 655 files to go",
           }),
         )}
         every={10}
@@ -68,7 +68,27 @@ describe("IndexingStep", () => {
     );
     expect(screen.getByText("Q3 Report.pdf")).toBeInTheDocument();
     expect(screen.getByText("5 could not be read")).toBeInTheDocument();
-    expect(screen.getByText("Indexing waits until the computer is plugged in")).toBeInTheDocument();
+    expect(screen.queryByText("Indexing: 655 files to go")).not.toBeInTheDocument();
+  });
+
+  it("says why reading waits while no file is being read", async () => {
+    render(
+      <IndexingStep
+        progress={polls(
+          status({
+            files: 1_000,
+            pending: 1_000,
+            state: "Indexing waits until the computer is plugged in",
+          }),
+        )}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(
+      await screen.findByText("Indexing waits until the computer is plugged in"),
+    ).toBeInTheDocument();
   });
 
   it("shows the download that reading what is inside the files waits for", async () => {

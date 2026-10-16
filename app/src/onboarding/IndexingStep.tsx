@@ -126,7 +126,10 @@ function ContentProgress({ status, speed }: { status: Dashboard; speed: number |
           {fileName(status.current)}
         </span>
       )}
-      {status.state && <span className="text-xs text-muted">{status.state}</span>}
+      {/* While nothing is read, say why: the model is loading, or indexing waits. */}
+      {!status.current && status.state && (
+        <span className="text-xs text-muted">{status.state}</span>
+      )}
     </div>
   );
 }
