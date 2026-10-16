@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { LoaderCircle } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Launcher, type Searched } from "./Launcher";
 import type { TextPreview } from "./Lines";
@@ -50,6 +51,19 @@ const launcher = {
     };
   },
 };
+
+/** While the graphics cards are looked at, before the speed choices can be offered. */
+function Checking() {
+  return (
+    <div role="status" className="flex flex-col items-center gap-4 pt-20 text-center">
+      <LoaderCircle aria-hidden className="size-7 text-accent motion-safe:animate-spin" strokeWidth={2} />
+      <div className="flex flex-col gap-1">
+        <p className="text-base font-semibold">Checking your computer…</p>
+        <p className="text-sm text-muted">Looking for a graphics card that makes reading faster.</p>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   // Onboarding finished before: the hotkey brought up the window.
@@ -187,7 +201,11 @@ export default function App() {
     return {
       at: 1,
       onBack: () => setStarted(false),
-      view: choices && <SpeedStep choices={choices} onContinue={setChoice} />,
+      view: choices ? (
+        <SpeedStep choices={choices} onContinue={setChoice} />
+      ) : (
+        <Checking />
+      ),
     };
   };
 

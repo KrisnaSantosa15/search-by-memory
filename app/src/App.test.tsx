@@ -42,6 +42,21 @@ describe("App", () => {
     expect(await screen.findByRole("radio", { name: /any computer/i })).toBeChecked();
   });
 
+  it("says it is checking the computer while the speed choices are worked out", async () => {
+    let answer: (choices: typeof cpuOnly) => void = () => {};
+    mockIPC((command) => {
+      if (command === "speed_choices") return new Promise((resolve) => (answer = resolve));
+    });
+    render(<App />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Get started" }));
+    expect(await screen.findByText("Checking your computer…")).toBeInTheDocument();
+
+    answer(cpuOnly);
+    expect(await screen.findByRole("radio", { name: /any computer/i })).toBeChecked();
+    expect(screen.queryByText("Checking your computer…")).not.toBeInTheDocument();
+  });
+
   it("shows where the user is on the step rail, and goes back from the speed choices", async () => {
     mockIPC((command) => {
       if (command === "speed_choices") return cpuOnly;
