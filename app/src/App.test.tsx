@@ -208,6 +208,7 @@ describe("App", () => {
         if (command === "prepare") return true;
         if (command === "default_location") return "C:\\Users\\ana";
         if (command === "start_indexing") started.push(payload);
+        if (command === "dashboard") return idle;
       },
       { shouldMockEvents: true },
     );
