@@ -42,6 +42,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     resume: vi.fn(async () => {}),
     purge: vi.fn(async () => {}),
     close: vi.fn(),
+    retryFailed: vi.fn(async () => {}),
     ...overrides,
   };
   render(<Settings {...props} />);
@@ -133,6 +134,23 @@ describe("Settings", () => {
     expect(await screen.findByText("1 file could not be read")).toBeInTheDocument();
     expect(screen.getByText("locked.pdf")).toBeInTheDocument();
     expect(screen.getByText("Protected by a password")).toBeInTheDocument();
+  });
+
+  it("tries the files that could not be read once more, and lists them again", async () => {
+    let failed = [
+      { path: "C:\\Users\\ana\\Documents\\open.docx", reason: "inUse" as const, detail: "in use" },
+    ];
+    const props = renderSettings({
+      failedFiles: async () => failed,
+      retryFailed: vi.fn(async () => {
+        failed = [];
+      }),
+    });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Try again" }));
+
+    expect(props.retryFailed).toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText("open.docx")).not.toBeInTheDocument());
   });
 
   it("shows the underlying error of a failed file only when asked", async () => {

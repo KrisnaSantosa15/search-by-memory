@@ -29,6 +29,7 @@ const settings = {
   resume: () => invoke<void>("resume_indexing"),
   purge: () => invoke<void>("purge_index"),
   close: () => getCurrentWindow().close(),
+  retryFailed: () => invoke<void>("retry_failed"),
 };
 
 // The Settings window opens this page with `?view=settings`; the main window without.

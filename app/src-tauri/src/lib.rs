@@ -797,6 +797,14 @@ mod commands {
         Ok(failed.into_iter().map(failed_row).collect())
     }
 
+    /// Reads the files that could not be read once more.
+    #[tauri::command]
+    pub async fn retry_failed(running: State<'_, Running>) -> Result<(), String> {
+        let running = running.0.lock().unwrap();
+        let engine = running.as_ref().ok_or("search has not started yet")?;
+        engine.retry_failed().map_err(|error| error.to_string())
+    }
+
     /// A folder whose files are indexed, as the Folders tab lists it.
     #[derive(Serialize)]
     pub struct IndexedFolder {
@@ -1250,6 +1258,7 @@ pub fn run() {
             commands::default_location,
             commands::pick_location,
             commands::estimate_location,
+            commands::retry_failed,
             commands::start_indexing,
             commands::settings,
             commands::try_hotkey,

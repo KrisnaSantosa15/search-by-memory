@@ -1,4 +1,4 @@
-import { Activity, FolderOpen, X } from "lucide-react";
+import { Activity, FolderOpen, RotateCw, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { ReadingProgress, useIndexingProgress } from "./IndexingProgress";
 import { Path } from "./Path";
@@ -67,6 +67,8 @@ type StatusProps = {
   resume: () => Promise<void>;
   /** Erases the index from disk and starts setup again. */
   purge: () => Promise<void>;
+  /** Reads the files that could not be read once more. */
+  retryFailed: () => Promise<void>;
 };
 
 type FoldersProps = {
@@ -361,7 +363,7 @@ function label(row: ExclusionRow): string {
   return row.kind === "name" ? row.pattern : row.path;
 }
 
-function StatusTab({ dashboard, failedFiles, pause, resume, purge }: StatusProps) {
+function StatusTab({ dashboard, failedFiles, pause, resume, purge, retryFailed }: StatusProps) {
   const { status, speed, refresh: refreshStatus } = useIndexingProgress(
     dashboard,
     REFRESH_EVERY_MS,
@@ -400,7 +402,9 @@ function StatusTab({ dashboard, failedFiles, pause, resume, purge }: StatusProps
           </Button>
         </div>
       </div>
-      {failed.length > 0 && <FailedFiles files={failed} />}
+      {failed.length > 0 && (
+        <FailedFiles files={failed} onRetry={() => retryFailed().then(refresh)} />
+      )}
       <DeleteIndex purge={purge} />
     </>
   );
@@ -445,11 +449,17 @@ function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
   );
 }
 
-function FailedFiles({ files }: { files: FailedFile[] }) {
+function FailedFiles({ files, onRetry }: { files: FailedFile[]; onRetry: () => void }) {
   const count = files.length === 1 ? "1 file" : `${files.length.toLocaleString()} files`;
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-sm font-semibold">{count} could not be read</h2>
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold">{count} could not be read</h2>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          <RotateCw aria-hidden />
+          Try again
+        </Button>
+      </div>
       <ul className={`${PANEL} max-h-80 overflow-y-auto`}>
         {files.map((file) => (
           <FailedFileRow key={file.path} file={file} />
