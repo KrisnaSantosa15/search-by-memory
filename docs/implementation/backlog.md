@@ -186,7 +186,7 @@
   - Fixed: a folder added while the Engine's pass read the USN Journal was never scanned (the pass wrote back the cursor `add_indexed_folder` had cleared); `apply_changes` now keeps the cursor when the volume's cursor or Indexed Folders changed meanwhile, so the next pass rescans. Checked with `sbm index` adding 6 folders in turn (2 → 94 files).
   - Done: Engine monitor (user, 2026-10-17): Settings moved to the sidebar foot; above it the Engine panel (replaces the status card): what search is doing, Reading model / File names / Contents (bar) / Unreadable rows that open their page; "This computer" popover: processor, memory, each GPU with this app's share as a bright part of each bar, Pause / Resume reading. `sbm_core::SystemUsage` (CPU times, memory, PDH `GPU Engine` / `GPU Adapter Memory` / `GPU Process Memory`, Task Manager's busiest-engine rule), `processor()`, `Gpu.adapter` (LUID), `device_usage` command, sampled only while the popover is open. Checked in the real window (scratch data, RTX 4060).
   - Fixed: with every file indexed, `indexing_state` said it waits for a full-screen app or battery.
-  - Found: `cuda_*` embed tests fall back to CPU and `every_public_target_file_is_in_the_public_corpus` fails (PDF missing on disk) in a plain `cargo test --workspace`; not touched by this work.
+  - Found: `cuda_*` embed tests fell back to CPU even with the CUDA runtime on `PATH`, while a full-screen app used the GPU (5.5 of 7.8 GB); `every_public_target_file_is_in_the_public_corpus` fails (`pelindungan-data-pribadi-27-2022.pdf` missing on disk). Neither touched by this work.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
