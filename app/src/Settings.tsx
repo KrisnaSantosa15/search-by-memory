@@ -3,6 +3,7 @@ import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { ReadingProgress, useIndexingProgress } from "./IndexingProgress";
 import { Path } from "./Path";
 import { size } from "./size";
+import { UNREADABLE, type Unreadable } from "./unreadable";
 import { Button } from "./ui/Button";
 
 /** What the Status tab shows; see `Dashboard` in `src-tauri`. */
@@ -29,26 +30,6 @@ export type Dashboard = {
 /** A file whose content could not be indexed. */
 export type FailedFile = { path: string; reason: Unreadable; detail: string };
 
-/** Why a file could not be read, as the index reports it. */
-export type Unreadable =
-  | "passwordProtected"
-  | "tooLarge"
-  | "damaged"
-  | "inUse"
-  | "noAccess"
-  | "gone"
-  | "other";
-
-/** Each reason in words someone who never saw the error can act on. */
-const UNREADABLE: Record<Unreadable, string> = {
-  passwordProtected: "Protected by a password",
-  tooLarge: "Too large to read (more than 50 MB of text)",
-  damaged: "The file seems damaged",
-  inUse: "Another program had it open",
-  noAccess: "Windows didn't allow reading it",
-  gone: "Moved or deleted before it could be read",
-  other: "Couldn't be read",
-};
 
 /** How often the status is asked again while the window is open. */
 const REFRESH_EVERY_MS = 2_000;
