@@ -34,7 +34,7 @@ export function DownloadStep({ done, total, secondsLeft, onRetry, onCancel, onCo
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex items-baseline justify-between gap-3 text-sm">
             <span className="font-medium">{`${gigabytes(done)} of ${gigabytes(total)} GB`}</span>
-            <span className="text-[13px] text-muted">{timeLeft(secondsLeft)}</span>
+            <span className="text-[13px] text-muted">{onRetry ? "Stopped" : timeLeft(secondsLeft)}</span>
           </div>
           <ProgressBar label="Download" value={total > 0 ? done / total : 0} />
         </div>

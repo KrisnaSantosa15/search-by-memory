@@ -19,6 +19,22 @@ describe("DownloadStep", () => {
     expect(screen.getByText("About 3 minutes left")).toBeInTheDocument();
   });
 
+  it("says the download stopped instead of how long it has left", () => {
+    render(
+      <DownloadStep
+        done={1_200_000_000}
+        total={3_000_000_000}
+        secondsLeft={170}
+        onRetry={() => {}}
+        onCancel={() => {}}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Stopped")).toBeInTheDocument();
+    expect(screen.queryByText("About 3 minutes left")).not.toBeInTheDocument();
+  });
+
   it.each([
     [null, "Working out how long this takes"],
     [40, "Less than a minute left"],
