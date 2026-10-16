@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Dashboard } from "../Settings";
 import { Button } from "../ui/Button";
 import { ProgressBar } from "../ui/ProgressBar";
-import { timeLeft } from "./DownloadStep";
+import { timeLeft } from "./timeLeft";
 
 type Props = {
   progress: () => Promise<Dashboard>;
