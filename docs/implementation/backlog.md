@@ -164,7 +164,10 @@
   - Next: tune `WEAKER_MARGIN` on the Benchmark.
 - App redesign (user, 2026-10-15): VoiceStudio Classic look app-wide; one-location onboarding with a visible indexing step; Settings + live dashboard; features beyond DigUp.
   - Done: stage 1: VoiceStudio Classic tokens (dark + light by OS theme), Inter bundled, lucide icons; `Button` (primary/outline/ghost/danger, never submits unless asked) used across onboarding, Settings, Preview; launcher restyled (chrome list, pill chips, key caps, tinted kind tiles); Query box without spell-check. Checked in the real window (dark).
-  - In progress: stage 2: Welcome, Speed, Download (skippable, shown in the tray), one Location (Change…, Reset, estimate), Indexing step (names, content, speed, time left, current file, model state), live hotkey test (Ctrl+Shift+Space), wizard rail with Back.
+  - Done: stage 2: Wizard rail (Back on Speed, Search keys, Done); Welcome; Download skippable (model loads once a download finished; tray shows %; Try again on the Indexing step); one Location (Change… via folder dialog, Reset to default, estimate with Default Exclusions); Indexing step (names found, files read of total, speed from when reading began, time left, current file, failures, why it waits); Ctrl+Shift+Space default with a live "They work." check. Checked end to end in the real window (DirectML, scratch data).
+  - Done along the way: system drive Default Exclusions (Windows, Program Files, ProgramData, every user's AppData, …) now applied, listed as Default in Settings, can be turned off and restored; `Engine` status `scanning` and `current`; `Index::next_queued_file`, `default_exclusions`, `estimate`.
+  - Next: stage 3: Settings + live dashboard in the VoiceStudio layout.
+  - Found: Live Updates run before Initial Indexing (`live DESC`), so a folder that keeps changing can hold content reading back; check with the Benchmark of a busy Downloads folder.
   - Found: while Initial Indexing runs (debug build, DirectML), a Query stayed "Searching…" for over 10 s; check whether Query embedding waits behind indexing batches.
 
 ## Next
