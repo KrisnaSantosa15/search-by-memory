@@ -1,3 +1,4 @@
+import { CircleCheck, Keyboard, TriangleAlert } from "lucide-react";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { Button } from "../ui/Button";
 
@@ -40,14 +41,14 @@ export function HotkeyStep({ tryHotkey, listenPressed, onContinue }: Props) {
 
   return (
     <form
-     className="flex flex-col gap-5"
+      className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         onContinue(hotkey);
       }}
     >
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Search from anywhere</h1>
+        <h1 className="text-xl font-semibold tracking-[-0.02em]">Search from anywhere</h1>
         <p className="text-sm text-muted">
           Press these keys in any app to bring up search. To use other keys, click below and
           press them.
@@ -57,28 +58,37 @@ export function HotkeyStep({ tryHotkey, listenPressed, onContinue }: Props) {
         type="button"
         aria-label={`Keys for search: ${spoken(hotkey)}`}
         onKeyDown={record}
-       className="flex justify-center rounded-xl border border-line bg-panel p-6 transition-colors hover:bg-raised focus:border-accent focus:outline-none"
+        className="group flex flex-col items-center gap-4 rounded-xl border border-line bg-panel/40 px-4 py-7 transition-colors hover:bg-hover focus:border-accent focus:bg-accent-soft focus:outline-none"
       >
-        <kbd className="rounded-lg border border-line bg-raised px-4 py-2 text-lg font-medium">
-          {spoken(hotkey)}
-        </kbd>
+        <span className="flex items-center gap-2">
+          {keys(hotkey).map((key, index) => (
+            <span key={key} className="flex items-center gap-2">
+              {index > 0 && <span className="text-muted">+</span>}
+              <kbd className="min-w-11 rounded-lg border border-line bg-raised px-3 py-1.5 text-center font-sans text-base font-medium text-ink shadow-[inset_0_-2px_0_rgb(0_0_0/0.25)]">
+                {key}
+              </kbd>
+            </span>
+          ))}
+        </span>
+        <span className="flex items-center gap-1.5 text-xs text-muted">
+          <Keyboard aria-hidden className="size-3.5" strokeWidth={1.75} />
+          <span className="group-focus:hidden">Click to change</span>
+          <span className="hidden group-focus:inline">Press the keys you want</span>
+        </span>
       </button>
       {free && (
-        <p className={`text-sm ${works ? "text-ink" : "text-muted"}`}>
+        <p className={`flex items-center gap-2 text-sm ${works ? "text-ink" : "text-muted"}`}>
+          {works && <CircleCheck aria-hidden className="size-4 text-accent" strokeWidth={1.75} />}
           {works ? "They work." : "Try them now: press the keys."}
         </p>
       )}
       {free === false && (
-        <p className="rounded-xl border border-accent bg-accent-soft p-4 text-sm">
+        <p className="flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-soft p-4 text-sm">
+          <TriangleAlert aria-hidden className="size-4.5 shrink-0 text-accent" strokeWidth={1.75} />
           Another app already uses these keys. Press other keys you would like to use.
         </p>
       )}
-      <Button
-        variant="primary"
-        type="submit"
-        disabled={!free}
-        className="self-end"
-      >
+      <Button variant="primary" type="submit" disabled={!free} className="self-end">
         Continue
       </Button>
     </form>
@@ -105,8 +115,10 @@ function shortcut(event: KeyboardEvent): string | null {
 
 /** `Ctrl+Shift+KeyK` as people read it: `Ctrl + Shift + K`. */
 export function spoken(hotkey: string): string {
-  return hotkey
-    .split("+")
-    .map((key) => key.replace(/^(Key|Digit)/, ""))
-    .join(" + ");
+  return keys(hotkey).join(" + ");
+}
+
+/** Each key of `Ctrl+Shift+KeyK` as written on the keyboard: `Ctrl`, `Shift`, `K`. */
+function keys(hotkey: string): string[] {
+  return hotkey.split("+").map((key) => key.replace(/^(Key|Digit)/, ""));
 }
