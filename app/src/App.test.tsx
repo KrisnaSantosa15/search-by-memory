@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { emit } from "@tauri-apps/api/event";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
@@ -38,6 +38,24 @@ describe("App", () => {
     expect(await screen.findByText("Find any file by what you remember of it")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Get started" }));
     expect(await screen.findByRole("radio", { name: /any computer/i })).toBeChecked();
+  });
+
+  it("shows where the user is on the step rail, and goes back from the speed choices", async () => {
+    mockIPC((command) => {
+      if (command === "speed_choices") return cpuOnly;
+    });
+    render(<App />);
+    const current = () =>
+      within(screen.getByRole("list", { name: "Steps" })).getByRole("listitem", { current: "step" });
+
+    expect(await screen.findByRole("button", { name: "Get started" })).toBeInTheDocument();
+    expect(current()).toHaveTextContent("Welcome");
+    await userEvent.click(screen.getByRole("button", { name: "Get started" }));
+    await screen.findByRole("radio", { name: /any computer/i });
+    expect(current()).toHaveTextContent("Speed");
+
+    await userEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(current()).toHaveTextContent("Welcome");
   });
 
   it("quits from the close button during onboarding", async () => {

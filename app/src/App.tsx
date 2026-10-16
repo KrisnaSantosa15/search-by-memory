@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Launcher, type ResultRow } from "./Launcher";
 import type { TextPreview } from "./Lines";
 import type { PdfPagePreview } from "./PdfPage";
@@ -12,7 +12,11 @@ import { type Download, IndexingStep } from "./onboarding/IndexingStep";
 import { type Estimate, LocationStep } from "./onboarding/LocationStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 import { WelcomeStep } from "./onboarding/WelcomeStep";
+import { Wizard } from "./onboarding/Wizard";
 
+
+/** Onboarding's steps, as the rail names them. */
+const STEPS = ["Welcome", "Speed", "Download", "Location", "Indexing", "Search keys", "Done"];
 
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
 const estimateLocation = (location: string) => invoke<Estimate>("estimate_location", { location });
@@ -110,52 +114,76 @@ export default function App() {
     setProgress({ done: 0, total: 0, secondsLeft: null });
   };
 
-  const step = () => {
+  /** The step on screen: where it sits on the rail, and how to go back from it. */
+  const step = (): { at: number; onBack?: () => void; view: ReactNode } => {
     if (hotkey) {
-      return (
-        <DoneStep
-          hotkey={hotkey}
-          onFinish={() =>
-            invoke("finish_onboarding", { choice, hotkey }).then(() => setFinished(true))
-          }
-        />
-      );
+      return {
+        at: 6,
+        onBack: () => setHotkey(null),
+        view: (
+          <DoneStep
+            hotkey={hotkey}
+            onFinish={() =>
+              invoke("finish_onboarding", { choice, hotkey }).then(() => setFinished(true))
+            }
+          />
+        ),
+      };
     }
-    if (shown) return <HotkeyStep tryHotkey={tryHotkey} listenPressed={listenPressed} onContinue={setHotkey} />;
+    if (shown) {
+      return {
+        at: 5,
+        onBack: () => setShown(false),
+        view: <HotkeyStep tryHotkey={tryHotkey} listenPressed={listenPressed} onContinue={setHotkey} />,
+      };
+    }
     if (indexing) {
-      return (
-        <IndexingStep
-          progress={indexingProgress}
-          download={downloaded || stopped ? null : progress}
-          onRetryDownload={stopped ? retryDownload : undefined}
-          onContinue={() => setShown(true)}
-        />
-      );
+      return {
+        at: 4,
+        view: (
+          <IndexingStep
+            progress={indexingProgress}
+            download={downloaded || stopped ? null : progress}
+            onRetryDownload={stopped ? retryDownload : undefined}
+            onContinue={() => setShown(true)}
+          />
+        ),
+      };
     }
     if (location) {
-      return (
-        <LocationStep
-          defaultLocation={location}
-          estimate={estimateLocation}
-          pickFolder={pickLocation}
-          onContinue={(location) =>
-            invoke("start_indexing", { choice, location }).then(() => setIndexing(true))
-          }
-        />
-      );
+      return {
+        at: 3,
+        view: (
+          <LocationStep
+            defaultLocation={location}
+            estimate={estimateLocation}
+            pickFolder={pickLocation}
+            onContinue={(location) =>
+              invoke("start_indexing", { choice, location }).then(() => setIndexing(true))
+            }
+          />
+        ),
+      };
     }
     if (choice) {
-      return (
-        <DownloadStep
-          {...progress}
-          onRetry={stopped ? retryDownload : undefined}
-          onCancel={() => (stopped ? backToSpeeds() : invoke("cancel_prepare"))}
-          onContinue={askLocation}
-        />
-      );
+      return {
+        at: 2,
+        view: (
+          <DownloadStep
+            {...progress}
+            onRetry={stopped ? retryDownload : undefined}
+            onCancel={() => (stopped ? backToSpeeds() : invoke("cancel_prepare"))}
+            onContinue={askLocation}
+          />
+        ),
+      };
     }
-    if (!started) return <WelcomeStep onStart={() => setStarted(true)} />;
-    return choices && <SpeedStep choices={choices} onContinue={setChoice} />;
+    if (!started) return { at: 0, view: <WelcomeStep onStart={() => setStarted(true)} /> };
+    return {
+      at: 1,
+      onBack: () => setStarted(false),
+      view: choices && <SpeedStep choices={choices} onContinue={setChoice} />,
+    };
   };
 
   if (finished) {
@@ -165,10 +193,14 @@ export default function App() {
       </div>
     );
   }
+  const current = step();
   // The window has no frame: this strip moves it, and quits onboarding.
   return (
     <div className="flex h-full flex-col surface">
-      <header data-tauri-drag-region className="flex h-10 shrink-0 items-center justify-between pl-5">
+      <header
+        data-tauri-drag-region
+        className="flex h-10 shrink-0 items-center justify-between border-b border-line pl-5"
+      >
         <span data-tauri-drag-region className="text-xs text-muted">
           Search by Memory
         </span>
@@ -181,8 +213,10 @@ export default function App() {
           ✕
         </button>
       </header>
-      <main className="w-full flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-xl px-6 pt-4 pb-10">{step()}</div>
+      <main className="min-h-0 flex-1">
+        <Wizard steps={STEPS} current={current.at} onBack={current.onBack}>
+          {current.view}
+        </Wizard>
       </main>
     </div>
   );
