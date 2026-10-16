@@ -66,3 +66,24 @@ fn dashboard_reports_how_much_disk_the_indexes_take() {
         1_234_567_890
     );
 }
+
+#[test]
+fn dashboard_reports_whether_names_are_still_being_found_and_what_is_being_read() {
+    let status = Status {
+        scanning: true,
+        current: Some(std::path::PathBuf::from(
+            "C:/Users/ana/Documents/report.pdf",
+        )),
+        failed: 2,
+        ..Status::default()
+    };
+
+    let dashboard = dashboard(&status, &Zoned::now());
+
+    assert!(dashboard.scanning);
+    assert_eq!(
+        dashboard.current.as_deref(),
+        Some(std::path::Path::new("C:/Users/ana/Documents/report.pdf"))
+    );
+    assert_eq!(dashboard.failed, 2);
+}

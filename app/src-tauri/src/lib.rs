@@ -214,6 +214,12 @@ pub struct Dashboard {
     pub paused: bool,
     /// Bytes the indexes take on disk.
     pub size_on_disk: u64,
+    /// The names in a new location are still being found.
+    pub scanning: bool,
+    /// The file whose content is being read right now.
+    pub current: Option<PathBuf>,
+    /// Files whose content could not be read.
+    pub failed: usize,
 }
 
 pub fn dashboard(status: &Status, now: &Zoned) -> Dashboard {
@@ -221,6 +227,9 @@ pub fn dashboard(status: &Status, now: &Zoned) -> Dashboard {
         state: indexing_state(status, now),
         paused: status.paused,
         size_on_disk: status.size_on_disk,
+        scanning: status.scanning,
+        current: status.current.clone(),
+        failed: status.failed,
         files: status.files,
         indexed: status.indexed,
         pending: status.pending,

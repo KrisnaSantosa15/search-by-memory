@@ -21,6 +21,9 @@ const running: Dashboard = {
   state: "Indexing: 660 files to go",
   paused: false,
   sizeOnDisk: 1_234_567_890,
+  scanning: false,
+  current: null,
+  failed: 0,
 };
 
 function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {}) {

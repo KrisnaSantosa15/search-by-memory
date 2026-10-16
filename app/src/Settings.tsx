@@ -16,6 +16,12 @@ export type Dashboard = {
   paused: boolean;
   /** Bytes the indexes take on disk. */
   sizeOnDisk: number;
+  /** The names in a new location are still being found. */
+  scanning: boolean;
+  /** The file whose content is being read right now. */
+  current: string | null;
+  /** Files whose content could not be read. */
+  failed: number;
 };
 
 /** A file whose content could not be indexed. */
