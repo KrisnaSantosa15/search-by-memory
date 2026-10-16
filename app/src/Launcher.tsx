@@ -79,6 +79,8 @@ type Props = {
   hide: () => void;
   /** Where the Copies picked before are kept, such as `localStorage`. */
   memory?: Memory;
+  /** Calls back with what another window, such as Home, asks to search for; returns how to stop. */
+  listenSearchFor?: (searchFor: (typed: string) => void) => () => void;
 };
 
 /** The part of the Web Storage API the launcher remembers things in. */
@@ -99,6 +101,15 @@ export function Launcher(props: Props) {
   const [copy, setCopy] = useState<number | null>(null);
   const [unfolded, setUnfolded] = useState(false);
   const box = useRef<HTMLInputElement>(null);
+
+  const { listenSearchFor } = props;
+  useEffect(() => {
+    if (!listenSearchFor) return;
+    return listenSearchFor((typed) => {
+      setTyped(typed);
+      box.current?.focus();
+    });
+  }, [listenSearchFor]);
 
   // The hotkey or the tray brought the window back: ready for a Query.
   useEffect(() => {

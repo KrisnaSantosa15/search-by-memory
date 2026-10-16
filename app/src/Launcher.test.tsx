@@ -654,6 +654,26 @@ describe("Launcher", () => {
     delete Element.prototype.scrollIntoView;
   });
 
+  it("searches for what another window asked it to, such as a filter picked on Home", async () => {
+    let searchFor: (typed: string) => void = () => {};
+    const search = vi.fn(answers(report));
+    render(
+      <Launcher
+        search={search}
+        {...actions()}
+        listenSearchFor={(listener) => {
+          searchFor = listener;
+          return () => {};
+        }}
+      />,
+    );
+
+    act(() => searchFor("ext:pdf "));
+
+    expect(screen.getByRole("searchbox")).toHaveValue("ext:pdf ");
+    await waitFor(() => expect(search).toHaveBeenLastCalledWith("ext:pdf "));
+  });
+
   it("hides with Escape", async () => {
     const spies = actions();
     render(<Launcher search={answers()} {...spies} />);
