@@ -77,6 +77,8 @@ pub struct Gpu {
     pub vendor: GpuVendor,
     /// Video memory of its own, in bytes; 0 for most integrated GPUs.
     pub dedicated_memory: u64,
+    /// The adapter's LUID, which its usage is reported under (`sbm_core::GpuLoad::adapter`).
+    pub adapter: u64,
 }
 
 /// One way to run the embedding model, offered during first-run setup.

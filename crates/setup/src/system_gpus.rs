@@ -99,6 +99,7 @@ mod platform {
                 _ => GpuVendor::Other,
             },
             dedicated_memory: desc.dedicated_video_memory as u64,
+            adapter: (u64::from(desc.adapter_luid.1 as u32) << 32) | u64::from(desc.adapter_luid.0),
         }
     }
 }

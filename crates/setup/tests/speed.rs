@@ -8,6 +8,7 @@ fn gpu(name: &str, vendor: GpuVendor, memory_gb: u64) -> Gpu {
         name: name.to_string(),
         vendor,
         dedicated_memory: memory_gb << 30,
+        adapter: 0,
     }
 }
 

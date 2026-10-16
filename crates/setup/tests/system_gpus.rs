@@ -13,3 +13,18 @@ fn windows_lists_this_machines_graphics_cards_but_not_software_renderers() {
         assert!(!gpu.name.contains("Basic Render"), "{gpu:?}");
     }
 }
+
+#[cfg(windows)]
+#[test]
+fn windows_graphics_cards_carry_the_adapter_id_their_usage_is_reported_under() {
+    let usage = sbm_core::SystemUsage::default();
+    usage.sample();
+    let loads = usage.sample().gpus;
+
+    for gpu in system_gpus() {
+        assert!(
+            loads.iter().any(|load| load.adapter == gpu.adapter),
+            "{gpu:?} not in {loads:?}"
+        );
+    }
+}
