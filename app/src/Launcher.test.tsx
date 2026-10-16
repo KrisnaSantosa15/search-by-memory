@@ -80,6 +80,43 @@ describe("Launcher", () => {
     expect(first).toHaveAttribute("aria-selected", "true");
   });
 
+  it("keeps the Result the arrow keys select in view as the list scrolls", async () => {
+    const notes = { ...report, name: "notes.md", path: "D:\\notes.md" };
+    const plan = { ...report, name: "plan.txt", path: "D:\\plan.txt" };
+    const scrolled: Element[] = [];
+    // jsdom has no scrolling; record which element asked to be scrolled into view.
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    render(<Launcher search={answers(report, notes, plan)} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option", { name: /Q3 Report/ });
+
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+
+    expect(scrolled.at(-1)).toBe(screen.getByRole("option", { name: /plan\.txt/ }));
+    // @ts-expect-error: back to jsdom's own, which has none.
+    delete Element.prototype.scrollIntoView;
+  });
+
+  it("keeps the weaker matches row in view when the arrow keys reach it", async () => {
+    const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
+    const scrolled: Element[] = [];
+    // jsdom has no scrolling; record which element asked to be scrolled into view.
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    render(<Launcher search={answers(report, faint)} {...actions()} />);
+    await userEvent.type(screen.getByRole("searchbox"), "profit");
+    await screen.findByRole("option", { name: /Q3 Report/ });
+
+    await userEvent.keyboard("{ArrowDown}");
+
+    expect(scrolled.at(-1)).toBe(screen.getByRole("option", { name: "1 weaker match" }));
+    // @ts-expect-error: back to jsdom's own, which has none.
+    delete Element.prototype.scrollIntoView;
+  });
+
   it("selects a Result that is clicked, keeping the keyboard in the Query box", async () => {
     const notes = { ...report, name: "notes.md", path: "D:\\notes.md" };
     render(<Launcher search={answers(report, notes)} {...actions()} />);

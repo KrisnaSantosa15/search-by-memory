@@ -142,6 +142,7 @@ export function Launcher(props: Props) {
   ];
   const entry = entries[selected];
   const result = entry === FOLD ? undefined : entry;
+  const foldRow = useSelectedInView(entry === FOLD);
   const paths = result ? [result.path, ...result.copies] : [];
   // The file an action applies to; none while the user has yet to pick a Copy.
   const target = copy !== null ? paths[copy] : paths.length === 1 ? paths[0] : undefined;
@@ -237,6 +238,7 @@ export function Launcher(props: Props) {
           {faint.length > 0 && (
             <div className="flex flex-col gap-0.5">
               <div
+                ref={foldRow}
                 role="option"
                 aria-selected={entry === FOLD}
                 aria-expanded={unfolded}
@@ -334,8 +336,10 @@ function Row(props: {
   thumbnails: LoadThumbnail;
 }) {
   const { result, query } = props;
+  const row = useSelectedInView(props.selected);
   return (
     <div
+      ref={row}
       role="option"
       aria-selected={props.selected}
       onMouseDown={(event) => event.preventDefault()}
@@ -370,6 +374,19 @@ function Row(props: {
       </span>
     </div>
   );
+}
+
+/**
+ * A ref for a list row that scrolls the row into view while it is selected,
+ * so the arrow keys never move the selection out of sight.
+ */
+function useSelectedInView(selected: boolean) {
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // `nearest`: a row already in view stays put, one out of view moves just enough.
+    if (selected) row.current?.scrollIntoView?.({ block: "nearest" });
+  }, [selected]);
+  return row;
 }
 
 /** The "weaker matches" row, among the Results that ↑/↓ move through. */
