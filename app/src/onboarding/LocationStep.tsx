@@ -40,6 +40,11 @@ export function LocationStep({ defaultLocation, pickFolder, onContinue }: Props)
         <span className="min-w-0 flex-1 truncate font-mono text-xs" title={location}>
           {location}
         </span>
+        {location !== defaultLocation && (
+          <Button variant="ghost" size="sm" onClick={() => setLocation(defaultLocation)}>
+            Reset to default
+          </Button>
+        )}
         <Button size="sm" onClick={change}>
           Change…
         </Button>

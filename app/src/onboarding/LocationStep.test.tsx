@@ -22,4 +22,17 @@ describe("LocationStep", () => {
 
     expect(onContinue).toHaveBeenCalledWith("D:\\Archive");
   });
+
+  it("offers Reset to default only after a change, and it brings back the personal folder", async () => {
+    render(
+      <LocationStep defaultLocation={home} pickFolder={async () => "D:\\Archive"} onContinue={() => {}} />,
+    );
+    expect(screen.queryByRole("button", { name: "Reset to default" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Change…" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Reset to default" }));
+
+    expect(screen.getByText(home)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset to default" })).not.toBeInTheDocument();
+  });
 });
