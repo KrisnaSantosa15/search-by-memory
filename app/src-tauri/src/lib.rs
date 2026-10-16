@@ -1654,6 +1654,9 @@ pub fn run() {
                 if let Err(error) = commands::resume(app.handle(), &settings) {
                     eprintln!("search could not start: {error}");
                     commands::show(app.handle());
+                } else if !std::env::args().any(|arg| arg == START_HIDDEN) {
+                    // Started by the user, as from the Start menu: Home shows it is running.
+                    commands::open_settings(app.handle());
                 }
             }
             Ok(())
@@ -1699,6 +1702,9 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
 }
+
+/// Starts in the tray alone, as when started with the computer.
+const START_HIDDEN: &str = "--hidden";
 
 /// Where the index and settings live: `$SBM_DATA_DIR`, as for `sbm`, or the
 /// platform's data directory.
