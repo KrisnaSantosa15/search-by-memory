@@ -409,6 +409,7 @@ pub struct Filters {
     /// From `date:`: a file must be last modified in `start..end`.
     modified: Option<(Timestamp, Timestamp)>,
     code_only: bool,
+    names_only: bool,
 }
 
 impl Filters {
@@ -419,6 +420,7 @@ impl Filters {
         let mut folders = Vec::new();
         let mut modified = None;
         let mut code_only = false;
+        let mut names_only = false;
         let typed = words_of(typed);
         for word in &typed {
             let word = word.as_str();
@@ -443,9 +445,15 @@ impl Filters {
                         None => words.push(word),
                     }
                 }
-                // `code:` takes no value: a word typed right after it is part of the Query.
+                // `code:` and `name:` take no value: a word typed right after one is part of the Query.
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("code") => {
                     code_only = true;
+                    if !value.is_empty() {
+                        words.push(value);
+                    }
+                }
+                Some((prefix, value)) if prefix.eq_ignore_ascii_case("name") => {
+                    names_only = true;
                     if !value.is_empty() {
                         words.push(value);
                     }
@@ -459,12 +467,18 @@ impl Filters {
             folders,
             modified,
             code_only,
+            names_only,
         }
     }
 
     /// The Query, without its filter prefixes.
     pub fn query(&self) -> &str {
         &self.query
+    }
+
+    /// Whether `name:` asks to search by name only, leaving content out.
+    pub fn names_only(&self) -> bool {
+        self.names_only
     }
 
     /// Whether the file at `path` passes every filter.

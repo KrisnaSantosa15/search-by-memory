@@ -168,3 +168,12 @@ fn date_with_a_year_or_a_month_keeps_files_modified_in_that_calendar_span() {
         assert!(!filters.keeps(&outside), "{value}");
     }
 }
+
+#[test]
+fn name_prefix_asks_for_a_search_by_name_only() {
+    let filters = Filters::parse("name:invoice march", &now());
+
+    assert_eq!(filters.query(), "invoice march");
+    assert!(filters.names_only());
+    assert!(!Filters::parse("invoice march", &now()).names_only());
+}
