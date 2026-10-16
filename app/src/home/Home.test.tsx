@@ -210,7 +210,9 @@ describe("Home", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Folders" }));
 
     const sidebar = await screen.findByRole("status", { name: "Search status" });
-    await waitFor(() => expect(sidebar).toHaveTextContent("Downloading the reading model40%"));
+    await waitFor(() => expect(sidebar).toHaveTextContent("Downloading40%"));
+    expect(sidebar).toHaveTextContent("Reading files starts once it finishes");
+    expect(sidebar).not.toHaveTextContent("files to go");
 
     status = running;
     await vi.advanceTimersByTimeAsync(2_000);

@@ -7,11 +7,22 @@ const REFRESH_EVERY_MS = 2_000;
 type Tone = "ok" | "busy" | "waiting" | "failed";
 
 /** What search is doing, in a few words, with how far it has got where that is known. */
-function summary(status: Dashboard): { title: string; amount?: string; tone: Tone } {
+function summary(status: Dashboard): {
+  title: string;
+  amount?: string;
+  /** A second line; by default, what indexing is doing. */
+  detail?: string;
+  tone: Tone;
+} {
   if (status.download) {
     const { done, total } = status.download;
     const percent = total > 0 ? Math.floor((done * 100) / total) : 0;
-    return { title: "Downloading the reading model", amount: `${percent}%`, tone: "busy" };
+    return {
+      title: "Downloading",
+      amount: `${percent}%`,
+      detail: "Reading files starts once it finishes",
+      tone: "busy",
+    };
   }
   if (status.model.state === "failed") return { title: "Names only", tone: "failed" };
   if (status.scanning) return { title: "Finding files", tone: "busy" };
@@ -39,6 +50,7 @@ const DOTS: Record<Tone, string> = {
 export function StatusCard({ dashboard }: { dashboard: () => Promise<Dashboard> }) {
   const { status } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
   const now = status ? summary(status) : null;
+  const detail = now?.detail ?? status?.state;
   return (
     <div
       role="status"
@@ -52,9 +64,9 @@ export function StatusCard({ dashboard }: { dashboard: () => Promise<Dashboard> 
             <span className="min-w-0 flex-1 truncate font-medium">{now.title}</span>
             {now.amount && <span className="shrink-0 tabular-nums text-muted">{now.amount}</span>}
           </span>
-          {status && status.state && (
-            <span className="truncate pl-4 text-[11px] text-muted" title={status.state}>
-              {status.state}
+          {detail && (
+            <span className="truncate pl-4 text-[11px] text-muted" title={detail}>
+              {detail}
             </span>
           )}
         </>

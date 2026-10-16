@@ -62,29 +62,31 @@ export function WaysToSearch({ onSearch }: { onSearch: (typed: string) => void }
       <h2 id="ways-to-search" className="px-1 text-sm font-medium">
         Ways to search
       </h2>
-      <ul aria-label="Ways to search" className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <ul aria-label="Ways to search" className="grid grid-cols-3 gap-3">
         {WAYS.map(({ typed, title, description, Icon, tone }) => (
           <li key={typed} className="flex">
             <button
               type="button"
               onClick={() => onSearch(typed)}
-              className={`destination tone-${tone} group flex w-full items-center gap-3 p-4 text-left`}
+              className={`destination tone-${tone} group flex w-full flex-col items-start gap-3 p-4 text-left`}
             >
-              <span
-                className={`grid size-10 shrink-0 place-items-center rounded-xl ring-1 ring-inset shadow-[inset_0_1px_0_rgb(255_255_255/10%)] ${TONES[tone]}`}
-              >
-                <Icon aria-hidden className="destination-icon size-5" strokeWidth={1.75} />
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex items-baseline gap-2">
-                  <span className="truncate text-sm font-semibold tracking-[-0.015em]">{title}</span>
-                  <code className="shrink-0 rounded-md bg-raised px-1.5 font-mono text-[11px] text-muted">
-                    {typed.trim()}
-                  </code>
+              <span className="flex w-full items-start justify-between gap-2">
+                <span
+                  className={`grid size-10 shrink-0 place-items-center rounded-xl ring-1 ring-inset shadow-[inset_0_1px_0_rgb(255_255_255/10%)] ${TONES[tone]}`}
+                >
+                  <Icon aria-hidden className="destination-icon size-5" strokeWidth={1.75} />
                 </span>
-                <span className="truncate text-xs text-muted">{description}</span>
+                <code className="truncate rounded-md border border-line bg-raised/70 px-1.5 py-0.5 font-mono text-[11px] text-muted">
+                  {typed.trim()}
+                </code>
               </span>
-              <ArrowRight aria-hidden className="destination-arrow size-4 shrink-0" />
+              <span className="flex w-full items-end gap-2">
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-sm font-semibold tracking-[-0.015em]">{title}</span>
+                  <span className="text-xs leading-relaxed text-muted">{description}</span>
+                </span>
+                <ArrowRight aria-hidden className="destination-arrow mb-0.5 size-4 shrink-0" />
+              </span>
             </button>
           </li>
         ))}
