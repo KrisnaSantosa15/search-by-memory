@@ -37,3 +37,32 @@ fn a_gpus_load_is_its_busiest_engine_summed_over_processes_as_task_manager_count
     assert_eq!(percent, 35.0);
     assert_eq!(own_percent, 30.0);
 }
+
+#[test]
+fn a_gpus_video_memory_in_use_counts_every_process_and_this_apps_own_share() {
+    let counters = GpuCounters {
+        adapter_memory: vec![value(ADAPTER, 4_000.0)],
+        process_memory: vec![
+            value(&format!("pid_100_{ADAPTER}"), 3_000.0),
+            value(&format!("pid_200_{ADAPTER}"), 1_000.0),
+        ],
+        ..GpuCounters::default()
+    };
+
+    let loads = gpu_loads(&counters, 200);
+
+    assert_eq!(loads.len(), 1);
+    assert_eq!(loads[0].memory_used, 4_000);
+    assert_eq!(loads[0].own_memory, 1_000);
+    assert_eq!(loads[0].percent, 0.0);
+}
+
+#[test]
+fn a_gpus_load_never_reads_above_full() {
+    let counters = GpuCounters {
+        engines: vec![engine(100, 0, "3D", 70.0), engine(200, 0, "3D", 45.0)],
+        ..GpuCounters::default()
+    };
+
+    assert_eq!(gpu_loads(&counters, 200)[0].percent, 100.0);
+}
