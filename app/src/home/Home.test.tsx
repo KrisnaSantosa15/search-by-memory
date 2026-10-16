@@ -8,10 +8,29 @@ import type {
   FailedFile,
   IndexedFolder,
 } from "../Settings";
+import type { DeviceUsage } from "./DevicePanel";
 import { Home, type HomeProps } from "./Home";
 
 // 15 March 2025, midday UTC: the same month in every time zone.
 const midMarch2025 = Date.UTC(2025, 2, 15, 12);
+
+const GIB = 2 ** 30;
+
+const busyLaptop: DeviceUsage = {
+  cpu: { percent: 12.4, ownPercent: 4.2 },
+  processor: { name: "12th Gen Intel(R) Core(TM) i5-12450H", cores: 8, threads: 12, ghz: 2.5 },
+  memory: { used: 16.2 * GIB, total: 31.7 * GIB, own: 0.8 * GIB },
+  gpus: [
+    {
+      name: "NVIDIA GeForce RTX 4060",
+      percent: 76,
+      ownPercent: 40,
+      memoryUsed: 4.7 * GIB,
+      memoryTotal: 8 * GIB,
+      ownMemory: 1.2 * GIB,
+    },
+  ],
+};
 
 const running: Dashboard = {
   files: 12_345,
@@ -50,6 +69,7 @@ function renderHome(overrides: Partial<HomeProps> = {}) {
     changeHotkey: vi.fn(async (_hotkey: string) => true),
     version: async () => "0.1.0",
     downloadModel: vi.fn(async () => {}),
+    deviceUsage: async () => busyLaptop,
     ...overrides,
   };
   render(<Home {...props} />);
@@ -249,6 +269,26 @@ describe("Home", () => {
     expect(contents).toHaveTextContent("Contents");
     expect(contents).toHaveTextContent("34%");
     expect(contents).toHaveTextContent("660 to go");
+  });
+
+  it("opens This computer from the sidebar: how busy the processor, memory and graphics card are, and this app's share", async () => {
+    renderHome();
+
+    await userEvent.click(await screen.findByRole("button", { name: "This computer" }));
+
+    const panel = await screen.findByRole("dialog", { name: "This computer" });
+    const cpu = await within(panel).findByRole("group", { name: "Processor" });
+    expect(cpu).toHaveTextContent("12%");
+    expect(cpu).toHaveTextContent("12th Gen Intel(R) Core(TM) i5-12450H");
+    expect(cpu).toHaveTextContent("8 cores, 12 threads, 2.5 GHz");
+    expect(cpu).toHaveTextContent("Search by Memory 4%");
+    const memory = within(panel).getByRole("group", { name: "Memory" });
+    expect(memory).toHaveTextContent("16.2 of 31.7 GB");
+    expect(memory).toHaveTextContent("Search by Memory 0.8 GB");
+    const gpu = within(panel).getByRole("group", { name: "NVIDIA GeForce RTX 4060" });
+    expect(gpu).toHaveTextContent("76%");
+    expect(gpu).toHaveTextContent("4.7 of 8 GB video memory");
+    expect(gpu).toHaveTextContent("Search by Memory 40%, 1.2 GB");
   });
 
   it("shows on Home which model reads the files, where it runs, and that nothing leaves the computer", async () => {

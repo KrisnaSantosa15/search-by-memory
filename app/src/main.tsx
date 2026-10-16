@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import type { DeviceUsage } from "./home/DevicePanel";
 import { Home } from "./home/Home";
 import type {
   AppSettings,
@@ -37,6 +38,7 @@ const home = {
   changeHotkey: (hotkey: string) => invoke<boolean>("change_hotkey", { hotkey }),
   version: getVersion,
   downloadModel: () => invoke<void>("download_model"),
+  deviceUsage: () => invoke<DeviceUsage>("device_usage"),
 };
 
 // The Home window opens this page with `?view=settings`; the main window without.

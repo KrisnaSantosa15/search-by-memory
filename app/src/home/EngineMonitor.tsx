@@ -1,6 +1,8 @@
-import { BrainCircuit, FileSearch, ScanText } from "lucide-react";
+import { BrainCircuit, ChevronUp, Cpu, FileSearch, ScanText } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useIndexingProgress } from "../IndexingProgress";
 import type { Dashboard } from "../Settings";
+import { DevicePanel, type DeviceUsage } from "./DevicePanel";
 
 /** How often the status is asked again while the window is open. */
 const REFRESH_EVERY_MS = 2_000;
@@ -56,27 +58,88 @@ const DOTS: Record<Tone, string> = {
   failed: "bg-danger",
 };
 
-/** The sidebar's Engine panel: what each part of search is doing, as VoiceStudio lists its engines. */
-export function EngineMonitor({ dashboard }: { dashboard: () => Promise<Dashboard> }) {
+export type EngineMonitorProps = {
+  dashboard: () => Promise<Dashboard>;
+  deviceUsage: () => Promise<DeviceUsage>;
+};
+
+/**
+ * The sidebar's Engine panel, as VoiceStudio shows its engines: what each part
+ * of search is doing, and how busy This computer is, opened above it.
+ */
+export function EngineMonitor({ dashboard, deviceUsage }: EngineMonitorProps) {
   const { status } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
+  const [open, setOpen] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+
+  // Closes on Escape and on a click anywhere else, as a popover does.
+  useEffect(() => {
+    if (!open) return;
+    const away = (event: PointerEvent) => {
+      if (!panel.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
   return (
-    <ul aria-label="Engine" className="flex flex-col gap-0.5">
-      {status &&
-        parts(status).map(({ Icon, name, doing, tone, amount }) => (
-          <li key={name} className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5">
-            <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-raised text-muted">
-              <Icon aria-hidden className="size-3.5" strokeWidth={1.75} />
-            </span>
+    <div ref={panel} className="relative flex flex-col gap-1 rounded-xl border border-line bg-panel/40 p-1.5">
+      {open && (
+        <div
+          role="dialog"
+          aria-label="This computer"
+          className="absolute bottom-full left-0 z-30 mb-2 flex w-[300px] flex-col gap-3 rounded-2xl border border-line bg-panel p-3 shadow-2xl shadow-black/40"
+        >
+          <div className="flex items-center gap-2.5">
+            <span aria-hidden className="size-2 shrink-0 rounded-full bg-emerald-400" />
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[13px] font-medium">{name}</span>
-              <span className="truncate text-[11px] text-muted" title={doing}>
-                {doing}
-              </span>
+              <span className="truncate text-sm font-semibold">This computer</span>
+              <span className="truncate text-[11px] text-muted">Search runs here, nothing leaves it</span>
             </span>
-            {amount && <span className="shrink-0 text-[11px] tabular-nums text-muted">{amount}</span>}
-            <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOTS[tone]}`} />
-          </li>
-        ))}
-    </ul>
+            <Cpu aria-hidden className="size-4 shrink-0 text-muted" strokeWidth={1.75} />
+          </div>
+          <DevicePanel deviceUsage={deviceUsage} open={open} />
+        </div>
+      )}
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((open) => !open)}
+        className="group flex h-8 items-center gap-2 rounded-lg border border-line bg-canvas/40 px-2.5 text-[13px] text-muted transition-colors hover:bg-hover/60 hover:text-ink aria-expanded:bg-hover aria-expanded:text-ink"
+      >
+        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-emerald-400" />
+        <Cpu aria-hidden className="size-3.5 shrink-0" strokeWidth={1.75} />
+        <span className="min-w-0 flex-1 truncate text-left">This computer</span>
+        <ChevronUp
+          aria-hidden
+          className="size-3.5 shrink-0 transition-transform group-aria-expanded:rotate-180 motion-reduce:transition-none"
+          strokeWidth={1.75}
+        />
+      </button>
+      <ul aria-label="Engine" className="flex flex-col gap-0.5">
+        {status &&
+          parts(status).map(({ Icon, name, doing, tone, amount }) => (
+            <li key={name} className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-raised text-muted">
+                <Icon aria-hidden className="size-3.5" strokeWidth={1.75} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[13px] font-medium">{name}</span>
+                <span className="truncate text-[11px] text-muted" title={doing}>
+                  {doing}
+                </span>
+              </span>
+              {amount && <span className="shrink-0 text-[11px] tabular-nums text-muted">{amount}</span>}
+              <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOTS[tone]}`} />
+            </li>
+          ))}
+      </ul>
+    </div>
   );
 }

@@ -2,7 +2,7 @@ import { Activity, FolderOpen, House, Settings as SettingsIcon, X } from "lucide
 import { useState } from "react";
 import { ActivityPage, FoldersPage, type FoldersProps, type StatusProps } from "../Settings";
 import { BrandMark } from "../ui/BrandMark";
-import { EngineMonitor } from "./EngineMonitor";
+import { EngineMonitor, type EngineMonitorProps } from "./EngineMonitor";
 import { Overview, type OverviewProps } from "./Overview";
 import { SettingsPage, type SettingsPageProps } from "./SettingsPage";
 import { SidebarFolders } from "./SidebarFolders";
@@ -24,6 +24,7 @@ export type HomeProps = StatusProps &
   FoldersProps &
   OverviewProps &
   SettingsPageProps &
+  EngineMonitorProps &
   WindowProps;
 
 /** The Home window: what search can do now, how far indexing has got, and the folders it covers. */
@@ -67,7 +68,7 @@ export function Home(props: HomeProps) {
           onOpen={() => setPage("Folders")}
         />
         <div className="mt-auto flex flex-col gap-2 p-3">
-          <EngineMonitor dashboard={props.dashboard} />
+          <EngineMonitor dashboard={props.dashboard} deviceUsage={props.deviceUsage} />
           <StatusCard dashboard={props.dashboard} />
         </div>
       </aside>
