@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -27,6 +28,7 @@ const settings = {
   pause: () => invoke<void>("pause_indexing"),
   resume: () => invoke<void>("resume_indexing"),
   purge: () => invoke<void>("purge_index"),
+  close: () => getCurrentWindow().close(),
 };
 
 // The Settings window opens this page with `?view=settings`; the main window without.
@@ -35,7 +37,7 @@ const settingsWindow = new URLSearchParams(location.search).get("view") === "set
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {settingsWindow ? (
-      <div className="min-h-full surface">
+      <div className="h-full surface">
         <Settings {...settings} />
       </div>
     ) : (

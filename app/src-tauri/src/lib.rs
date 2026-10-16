@@ -1071,9 +1071,17 @@ mod commands {
             WebviewUrl::App("index.html?view=settings".into()),
         )
         .title("Search by Memory Settings")
-        .inner_size(720.0, 560.0)
-        .min_inner_size(520.0, 400.0)
-        .background_color(tauri::window::Color(0x21, 0x1c, 0x29, 0xff))
+        .inner_size(760.0, 580.0)
+        .min_inner_size(600.0, 420.0)
+        // Glass like the launcher: no frame, the desktop blurred behind it.
+        .decorations(false)
+        .transparent(true)
+        .shadow(true)
+        .effects(
+            tauri::window::EffectsBuilder::new()
+                .effect(tauri::window::Effect::Acrylic)
+                .build(),
+        )
         .center()
         .build();
         if let Err(error) = window {

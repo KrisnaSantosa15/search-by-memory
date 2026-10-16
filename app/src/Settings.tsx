@@ -1,4 +1,4 @@
-import { Activity, FolderOpen } from "lucide-react";
+import { Activity, FolderOpen, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Path } from "./Path";
 import { size } from "./size";
@@ -101,12 +101,35 @@ const TABS = [
   { name: "Folders", Icon: FolderOpen },
 ] as const;
 
+type WindowProps = {
+  /** Closes the Settings window, which has no frame of its own. */
+  close: () => void;
+};
+
 /** The Settings window: indexing status, Indexed Folders, and Exclusions. */
-export function Settings(props: StatusProps & FoldersProps) {
+export function Settings(props: StatusProps & FoldersProps & WindowProps) {
   const [tab, setTab] = useState<(typeof TABS)[number]["name"]>("Status");
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[200px_minmax(0,1fr)]">
+    <div className="flex h-full flex-col">
+      {/* The window has no frame: this strip moves it, and closes it. */}
+      <header
+        data-tauri-drag-region
+        className="flex h-10 shrink-0 items-center justify-between border-b border-line pl-5"
+      >
+        <span data-tauri-drag-region className="text-xs text-muted">
+          Search by Memory Settings
+        </span>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={props.close}
+          className="grid h-10 w-12 place-items-center text-muted transition-colors hover:bg-danger/80 hover:text-white"
+        >
+          <X aria-hidden className="size-4" strokeWidth={1.75} />
+        </button>
+      </header>
+    <div className="grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)]">
       <nav className="border-r border-line bg-chrome/50 p-3">
         <div role="tablist" aria-orientation="vertical" className="flex flex-col gap-0.5">
           {TABS.map(({ name, Icon }) => (
@@ -129,6 +152,7 @@ export function Settings(props: StatusProps & FoldersProps) {
           {tab === "Status" ? <StatusTab {...props} /> : <FoldersTab {...props} />}
         </div>
       </div>
+    </div>
     </div>
   );
 }

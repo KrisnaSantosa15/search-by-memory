@@ -41,6 +41,7 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     pause: vi.fn(async () => {}),
     resume: vi.fn(async () => {}),
     purge: vi.fn(async () => {}),
+    close: vi.fn(),
     ...overrides,
   };
   render(<Settings {...props} />);
@@ -50,6 +51,14 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
 describe("Settings", () => {
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("closes from the close button, as the window has no frame of its own", async () => {
+    const props = renderSettings();
+
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(props.close).toHaveBeenCalled();
   });
 
   it("shows the files found and how far content search reaches", async () => {
