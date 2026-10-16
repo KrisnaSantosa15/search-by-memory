@@ -404,10 +404,10 @@ fn location_label(location: &Location) -> Option<String> {
 pub struct Filters {
     query: String,
     extensions: Vec<String>,
-    /// Parts of folder names, lowercase; a file must be inside a folder matching each.
+    /// Parts of folder names, as typed; a file must be inside a folder matching each.
     folders: Vec<String>,
-    /// From `date:`: a file must be last modified in `start..end`.
-    modified: Option<(Timestamp, Timestamp)>,
+    /// From `date:`: when a file must be last modified.
+    modified: Option<Period>,
     code_only: bool,
     names_only: bool,
 }
@@ -437,7 +437,7 @@ impl Filters {
                     extensions.push(value.trim_start_matches('.').to_lowercase())
                 }
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("in") => {
-                    folders.push(value.to_lowercase())
+                    folders.push(value.to_string())
                 }
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("date") => {
                     match period(value, now) {
@@ -495,32 +495,93 @@ impl Filters {
             .collect();
         (!self.code_only || FileKind::of(path) == FileKind::Code)
             && (self.extensions.is_empty() || self.extensions.contains(&extension))
-            && self
-                .folders
-                .iter()
-                .all(|part| folder_names.iter().any(|name| name.contains(part)))
-            && self.modified.is_none_or(|(start, end)| {
+            && self.folders.iter().all(|part| {
+                let part = part.to_lowercase();
+                folder_names.iter().any(|name| name.contains(&part))
+            })
+            && self.modified.as_ref().is_none_or(|period| {
                 // Asked only when filtering by date: it touches the file system.
                 std::fs::metadata(path)
                     .and_then(|metadata| metadata.modified())
                     .ok()
                     .and_then(|time| Timestamp::try_from(time).ok())
-                    .is_some_and(|time| start <= time && time < end)
+                    .is_some_and(|time| period.start <= time && time < period.end)
             })
+    }
+
+    /// One chip per filter, in plain words, for the Query bar.
+    pub fn chips(&self) -> Vec<FilterChip> {
+        let chip = |kind, label: String| FilterChip { kind, label };
+        let mut chips = Vec::new();
+        if self.code_only {
+            chips.push(chip(FilterKind::Code, "Code".into()));
+        }
+        if self.names_only {
+            chips.push(chip(FilterKind::Name, "Names only".into()));
+        }
+        for extension in &self.extensions {
+            chips.push(chip(FilterKind::Ext, extension.to_uppercase()));
+        }
+        for folder in &self.folders {
+            chips.push(chip(FilterKind::In, format!("In “{folder}”")));
+        }
+        if let Some(period) = &self.modified {
+            chips.push(chip(FilterKind::Date, period.label.clone()));
+        }
+        chips
     }
 }
 
+/// Which filter prefix a chip stands for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FilterKind {
+    Code,
+    Name,
+    Ext,
+    In,
+    Date,
+}
+
+/// A filter as the Query bar shows it, e.g. `PDF` or `Last 7 days`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilterChip {
+    pub kind: FilterKind,
+    pub label: String,
+}
+
+/// The span of time a `date:` value names: `start..end`.
+#[derive(Debug, Clone, PartialEq)]
+struct Period {
+    start: Timestamp,
+    end: Timestamp,
+    label: String,
+}
+
 /// The span of time a `date:` value names, as of `now`; `None` if it names none.
-fn period(value: &str, now: &Zoned) -> Option<(Timestamp, Timestamp)> {
+fn period(value: &str, now: &Zoned) -> Option<Period> {
     let today = now.start_of_day().ok()?;
     let tomorrow = today.tomorrow().ok()?.timestamp();
     let days_back = |days: i64| {
         let start = today.checked_sub(jiff::Span::new().days(days)).ok()?;
-        Some((start.timestamp(), tomorrow))
+        Some(Period {
+            start: start.timestamp(),
+            end: tomorrow,
+            label: format!("Last {days} days"),
+        })
     };
     match value.to_lowercase().as_str() {
-        "today" => Some((today.timestamp(), tomorrow)),
-        "yesterday" => Some((today.yesterday().ok()?.timestamp(), today.timestamp())),
+        "today" => Some(Period {
+            start: today.timestamp(),
+            end: tomorrow,
+            label: "Today".into(),
+        }),
+        "yesterday" => Some(Period {
+            start: today.yesterday().ok()?.timestamp(),
+            end: today.timestamp(),
+            label: "Yesterday".into(),
+        }),
         "week" => days_back(7),
         "month" => days_back(30),
         "year" => days_back(365),
@@ -529,25 +590,29 @@ fn period(value: &str, now: &Zoned) -> Option<(Timestamp, Timestamp)> {
 }
 
 /// The calendar year (`2025`) or month (`2025-03`) that `value` names, in `now`'s time zone.
-fn calendar_span(value: &str, now: &Zoned) -> Option<(Timestamp, Timestamp)> {
+fn calendar_span(value: &str, now: &Zoned) -> Option<Period> {
     let number = |digits: &str, length: usize| {
         (digits.len() == length && digits.bytes().all(|byte| byte.is_ascii_digit()))
             .then(|| digits.parse::<i16>().ok())
             .flatten()
     };
-    let (first, length) = match value.split_once('-') {
-        None => (
-            Date::new(number(value, 4)?, 1, 1).ok()?,
-            jiff::Span::new().years(1),
-        ),
-        Some((year, month)) => (
-            Date::new(number(year, 4)?, number(month, 2)? as i8, 1).ok()?,
-            jiff::Span::new().months(1),
-        ),
+    let (first, length, label) = match value.split_once('-') {
+        None => {
+            let first = Date::new(number(value, 4)?, 1, 1).ok()?;
+            (first, jiff::Span::new().years(1), first.strftime("%Y"))
+        }
+        Some((year, month)) => {
+            let first = Date::new(number(year, 4)?, number(month, 2)? as i8, 1).ok()?;
+            (first, jiff::Span::new().months(1), first.strftime("%B %Y"))
+        }
     };
     let start = first.to_zoned(now.time_zone().clone()).ok()?;
     let end = start.checked_add(length).ok()?;
-    Some((start.timestamp(), end.timestamp()))
+    Some(Period {
+        start: start.timestamp(),
+        end: end.timestamp(),
+        label: label.to_string(),
+    })
 }
 
 /// The words of `typed`, split at spaces outside double quotes; quotes are kept.

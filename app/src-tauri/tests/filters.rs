@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use jiff::Zoned;
-use sbm_app::Filters;
+use sbm_app::{FilterKind, Filters};
 
 /// A Friday afternoon in Jakarta.
 fn now() -> Zoned {
@@ -176,4 +176,45 @@ fn name_prefix_asks_for_a_search_by_name_only() {
     assert_eq!(filters.query(), "invoice march");
     assert!(filters.names_only());
     assert!(!Filters::parse("invoice march", &now()).names_only());
+}
+
+#[test]
+fn chips_name_each_filter_in_plain_words() {
+    let filters = Filters::parse(
+        r#"code: name: ext:pdf ext:.docx in:"taxes 2024" date:week report"#,
+        &now(),
+    );
+
+    let chips: Vec<_> = filters
+        .chips()
+        .into_iter()
+        .map(|chip| (chip.kind, chip.label))
+        .collect();
+    assert_eq!(
+        chips,
+        [
+            (FilterKind::Code, "Code".to_string()),
+            (FilterKind::Name, "Names only".into()),
+            (FilterKind::Ext, "PDF".into()),
+            (FilterKind::Ext, "DOCX".into()),
+            (FilterKind::In, "In “taxes 2024”".into()),
+            (FilterKind::Date, "Last 7 days".into()),
+        ]
+    );
+}
+
+#[test]
+fn date_chips_say_which_span_of_time() {
+    for (value, label) in [
+        ("today", "Today"),
+        ("yesterday", "Yesterday"),
+        ("month", "Last 30 days"),
+        ("year", "Last 365 days"),
+        ("2025", "2025"),
+        ("2025-03", "March 2025"),
+    ] {
+        let filters = Filters::parse(&format!("date:{value}"), &now());
+
+        assert_eq!(filters.chips()[0].label, label);
+    }
 }
