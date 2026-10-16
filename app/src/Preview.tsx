@@ -24,7 +24,11 @@ const NOT_READ_KINDS: Record<Kind, string> = {
 /** Why only the name of `result` is searched, or `null` when its content is too. */
 function notRead(result: ResultRow): string | null {
   if (!result.notRead) return null;
-  return `Only its name is searched: ${NOT_READ_KINDS[result.kind]}`;
+  const why =
+    result.notRead.kind === "onlineOnly"
+      ? "it is online only. Download it to search what is inside."
+      : NOT_READ_KINDS[result.kind];
+  return `Only its name is searched: ${why}`;
 }
 
 const MATCH_REASONS = {

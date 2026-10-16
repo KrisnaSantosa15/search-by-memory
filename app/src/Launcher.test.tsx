@@ -22,6 +22,15 @@ const report: ResultRow = {
   notRead: null,
 };
 
+/** `report` found by its name only, with no Content Match. */
+const foundByName: ResultRow = {
+  ...report,
+  snippet: null,
+  location: null,
+  page: null,
+  matchReason: "name",
+};
+
 /** A search that finds `results` for whatever was typed, with no filters. */
 const answers =
   (...results: ResultRow[]) =>
@@ -470,14 +479,10 @@ describe("Launcher", () => {
 
   it("says why only the name of a Result is searched when its format is not read", async () => {
     const photo = {
-      ...report,
+      ...foundByName,
       name: "holiday.jpg",
       path: "D:\\holiday.jpg",
       kind: "image" as const,
-      snippet: null,
-      location: null,
-      page: null,
-      matchReason: "name" as const,
       notRead: { kind: "format" as const },
     };
     render(<Launcher search={answers(photo)} {...actions()} />);
@@ -486,6 +491,18 @@ describe("Launcher", () => {
 
     const preview = await screen.findByRole("region", { name: "Preview" });
     expect(preview).toHaveTextContent("Only its name is searched: pictures are not read");
+  });
+
+  it("says an Online-only File must be downloaded before what is inside it is searched", async () => {
+    const online = { ...foundByName, notRead: { kind: "onlineOnly" as const } };
+    render(<Launcher search={answers(online)} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "report");
+
+    const preview = await screen.findByRole("region", { name: "Preview" });
+    expect(preview).toHaveTextContent(
+      "Only its name is searched: it is online only. Download it to search what is inside.",
+    );
   });
 
   it("shows the code icon while the search keeps to code", async () => {
