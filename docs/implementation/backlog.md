@@ -178,6 +178,10 @@
   - Found: Live Updates run before Initial Indexing (`live DESC`), so a folder that keeps changing can hold content reading back; check with the Benchmark of a busy Downloads folder.
   - Found: while Initial Indexing runs (debug build, DirectML), a Query stayed "Searching…" for over 10 s; check whether Query embedding waits behind indexing batches.
   - In progress: stage 5 (user, 2026-10-16): launcher scrolls to the selected row; Settings window becomes Home (dashboard, model and download status, sidebar); onboarding and Home say reading waits for the download.
+    - Done: ↑/↓ keep the selected Result (and the weaker matches row) in view.
+    - Done: `Dashboard.model` (loading / ready on device / failed with reason) and `download` (bytes of the running download).
+    - Done: Settings window is now Home (1080×720, tray "Open Home"): sidebar with brand, Home / Activity / Folders / Settings, "Searching in" folders, live status card; Home page: hero Query box look-alike with the search keys (`open_search` command, launcher `search-for` event), tiles (files, % read, index size), Progress (reading model → file names → contents, with download, speed, time left, current file), On this computer (model, device, keys, privacy), Ways to search (Filter Prefix cards); Settings page: change search keys (`change_hotkey`), reading speed, Delete index (moved from Activity), About with version.
+    - Done: onboarding's Indexing step shows the same three steps; contents say they start once the download finishes.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
