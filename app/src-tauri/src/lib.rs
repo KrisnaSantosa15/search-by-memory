@@ -1432,7 +1432,7 @@ mod commands {
         let _ = app.emit_to("main", "search-for", typed);
     }
 
-    /// Brings up the Settings window, opening it the first time.
+    /// Brings up the Home window, opening it the first time.
     pub fn open_settings(app: &AppHandle) {
         if let Some(window) = app.get_webview_window("settings") {
             let _ = window.unminimize();
@@ -1444,9 +1444,9 @@ mod commands {
             "settings",
             WebviewUrl::App("index.html?view=settings".into()),
         )
-        .title("Search by Memory Settings")
-        .inner_size(760.0, 580.0)
-        .min_inner_size(600.0, 420.0)
+        .title("Search by Memory")
+        .inner_size(1080.0, 720.0)
+        .min_inner_size(820.0, 560.0)
         // Glass like the launcher: no frame, the desktop blurred behind it.
         .decorations(false)
         .transparent(true)
@@ -1500,7 +1500,7 @@ mod commands {
                 &state,
                 &PredefinedMenuItem::separator(app)?,
                 &MenuItem::with_id(app, "show", "Search", true, None::<&str>)?,
-                &MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "settings", "Open Home", true, None::<&str>)?,
                 &MenuItem::with_id(
                     app,
                     "pause-1h",
