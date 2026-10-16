@@ -336,6 +336,71 @@ fn indexed_folder_added_after_the_cursor_is_scanned() {
     assert_eq!(changes.added, vec![photo_notes]);
 }
 
+/// A change source that, while it is asked for changes, lets another
+/// connection change the index, as the app does while the Engine's pass reads
+/// the USN Journal.
+struct Meanwhile<'a> {
+    journal: &'a FakeChangeSource,
+    meanwhile: std::cell::RefCell<Option<Box<dyn FnOnce() + 'a>>>,
+}
+
+impl sbm_core::ChangeSource for Meanwhile<'_> {
+    fn changes_since(
+        &self,
+        volume_id: &str,
+        since: Option<&sbm_core::ChangeCursor>,
+    ) -> sbm_core::Result<sbm_core::Changes> {
+        if let Some(meanwhile) = self.meanwhile.borrow_mut().take() {
+            meanwhile();
+        }
+        self.journal.changes_since(volume_id, since)
+    }
+}
+
+#[test]
+fn indexed_folder_added_while_changes_are_read_is_scanned_on_the_next_pass() {
+    let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(
+        drive.path(),
+        "documents/letter.txt",
+        "dear sir
+",
+    );
+    let photo_notes = write(
+        drive.path(),
+        "photos/notes.txt",
+        "beach trip
+",
+    );
+    let volumes = FakeVolumes::default();
+    volumes.mount("d-drive", drive.path());
+    let journal = FakeChangeSource::default();
+    let database = data.path().join("index.sqlite");
+    let mut index = Index::open(&database)
+        .unwrap()
+        .with_volumes(volumes.clone());
+    index
+        .add_indexed_folder(&drive.path().join("documents"))
+        .unwrap();
+    index.apply_changes(&journal).unwrap();
+
+    let racing = Meanwhile {
+        journal: &journal,
+        meanwhile: std::cell::RefCell::new(Some(Box::new(|| {
+            let mut other = Index::open(&database)
+                .unwrap()
+                .with_volumes(volumes.clone());
+            other
+                .add_indexed_folder(&drive.path().join("photos"))
+                .unwrap();
+        }))),
+    };
+    index.apply_changes(&racing).unwrap();
+    let changes = index.apply_changes(&journal).unwrap();
+
+    assert_eq!(changes.added, vec![photo_notes]);
+}
+
 #[test]
 fn exclusion_added_after_the_cursor_drops_matching_files() {
     let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
@@ -354,11 +419,19 @@ fn exclusion_added_after_the_cursor_drops_matching_files() {
 #[test]
 fn running_only_live_updates_leaves_initial_indexing_work_waiting() {
     let (data, drive) = (TempDir::new().unwrap(), TempDir::new().unwrap());
-    write(drive.path(), "inbox/old.txt", "notes from the team meeting\n");
+    write(
+        drive.path(),
+        "inbox/old.txt",
+        "notes from the team meeting\n",
+    );
     let journal = FakeChangeSource::default();
     let mut index = indexed_drive(&data, &drive, &journal);
 
-    let changed = write(drive.path(), "inbox/new.txt", "agenda for the team meeting\n");
+    let changed = write(
+        drive.path(),
+        "inbox/new.txt",
+        "agenda for the team meeting\n",
+    );
     journal.record("d-drive", "inbox/new.txt");
     index.apply_changes(&journal).unwrap();
     let mut store = store();

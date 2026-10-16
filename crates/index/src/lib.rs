@@ -704,28 +704,15 @@ impl Index {
                 id: volume_id,
                 root,
             };
-            let cursor: Option<String> = self
-                .db
-                .query_row(
-                    "SELECT cursor FROM change_cursors WHERE volume_id = ?1",
-                    params![volume.id],
-                    |row| row.get(0),
-                )
-                .optional()?;
+            let cursor = saved_cursor(&self.db, &volume.id)?;
+            let folders = folders_on(&self.db, &volume.id)?;
             let (paths, next, live) = match source
-                .changes_since(&volume.id, cursor.map(ChangeCursor).as_ref())?
+                .changes_since(&volume.id, cursor.clone().map(ChangeCursor).as_ref())?
             {
                 Changes::Paths { paths, next } => {
                     (self.indexed_paths(&volume, paths, &exclusions)?, next, true)
                 }
-                Changes::Lost { next } => (
-                    self.db
-                        .prepare("SELECT relative_path FROM indexed_folders WHERE volume_id = ?1")?
-                        .query_map(params![volume.id], |row| row.get(0))?
-                        .collect::<rusqlite::Result<_>>()?,
-                    next,
-                    false,
-                ),
+                Changes::Lost { next } => (folders.clone(), next, false),
             };
             // The changes and the cursor after them are saved together.
             let tx = self.db.transaction()?;
@@ -745,11 +732,16 @@ impl Index {
                 changes.changed.extend(found.changed);
                 changes.removed.extend(found.removed);
             }
-            tx.execute(
-                "INSERT INTO change_cursors (volume_id, cursor) VALUES (?1, ?2)
-                 ON CONFLICT (volume_id) DO UPDATE SET cursor = excluded.cursor",
-                params![volume.id, next.0],
-            )?;
+            // Another connection may have added a folder, or an Exclusion, while
+            // the changes were read: its cursor stays as that left it, so the
+            // next pass rescans the volume rather than missing the new folder.
+            if saved_cursor(&tx, &volume.id)? == cursor && folders_on(&tx, &volume.id)? == folders {
+                tx.execute(
+                    "INSERT INTO change_cursors (volume_id, cursor) VALUES (?1, ?2)
+                     ON CONFLICT (volume_id) DO UPDATE SET cursor = excluded.cursor",
+                    params![volume.id, next.0],
+                )?;
+            }
             tx.commit()?;
         }
         Ok(changes)
@@ -1674,4 +1666,25 @@ fn embedding_from_bytes(bytes: &[u8]) -> Embedding {
             .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
             .collect(),
     )
+}
+
+/// The change cursor saved for volume `volume_id`; `None` before its first scan.
+fn saved_cursor(db: &Connection, volume_id: &str) -> Result<Option<String>> {
+    Ok(db
+        .query_row(
+            "SELECT cursor FROM change_cursors WHERE volume_id = ?1",
+            params![volume_id],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+/// The Indexed Folders on volume `volume_id`, relative to its root.
+fn folders_on(db: &Connection, volume_id: &str) -> Result<Vec<String>> {
+    Ok(db
+        .prepare(
+            "SELECT relative_path FROM indexed_folders WHERE volume_id = ?1 ORDER BY relative_path",
+        )?
+        .query_map(params![volume_id], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?)
 }
