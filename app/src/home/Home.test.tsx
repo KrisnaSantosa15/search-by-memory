@@ -194,6 +194,15 @@ describe("Home", () => {
     expect(props.openSearch).toHaveBeenCalledWith("");
   });
 
+  it("starts a search from Home with a filter prefix picked from the ways to search", async () => {
+    const props = renderHome();
+
+    const ways = await screen.findByRole("list", { name: "Ways to search" });
+    await userEvent.click(within(ways).getByRole("button", { name: /Changed this week/ }));
+
+    expect(props.openSearch).toHaveBeenCalledWith("date:week ");
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),

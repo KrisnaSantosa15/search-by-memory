@@ -5,6 +5,7 @@ import { keys, spoken } from "../onboarding/HotkeyStep";
 import type { AppSettings, Dashboard } from "../Settings";
 import { size } from "../size";
 import { Pipeline } from "./Pipeline";
+import { WaysToSearch } from "./WaysToSearch";
 
 /** How often the status is asked again while the window is open. */
 const REFRESH_EVERY_MS = 2_000;
@@ -45,6 +46,7 @@ export function Overview({ dashboard, settings, openSearch }: OverviewProps) {
     <section className="rounded-2xl border border-line bg-panel/40 p-5">
       <Pipeline status={status} />
     </section>
+    <WaysToSearch onSearch={openSearch} />
     </>
   );
 }

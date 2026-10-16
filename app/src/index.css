@@ -115,3 +115,90 @@
     radial-gradient(ellipse at 80% 0%, rgb(173 130 217 / 0.03), transparent 42%),
     var(--color-glass);
 }
+
+/*
+ * A card that takes the user somewhere, as VoiceStudio's Home draws them: a
+ * border and a glow from the top-right corner in the card's own tone, which
+ * strengthen on hover while the arrow nudges forward.
+ */
+@layer components {
+  .destination {
+    --tone: #79b9ee;
+    position: relative;
+    isolation: isolate;
+    border-radius: 17px;
+    border: 1px solid color-mix(in srgb, var(--tone) 20%, var(--color-line));
+    background:
+      radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--tone) 10%, transparent), transparent 70%),
+      color-mix(in srgb, var(--color-panel) 55%, transparent);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
+  }
+
+  .destination:hover,
+  .destination:focus-visible {
+    border-color: color-mix(in srgb, var(--tone) 52%, var(--color-line));
+    box-shadow:
+      0 6px 22px rgb(0 0 0 / 0.14),
+      inset 0 1px 0 rgb(255 255 255 / 0.06);
+  }
+
+  .destination:active {
+    transform: translateY(1px);
+  }
+
+  .destination-arrow {
+    color: var(--color-muted);
+    opacity: 0.6;
+    transition:
+      transform 180ms ease,
+      opacity 180ms ease;
+  }
+
+  .destination:is(:hover, :focus-visible) .destination-arrow {
+    transform: translateX(2px);
+    opacity: 1;
+  }
+
+  /* Finite, interaction-only motion: the icon nods once when the card is pointed at. */
+  @media (prefers-reduced-motion: no-preference) {
+    .destination:is(:hover, :focus-visible) .destination-icon {
+      animation: destination-nod 900ms ease-in-out 1;
+    }
+  }
+
+  .tone-sky {
+    --tone: #79b9ee;
+  }
+  .tone-violet {
+    --tone: #b8a1ee;
+  }
+  .tone-teal {
+    --tone: #72cebd;
+  }
+  .tone-rose {
+    --tone: #f19bb0;
+  }
+  .tone-amber {
+    --tone: #f2c46b;
+  }
+  .tone-fuchsia {
+    --tone: #e39be8;
+  }
+}
+
+@keyframes destination-nod {
+  0%,
+  100% {
+    transform: rotate(0) scale(1);
+  }
+  40% {
+    transform: rotate(-9deg) scale(1.06);
+  }
+  70% {
+    transform: rotate(4deg) scale(1);
+  }
+}
