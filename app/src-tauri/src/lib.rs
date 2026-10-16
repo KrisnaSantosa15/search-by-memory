@@ -532,6 +532,25 @@ impl Filters {
     }
 }
 
+/// What a search found, with the Query it searched and the filters it kept to.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Searched {
+    pub query: String,
+    pub results: Vec<ResultRow>,
+    pub chips: Vec<FilterChip>,
+}
+
+impl Searched {
+    pub fn new(filters: &Filters, results: Vec<SearchResult>) -> Searched {
+        Searched {
+            query: filters.query().to_string(),
+            results: results.into_iter().map(result_row).collect(),
+            chips: filters.chips(),
+        }
+    }
+}
+
 /// Which filter prefix a chip stands for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -666,7 +685,7 @@ mod commands {
     use tauri_plugin_opener::OpenerExt;
 
     use super::{
-        Dashboard, ExclusionList, ExclusionRow, FailedRow, FileKind, ResultRow, Settings,
+        Dashboard, ExclusionList, ExclusionRow, FailedRow, Filters, Searched, Settings,
         SpeedChoice, TextPreview, data_dir, failed_row,
     };
 
@@ -999,24 +1018,23 @@ mod commands {
         Ok(engine)
     }
 
-    /// Results for `query` in File view, best first, code only when asked;
-    /// none before the Engine has started.
+    /// Results for what was typed in File view, best first, within its filter
+    /// prefixes; none before the Engine has started.
     #[tauri::command]
-    pub async fn search(
-        running: State<'_, Running>,
-        query: String,
-        only_code: Option<bool>,
-    ) -> Result<Vec<ResultRow>, String> {
+    pub async fn search(running: State<'_, Running>, typed: String) -> Result<Searched, String> {
+        let filters = Filters::parse(&typed, &jiff::Zoned::now());
         let running = running.0.lock().unwrap();
         let Some(engine) = running.as_ref() else {
-            return Ok(Vec::new());
+            return Ok(Searched::new(&filters, Vec::new()));
         };
-        let keep =
-            |path: &Path| !only_code.unwrap_or(false) || FileKind::of(path) == FileKind::Code;
-        let results = engine
-            .search_where(&query, View::File, RESULTS, &keep)
-            .map_err(|error| error.to_string())?;
-        Ok(results.into_iter().map(super::result_row).collect())
+        let keep = |path: &Path| filters.keeps(path);
+        let results = if filters.names_only() {
+            engine.search_names(filters.query(), RESULTS, &keep)
+        } else {
+            engine.search_where(filters.query(), View::File, RESULTS, &keep)
+        }
+        .map_err(|error| error.to_string())?;
+        Ok(Searched::new(&filters, results))
     }
 
     /// What the Status tab shows; an error before the Engine has started.

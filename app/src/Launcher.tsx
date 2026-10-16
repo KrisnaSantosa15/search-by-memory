@@ -35,6 +35,19 @@ export type ResultRow = {
   weaker: boolean;
 };
 
+/** A filter prefix found in what was typed, e.g. `ext:pdf`, in plain words. */
+export type FilterChip = {
+  kind: "code" | "name" | "ext" | "in" | "date";
+  label: string;
+};
+
+/** What a search found, with the Query it searched (filter prefixes lifted out). */
+export type Searched = {
+  query: string;
+  results: ResultRow[];
+  chips: FilterChip[];
+};
+
 export type Kind = "document" | "code" | "image" | "audio" | "video" | "other";
 
 const GROUP_NAMES: Record<Kind, string> = {
@@ -47,8 +60,8 @@ const GROUP_NAMES: Record<Kind, string> = {
 };
 
 type Props = {
-  /** Results for `query`, code files only when `onlyCode`. */
-  search: (query: string, onlyCode: boolean) => Promise<ResultRow[]>;
+  /** Results for what was typed, within the filter prefixes in it. */
+  search: (typed: string) => Promise<Searched>;
   open: (path: string) => void;
   reveal: (path: string) => void;
   copyFile: (path: string) => void;
@@ -68,7 +81,9 @@ export function Launcher(props: Props) {
   const { search, open, reveal, copyFile, hide, previewLines } = props;
   const thumbnails = useMemo(() => cachedThumbnails(props.thumbnail), [props.thumbnail]);
   const [typed, setTyped] = useState("");
-  const { query, onlyCode } = scope(typed);
+  // The Query the shown Results were found for, and the filters they kept to.
+  const [query, setQuery] = useState("");
+  const [chips, setChips] = useState<FilterChip[]>([]);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selected, setSelected] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -85,17 +100,20 @@ export function Launcher(props: Props) {
   }, []);
 
   useEffect(() => {
-    if (!query.trim()) {
+    if (!typed.trim()) {
       setResults([]);
+      setChips([]);
       setSearching(false);
       return;
     }
     // Only the newest Query's Results are shown, whichever answers last.
     let current = true;
     setSearching(true);
-    search(query, onlyCode).then((results) => {
+    search(typed).then(({ query, results, chips }) => {
       if (!current) return;
       setSearching(false);
+      setQuery(query);
+      setChips(chips);
       setResults(inGroupOrder(results));
       setSelected(0);
       setCopy(null);
@@ -104,7 +122,7 @@ export function Launcher(props: Props) {
     return () => {
       current = false;
     };
-  }, [search, query, onlyCode]);
+  }, [search, typed]);
 
   const strong = results.filter((result) => !result.weaker);
   const faint = results.filter((result) => result.weaker);
@@ -160,7 +178,7 @@ export function Launcher(props: Props) {
   return (
     <section className="flex h-full flex-col">
       <label data-tauri-drag-region className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-5">
-        <SearchIcon code={onlyCode} />
+        <SearchIcon code={chips.some((chip) => chip.kind === "code")} />
         <input
           type="search"
           ref={box}
@@ -247,7 +265,7 @@ export function Launcher(props: Props) {
               Press Enter to {unfolded ? "hide" : "show"} them.
             </p>
           ) : (
-            !query.trim() && (
+            !typed.trim() && (
               <p className="pt-16 text-center text-sm leading-relaxed text-muted">
                 Describe it the way you remember it,
                 <br />
@@ -258,7 +276,7 @@ export function Launcher(props: Props) {
         </div>
       </div>
       <footer className="flex h-10 shrink-0 items-center justify-between gap-4 border-t border-line px-5 text-xs text-muted">
-        <p role="status">{status(query, searching, strong.length, faint.length)}</p>
+        <p role="status">{status(typed, searching, strong.length, faint.length)}</p>
         <ul aria-label="Keys" className="flex gap-4">
           {KEYS.map(([keys, action]) => (
             <li key={action}>
@@ -285,14 +303,6 @@ function SearchIcon({ code }: { code: boolean }) {
       strokeWidth={1.75}
     />
   );
-}
-
-/** What was typed, split into the Query and whether it asks for code only (`code: …`). */
-function scope(typed: string): { query: string; onlyCode: boolean } {
-  const code = /^\s*code:/i.exec(typed);
-  return code
-    ? { query: typed.slice(code[0].length).trim(), onlyCode: true }
-    : { query: typed, onlyCode: false };
 }
 
 /** One Result in the list: its name, Location, and snippet or folder. */
@@ -376,8 +386,8 @@ const KEYS = [
 ];
 
 /** What the search is doing, in a few words. */
-function status(query: string, searching: boolean, found: number, weaker: number): string {
-  if (!query.trim()) return "Type what you remember about a file";
+function status(typed: string, searching: boolean, found: number, weaker: number): string {
+  if (!typed.trim()) return "Type what you remember about a file";
   if (searching) return "Searching…";
   if (found + weaker === 0) return "Nothing matches yet";
   const results = found === 1 ? "1 result" : `${found} results`;

@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { Launcher, type ResultRow } from "./Launcher";
+import { Launcher, type ResultRow, type Searched } from "./Launcher";
 
 const report: ResultRow = {
   name: "Q3 Report.pdf",
@@ -21,6 +21,11 @@ const report: ResultRow = {
   matchReason: "both",
 };
 
+/** A search that finds `results` for whatever was typed, with no filters. */
+const answers =
+  (...results: ResultRow[]) =>
+  async (typed: string): Promise<Searched> => ({ query: typed, results, chips: [] });
+
 const actions = () => ({
   open: vi.fn(),
   reveal: vi.fn(),
@@ -33,26 +38,26 @@ const actions = () => ({
 
 describe("Launcher", () => {
   it("shows File-view Results for the Query as it is typed", async () => {
-    const search = vi.fn(async () => [report]);
+    const search = vi.fn(answers(report));
     render(<Launcher search={search} {...actions()} />);
 
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     const result = await screen.findByRole("option", { name: /Q3 Report\.pdf/ });
-    expect(search).toHaveBeenLastCalledWith("profit", false);
+    expect(search).toHaveBeenLastCalledWith("profit");
     expect(result).toHaveTextContent("Page 14");
     expect(result).toHaveTextContent("net profit increased by 18%");
   });
 
   it("does not mark the Query's words as misspelt, since file names and code are not prose", () => {
-    render(<Launcher search={async () => []} {...actions()} />);
+    render(<Launcher search={answers()} {...actions()} />);
 
     expect(screen.getByRole("searchbox")).toHaveAttribute("spellcheck", "false");
   });
 
   it("selects the first Result and moves the selection with the arrow keys", async () => {
     const notes = { ...report, name: "notes.md", path: "D:\\notes.md" };
-    render(<Launcher search={async () => [report, notes]} {...actions()} />);
+    render(<Launcher search={answers(report, notes)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     const first = await screen.findByRole("option", { name: /Q3 Report/ });
     const second = screen.getByRole("option", { name: /notes\.md/ });
@@ -67,7 +72,7 @@ describe("Launcher", () => {
 
   it("selects a Result that is clicked, keeping the keyboard in the Query box", async () => {
     const notes = { ...report, name: "notes.md", path: "D:\\notes.md" };
-    render(<Launcher search={async () => [report, notes]} {...actions()} />);
+    render(<Launcher search={answers(report, notes)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     await userEvent.click(await screen.findByRole("option", { name: /notes\.md/ }));
@@ -79,7 +84,7 @@ describe("Launcher", () => {
   it("groups Results by kind, each group in the order of its best Result", async () => {
     const retry = { ...report, name: "retry.ts", path: "D:\\code\\retry.ts", kind: "code" as const };
     const lease = { ...report, name: "lease.pdf", path: "D:\\lease.pdf" };
-    render(<Launcher search={async () => [report, retry, lease]} {...actions()} />);
+    render(<Launcher search={answers(report, retry, lease)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findAllByRole("option");
 
@@ -96,7 +101,7 @@ describe("Launcher", () => {
   it("folds Weaker Matches into one row that Enter unfolds", async () => {
     const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
     const fainter = { ...report, name: "fainter.txt", path: "D:\\fainter.txt", weaker: true };
-    render(<Launcher search={async () => [report, faint, fainter]} {...actions()} />);
+    render(<Launcher search={answers(report, faint, fainter)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     const fold = await screen.findByRole("option", { name: "2 weaker matches" });
@@ -113,7 +118,7 @@ describe("Launcher", () => {
 
   it("explains the weaker matches row while it is selected", async () => {
     const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
-    render(<Launcher search={async () => [report, faint]} {...actions()} />);
+    render(<Launcher search={answers(report, faint)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option", { name: "1 weaker match" });
 
@@ -126,7 +131,7 @@ describe("Launcher", () => {
   it("counts Weaker Matches apart in the footer", async () => {
     const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
     const fainter = { ...report, name: "fainter.txt", path: "D:\\fainter.txt", weaker: true };
-    render(<Launcher search={async () => [report, faint, fainter]} {...actions()} />);
+    render(<Launcher search={answers(report, faint, fainter)} {...actions()} />);
 
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
@@ -135,7 +140,7 @@ describe("Launcher", () => {
 
   it("unfolds Weaker Matches with Arrow Right or a click", async () => {
     const faint = { ...report, name: "faint.txt", path: "D:\\faint.txt", weaker: true };
-    render(<Launcher search={async () => [report, faint]} {...actions()} />);
+    render(<Launcher search={answers(report, faint)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     const fold = await screen.findByRole("option", { name: "1 weaker match" });
 
@@ -147,7 +152,7 @@ describe("Launcher", () => {
 
   it("opens the selected file with Enter", async () => {
     const spies = actions();
-    render(<Launcher search={async () => [report]} {...spies} />);
+    render(<Launcher search={answers(report)} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
@@ -159,7 +164,7 @@ describe("Launcher", () => {
 
   it("reveals the selected file in its folder with Ctrl + Enter or Shift + Enter", async () => {
     const spies = actions();
-    render(<Launcher search={async () => [report]} {...spies} />);
+    render(<Launcher search={answers(report)} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
@@ -172,7 +177,7 @@ describe("Launcher", () => {
 
   it("copies the selected file with Ctrl + C", async () => {
     const spies = actions();
-    render(<Launcher search={async () => [report]} {...spies} />);
+    render(<Launcher search={answers(report)} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
@@ -183,7 +188,7 @@ describe("Launcher", () => {
 
   it("leaves Ctrl + C to copy Query text that is selected", async () => {
     const spies = actions();
-    render(<Launcher search={async () => [report]} {...spies} />);
+    render(<Launcher search={answers(report)} {...spies} />);
     const box = screen.getByRole("searchbox");
     await userEvent.type(box, "profit");
     await screen.findByRole("option");
@@ -196,7 +201,7 @@ describe("Launcher", () => {
   it("asks which Copy to open when a Result has several, and opens the one picked", async () => {
     const spies = actions();
     const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
-    render(<Launcher search={async () => [copied]} {...spies} />);
+    render(<Launcher search={answers(copied)} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
@@ -219,14 +224,14 @@ describe("Launcher", () => {
       setItem: (key: string, value: string) => void saved.set(key, value),
     };
     const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
-    const first = render(<Launcher search={async () => [copied]} {...actions()} memory={memory} />);
+    const first = render(<Launcher search={answers(copied)} {...actions()} memory={memory} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
     await userEvent.keyboard("{Enter}{ArrowDown}{Enter}");
     first.unmount();
 
     const spies = actions();
-    render(<Launcher search={async () => [copied]} {...spies} memory={memory} />);
+    render(<Launcher search={answers(copied)} {...spies} memory={memory} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
     await userEvent.keyboard("{Enter}");
@@ -243,7 +248,7 @@ describe("Launcher", () => {
   it("opens the Detail Panel with Arrow Right and closes it with Arrow Left", async () => {
     const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
     const notes = { ...report, name: "notes.md", path: "D:\\notes.md" };
-    render(<Launcher search={async () => [copied, notes]} {...actions()} />);
+    render(<Launcher search={answers(copied, notes)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findAllByRole("option");
 
@@ -261,7 +266,7 @@ describe("Launcher", () => {
   it("says when a Result's drive is not connected and does not try to open it", async () => {
     const spies = actions();
     const away = { ...report, connected: false };
-    render(<Launcher search={async () => [away]} {...spies} />);
+    render(<Launcher search={answers(away)} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     expect(await screen.findByRole("option")).toHaveTextContent(/drive not connected/i);
@@ -272,7 +277,7 @@ describe("Launcher", () => {
   });
 
   it("focuses the Query box whenever the window comes back", async () => {
-    render(<Launcher search={async () => []} {...actions()} />);
+    render(<Launcher search={answers()} {...actions()} />);
     const box = screen.getByRole("searchbox");
     box.blur();
 
@@ -283,7 +288,7 @@ describe("Launcher", () => {
 
   it("previews the selected Result: where it is, how big, when it changed, and why it matched", async () => {
     const notes = { ...report, name: "notes.md", path: "D:\\notes.md", folder: "D:\\" };
-    render(<Launcher search={async () => [report, notes]} {...actions()} />);
+    render(<Launcher search={answers(report, notes)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findAllByRole("option");
 
@@ -299,7 +304,7 @@ describe("Launcher", () => {
   });
 
   it("marks the Query's words where they appear in the snippet", async () => {
-    render(<Launcher search={async () => [report]} {...actions()} />);
+    render(<Launcher search={answers(report)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "Profit in");
     await screen.findByRole("option");
 
@@ -310,7 +315,7 @@ describe("Launcher", () => {
 
   it("opens or shows the previewed file from its buttons", async () => {
     const spies = actions();
-    render(<Launcher search={async () => [report]} {...spies} />);
+    render(<Launcher search={answers(report)} {...spies} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
 
@@ -323,7 +328,7 @@ describe("Launcher", () => {
 
   it("lists the Copies in the Preview Pane and picks one there", async () => {
     const copied = { ...report, copies: ["E:\\Backup\\Q3 Report.pdf"] };
-    render(<Launcher search={async () => [copied]} {...actions()} />);
+    render(<Launcher search={answers(copied)} {...actions()} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findByRole("option");
     const preview = screen.getByRole("region", { name: /preview/i });
@@ -336,14 +341,16 @@ describe("Launcher", () => {
   });
 
   it("says in the footer what the search is doing, with the keys to act", async () => {
-    let answer: (results: ResultRow[]) => void = () => {};
-    const search = () => new Promise<ResultRow[]>((resolve) => (answer = resolve));
+    let answer: (searched: Searched) => void = () => {};
+    const search = () => new Promise<Searched>((resolve) => (answer = resolve));
     render(<Launcher search={search} {...actions()} />);
     const status = screen.getByRole("status");
 
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     expect(status).toHaveTextContent("Searching…");
-    await act(async () => answer([report, { ...report, path: "D:\\other.pdf" }]));
+    await act(async () =>
+      answer({ query: "profit", results: [report, { ...report, path: "D:\\other.pdf" }], chips: [] }),
+    );
 
     expect(status).toHaveTextContent("2 results");
     expect(screen.getByRole("list", { name: "Keys" })).toHaveTextContent(/Enter.*Open/);
@@ -352,7 +359,7 @@ describe("Launcher", () => {
   });
 
   it("says when nothing matches", async () => {
-    render(<Launcher search={async () => []} {...actions()} />);
+    render(<Launcher search={answers()} {...actions()} />);
 
     await userEvent.type(screen.getByRole("searchbox"), "zebra");
 
@@ -374,7 +381,7 @@ describe("Launcher", () => {
       firstLine: 7,
       lines: [" */", "export async function retry<T>(", "  fn: () => Promise<T>,", "): Promise<T> {"],
     }));
-    render(<Launcher search={async () => [retry]} {...actions()} previewLines={previewLines} />);
+    render(<Launcher search={answers(retry)} {...actions()} previewLines={previewLines} />);
     await userEvent.type(screen.getByRole("searchbox"), "retry");
 
     const code = await screen.findByRole("list", { name: "Lines" });
@@ -399,7 +406,7 @@ describe("Launcher", () => {
       firstLine: 1,
       lines: ["# Q3", "net profit rose", "costs stayed flat"],
     }));
-    render(<Launcher search={async () => [notes]} {...actions()} previewLines={previewLines} />);
+    render(<Launcher search={answers(notes)} {...actions()} previewLines={previewLines} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     const page = await screen.findByRole("list", { name: "Lines" });
@@ -415,7 +422,7 @@ describe("Launcher", () => {
     const previewLines = vi.fn((path: string) =>
       path === notes.path ? Promise.resolve(null) : new Promise<null>(() => {}),
     );
-    render(<Launcher search={async () => [retry, notes]} {...actions()} previewLines={previewLines} />);
+    render(<Launcher search={answers(retry, notes)} {...actions()} previewLines={previewLines} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
     await screen.findAllByRole("option");
     const preview = screen.getByRole("region", { name: /preview/i });
@@ -426,14 +433,18 @@ describe("Launcher", () => {
     expect(preview).toHaveTextContent("net profit increased by 18%");
   });
 
-  it("searches only code when the Query starts with code:", async () => {
-    const search = vi.fn(async () => [report]);
+  it("shows the code icon while the search keeps to code", async () => {
+    const search = vi.fn(async (typed: string) => ({
+      query: "retry with backoff",
+      results: [report],
+      chips: typed.startsWith("Code:") ? [{ kind: "code" as const, label: "Code" }] : [],
+    }));
     render(<Launcher search={search} {...actions()} />);
 
     await userEvent.type(screen.getByRole("searchbox"), "Code: retry with backoff");
 
     await screen.findByRole("option");
-    expect(search).toHaveBeenLastCalledWith("retry with backoff", true);
+    expect(search).toHaveBeenLastCalledWith("Code: retry with backoff");
     expect(screen.getByRole("img", { name: /searching code/i })).toBeInTheDocument();
   });
 
@@ -442,7 +453,7 @@ describe("Launcher", () => {
     const thumbnail = vi.fn(async (path: string) =>
       path === photo.path ? "data:image/png;base64,AAAA" : null,
     );
-    render(<Launcher search={async () => [report, photo]} {...actions()} thumbnail={thumbnail} />);
+    render(<Launcher search={answers(report, photo)} {...actions()} thumbnail={thumbnail} />);
     await userEvent.type(screen.getByRole("searchbox"), "profit");
 
     const photoRow = await screen.findByRole("option", { name: /holiday\.jpg/ });
@@ -458,7 +469,7 @@ describe("Launcher", () => {
     const thumbnail = vi.fn(async (_path: string, size: number) =>
       size > 80 ? "data:image/png;base64,LARGE" : "data:image/png;base64,SMALL",
     );
-    render(<Launcher search={async () => [photo]} {...actions()} thumbnail={thumbnail} />);
+    render(<Launcher search={answers(photo)} {...actions()} thumbnail={thumbnail} />);
     await userEvent.type(screen.getByRole("searchbox"), "beach");
 
     const picture = await screen.findByRole("img", { name: "holiday.jpg" });
@@ -474,7 +485,7 @@ describe("Launcher", () => {
         { left: 0.3, top: 0.6, width: 0.05, height: 0.02 },
       ],
     }));
-    render(<Launcher search={async () => [report]} {...actions()} pdfPage={pdfPage} />);
+    render(<Launcher search={answers(report)} {...actions()} pdfPage={pdfPage} />);
     await userEvent.type(screen.getByRole("searchbox"), "net profit");
 
     const page = await screen.findByRole("img", { name: "Page 14 of Q3 Report.pdf" });
@@ -497,7 +508,7 @@ describe("Launcher", () => {
     Element.prototype.scrollIntoView = function (this: Element) {
       scrolled.push(this);
     };
-    render(<Launcher search={async () => [report]} {...actions()} pdfPage={pdfPage} />);
+    render(<Launcher search={answers(report)} {...actions()} pdfPage={pdfPage} />);
     await userEvent.type(screen.getByRole("searchbox"), "net profit");
 
     await screen.findByRole("img", { name: "Page 14 of Q3 Report.pdf" });
@@ -509,7 +520,7 @@ describe("Launcher", () => {
 
   it("hides with Escape", async () => {
     const spies = actions();
-    render(<Launcher search={async () => []} {...spies} />);
+    render(<Launcher search={answers()} {...spies} />);
 
     await userEvent.type(screen.getByRole("searchbox"), "{Escape}");
 

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { type ReactNode, useEffect, useState } from "react";
-import { Launcher, type ResultRow } from "./Launcher";
+import { Launcher, type Searched } from "./Launcher";
 import type { TextPreview } from "./Lines";
 import type { PdfPagePreview } from "./PdfPage";
 import type { Dashboard } from "./Settings";
@@ -30,8 +30,7 @@ const listenPressed = (pressed: () => void) => {
 };
 
 const launcher = {
-  search: (query: string, onlyCode: boolean) =>
-    invoke<ResultRow[]>("search", { query, onlyCode }),
+  search: (typed: string) => invoke<Searched>("search", { typed }),
   open: (path: string) => invoke("open_file", { path }),
   reveal: (path: string) => invoke("reveal_file", { path }),
   copyFile: (path: string) => invoke("copy_file", { path }),
