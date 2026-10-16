@@ -520,6 +520,12 @@ mod commands {
             .unwrap_or_default()
     }
 
+    /// Asks the user where to search instead; `None` when they picked no folder.
+    #[tauri::command]
+    pub async fn pick_location(window: WebviewWindow) -> Result<Option<PathBuf>, String> {
+        pick_folder(&window, "Choose where to search")
+    }
+
     /// The running Engine, once onboarding has started it.
     #[derive(Default)]
     pub struct Running(Mutex<Option<Engine>>);
@@ -1127,6 +1133,7 @@ pub fn run() {
             commands::prepare,
             commands::cancel_prepare,
             commands::default_location,
+            commands::pick_location,
             commands::start_indexing,
             commands::settings,
             commands::try_hotkey,

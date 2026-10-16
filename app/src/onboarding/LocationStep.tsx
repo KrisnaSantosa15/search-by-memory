@@ -1,14 +1,24 @@
 import { FolderOpen } from "lucide-react";
+import { useState } from "react";
 import { Button } from "../ui/Button";
 
 type Props = {
-  /** The folder that becomes searchable. */
-  location: string;
+  /** The personal folder, searched unless the user picks another. */
+  defaultLocation: string;
+  /** Asks the user for a folder; `null` when they picked none. */
+  pickFolder: () => Promise<string | null>;
   onContinue: (location: string) => void;
 };
 
 /** Onboarding step that asks where to search, the way an installer asks where to install. */
-export function LocationStep({ location, onContinue }: Props) {
+export function LocationStep({ defaultLocation, pickFolder, onContinue }: Props) {
+  const [location, setLocation] = useState(defaultLocation);
+
+  const change = async () => {
+    const picked = await pickFolder();
+    if (picked) setLocation(picked);
+  };
+
   return (
     <form
       className="flex flex-col gap-5"
@@ -30,6 +40,9 @@ export function LocationStep({ location, onContinue }: Props) {
         <span className="min-w-0 flex-1 truncate font-mono text-xs" title={location}>
           {location}
         </span>
+        <Button size="sm" onClick={change}>
+          Change…
+        </Button>
       </div>
       <Button variant="primary" type="submit" className="self-end">
         Continue

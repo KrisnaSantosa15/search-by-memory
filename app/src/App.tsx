@@ -97,7 +97,8 @@ export default function App() {
     if (location) {
       return (
         <LocationStep
-          location={location}
+          defaultLocation={location}
+          pickFolder={() => invoke<string | null>("pick_location")}
           onContinue={(location) =>
             invoke("start_indexing", { choice, location }).then(() => setIndexing(true))
           }
