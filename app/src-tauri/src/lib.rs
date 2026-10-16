@@ -150,6 +150,8 @@ pub struct ResultRow {
     pub match_reason: String,
     /// A Weaker Match, folded away below the others.
     pub weaker: bool,
+    /// Why its content is not searched; `None` when it is, or when not asked.
+    pub not_read: Option<NotReadRow>,
 }
 
 /// What indexing is doing, as the tray says it.
@@ -409,6 +411,7 @@ pub fn result_row(result: SearchResult) -> ResultRow {
         copies: result.copies,
         connected: result.connected,
         snippet: result.snippet,
+        not_read: None,
     }
 }
 
@@ -1077,7 +1080,18 @@ mod commands {
             engine.search_where(filters.query(), View::File, RESULTS, &keep)
         }
         .map_err(|error| error.to_string())?;
-        Ok(Searched::new(&filters, results))
+        let mut searched = Searched::new(&filters, results);
+        // A Content Match was read; a Disconnected Drive's volume cannot be asked.
+        for row in &mut searched.results {
+            if row.connected && row.match_reason == "name" {
+                row.not_read = engine
+                    .not_read(&row.path)
+                    .ok()
+                    .flatten()
+                    .map(super::not_read_row);
+            }
+        }
+        Ok(searched)
     }
 
     /// What the Status tab shows; an error before the Engine has started.

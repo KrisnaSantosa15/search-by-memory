@@ -56,6 +56,7 @@ fn content_match_row_names_the_file_its_page_and_why_it_matched() {
             line_end: None,
             match_reason: "both".into(),
             weaker: false,
+            not_read: None,
         }
     );
 }
