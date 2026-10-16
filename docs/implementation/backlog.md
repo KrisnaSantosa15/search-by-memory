@@ -170,9 +170,11 @@
   - Found: the Settings window was once found minimized between two UI Automation calls; cause unknown.
   - Done: stage 4a: Filter Prefixes anywhere in the Query, combinable (`sbm_app::Filters`): `ext:` (several = any), `in:` (folder name contains; quoted values), `date:` today / yesterday / week / month / year (last 7/30/365 days) / `2025` / `2025-03` by modified time, `code:`, `name:` (`Engine::search_names`, names only); empty prefixes ignored, unknown ones stay in the Query. `search` takes the typed text and answers `{ query, results, chips }`; chips shown in the Query bar.
   - Done: `in:` matches folder names only, not the drive; a Query of filters only (`date:today`) lists the newest files that pass them (`Engine::newest_files`), the Preview Pane says "It fits the filters".
-  - Not yet: Filter Prefixes not checked in the real window.
   - Done: the Preview Pane says why only a Result's name is searched: online only (download it), format not read (pictures, videos, audio, other), not read yet, could not be read (with the reason). `Index`/`Engine::not_read`, `ResultRow.notRead`.
-  - In progress: stage 4: Speed, Download and Search keys steps in the VoiceStudio card style; then a real-window check of stage 4 (filters, why only a name is searched, restyled steps).
+  - Done: stage 4: Speed, Download and Search keys steps in the VoiceStudio card style (icon tiles, shared progress bar, one key cap per key; the keys button names the keys for screen readers; a stopped download says "Stopped").
+  - Done: real-window check of stage 4 (scratch data and home): filter-only listing, `in:` without the drive, `date:2023`, why only a name is searched (online only, picture, damaged), restyled steps, "They work.".
+  - Fixed on the way: the reading bar fills once every file was read or given up on; no time left once nothing is pending.
+  - Found: a name-only Result ranks below unrelated content-only Results ("holiday" puts `retry.rs` above `holiday beach.jpg` on 7 files); the Download step counts 0.0 of 3.0 GB although the model is already on disk (Speed says 1.9 GB); speed keeps falling after reading ends.
   - Found: Live Updates run before Initial Indexing (`live DESC`), so a folder that keeps changing can hold content reading back; check with the Benchmark of a busy Downloads folder.
   - Found: while Initial Indexing runs (debug build, DirectML), a Query stayed "Searching…" for over 10 s; check whether Query embedding waits behind indexing batches.
 
