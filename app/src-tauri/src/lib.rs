@@ -264,9 +264,9 @@ pub struct ExclusionList {
     pub defaults_turned_off: bool,
 }
 
-/// `active` (the Default Exclusions still on, then the user's) as the Folders tab lists them.
-pub fn exclusion_list(active: &[Exclusion]) -> ExclusionList {
-    let defaults = Exclusion::defaults();
+/// `active` (the Default Exclusions still on, then the user's) as the Folders tab
+/// lists them; `defaults` are every Default Exclusion, on or turned off.
+pub fn exclusion_list(active: &[Exclusion], defaults: &[Exclusion]) -> ExclusionList {
     ExclusionList {
         defaults_turned_off: defaults.iter().any(|default| !active.contains(default)),
         rows: active
@@ -778,7 +778,7 @@ mod commands {
         let running = running.0.lock().unwrap();
         let engine = running.as_ref().ok_or("search has not started yet")?;
         let active = engine.exclusions().map_err(|error| error.to_string())?;
-        Ok(super::exclusion_list(&active))
+        Ok(super::exclusion_list(&active, &engine.default_exclusions()))
     }
 
     /// Forgets one of the user's Exclusions, or turns off a default one.

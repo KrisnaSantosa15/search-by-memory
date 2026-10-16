@@ -11,7 +11,7 @@ fn exclusions_are_listed_with_the_defaults_marked() {
     active.push(Exclusion::Name("*.bak".to_string()));
     active.push(Exclusion::Folder(PathBuf::from("C:/Users/ana/private")));
 
-    let list = exclusion_list(&active);
+    let list = exclusion_list(&active, &Exclusion::defaults());
 
     assert!(!list.defaults_turned_off);
     assert_eq!(
@@ -42,7 +42,7 @@ fn a_default_missing_from_the_active_exclusions_is_turned_off() {
         .filter(|exclusion| *exclusion != Exclusion::Name("node_modules".to_string()))
         .collect();
 
-    assert!(exclusion_list(&active).defaults_turned_off);
+    assert!(exclusion_list(&active, &Exclusion::defaults()).defaults_turned_off);
 }
 
 #[test]
