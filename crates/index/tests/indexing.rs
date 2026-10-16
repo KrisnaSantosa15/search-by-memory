@@ -10,7 +10,11 @@ use tempfile::TempDir;
 #[test]
 fn personal_folder_on_the_system_drive_is_indexed_without_its_app_data() {
     let drive = TempDir::new().unwrap();
-    write(drive.path(), "Users/ana/AppData/Local/Browser/notes.txt", "cache");
+    write(
+        drive.path(),
+        "Users/ana/AppData/Local/Browser/notes.txt",
+        "cache",
+    );
     write(drive.path(), "Users/ana/Documents/notes.txt", "my notes");
     let mut index = Index::open_in_memory()
         .unwrap()

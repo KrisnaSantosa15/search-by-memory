@@ -113,7 +113,10 @@ fn on_the_system_drive_windows_programs_and_every_users_app_data_stay_out() {
     let mut index = Index::open_in_memory().unwrap();
 
     index
-        .scan(drive.path(), &Exclusion::system_drive_defaults(drive.path()))
+        .scan(
+            drive.path(),
+            &Exclusion::system_drive_defaults(drive.path()),
+        )
         .unwrap();
     let matches = index.search_names("readme", 20).unwrap();
 

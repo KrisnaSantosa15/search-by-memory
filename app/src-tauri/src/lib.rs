@@ -418,8 +418,8 @@ mod commands {
     use tauri_plugin_opener::OpenerExt;
 
     use super::{
-        Dashboard, ExclusionList, ExclusionRow, FailedRow, FileKind, ResultRow,
-        Settings, SpeedChoice, TextPreview, data_dir, failed_row,
+        Dashboard, ExclusionList, ExclusionRow, FailedRow, FileKind, ResultRow, Settings,
+        SpeedChoice, TextPreview, data_dir, failed_row,
     };
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.

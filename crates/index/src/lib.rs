@@ -106,7 +106,8 @@ impl Exclusion {
 /// machines; `None` where there is no such drive.
 pub fn system_drive() -> Option<PathBuf> {
     // Windows names it like `C:`.
-    std::env::var_os("SystemDrive").map(|drive| PathBuf::from(drive).join(std::path::MAIN_SEPARATOR_STR))
+    std::env::var_os("SystemDrive")
+        .map(|drive| PathBuf::from(drive).join(std::path::MAIN_SEPARATOR_STR))
 }
 
 /// How much a folder would add to the index: what a scan of it would find.
