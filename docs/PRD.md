@@ -196,8 +196,9 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
 ### FR-01: Search Launcher & UX
 * **Description**: A lightweight, overlay search window accessible globally from any active application.
 * **Specifications**:
-  * Default shortcut: `Alt + Space` (configurable; conflict detection enabled; must not hijack standalone Windows key).
-    * Known conflicts: on Windows, `Alt + Space` opens the active window's system menu and is the default PowerToys Run shortcut. If registration fails or a conflict is detected, the app must notify the user and prompt for an alternative (suggested fallback: `Ctrl + Alt + Space`) rather than fail silently.
+  * Default shortcut: `Ctrl + Shift + Space` (configurable; conflict detection enabled; must not hijack standalone Windows key).
+    * `Alt + Space` is avoided: on Windows it opens the active window's system menu and is the default PowerToys Run shortcut. If registration fails or a conflict is detected, the app must notify the user and prompt for an alternative (suggested fallback: `Ctrl + Alt + Space`) rather than fail silently.
+    * Onboarding tests the shortcut live: it says when the keys were pressed and caught.
   * Opens within $\le 300\text{ ms}$ from warm background state.
   * Auto-focuses query input immediately upon opening.
   * Navigable entirely via keyboard:
@@ -238,6 +239,7 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
 * **Description**: Determines which files are indexed, parses supported content, and splits long documents into coherent Chunks.
 * **Specifications**:
   * The user selects Indexed Folders (any folder or whole drive). Everything beneath them, including hidden files, enters the Name Index unless excluded.
+  * Onboarding asks for **one** location, the way an installer asks where to install: the personal folder is pre-filled, *Change…* opens the system folder picker, *Reset to default* returns to the personal folder, and the location shows an estimate (files and size, Default Exclusions applied). More Indexed Folders are added in Settings.
   * **Default Exclusions** (pre-filled, removable, extendable by the user):
     * On the system drive only: `Windows`, `Program Files`, `Program Files (x86)`, `ProgramData`, `$Recycle.Bin`, `System Volume Information`, `Users\*\AppData`, `Users\Default`, `Users\Public`. Personal folders under `C:\Users\<name>\` (Documents, Desktop, Downloads, Pictures, source, etc.) remain indexed.
     * Anywhere on any drive: `node_modules`, `.git`, `target`, `venv`, `.venv`, `__pycache__`, `.cache`, `$RECYCLE.BIN`.
@@ -320,6 +322,8 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
   * Dashboard displays: files in the Name Index, Content Index progress, pending jobs, failed files, index size on disk, and model status.
   * Initial Indexing progress states how far back content search reaches (e.g., *"Content index 34% — files since March 2025 are ready"*).
   * When indexing is paused, the dashboard and tray state why (full-screen app, battery, busy system, or manual pause).
+  * Initial Indexing is visible from the start: right after the location is chosen, onboarding shows an Indexing step with the name pass (files found so far), then the content pass (files read of total, speed, time left, the file being read, failures) and the model's state (downloading, loading, ready, or failed with *Try again*). *Start searching* is available once names are searchable; the same progress stays in the dashboard.
+  * The model download starts right after the speed choice and shows its progress; the user may continue onboarding while it runs, and the tray shows it until it ends.
   * Search results report retrieval latency (e.g., *"Found 12 matches in 42 ms"*).
   * Actionable error log allowing users to review why specific files failed extraction (e.g., password-protected PDF).
 
@@ -474,7 +478,7 @@ The MVP release is considered complete and production-ready when:
 * [ ] User can choose Indexed Folders and edit pre-filled Default Exclusions in settings.
 * [ ] Every file beneath the Indexed Folders is findable by name shortly after setup.
 * [ ] Core document formats (PDF, DOCX, TXT, MD, source code) are reliably parsed and embedded.
-* [ ] Search launcher opens in ≤ 300 ms via global hotkey (`Alt + Space`, or a user-chosen alternative on conflict).
+* [ ] Search launcher opens in ≤ 300 ms via global hotkey (`Ctrl + Shift + Space`, or a user-chosen alternative on conflict).
 * [ ] Natural language and filename queries return relevant files with Snippets, page/line references, and Match Reasons in ≤ 1.0 second.
 * [ ] User can immediately open the target file or reveal its enclosing folder using keyboard shortcuts.
 * [ ] Background indexing detects file modifications, moves, and deletions incrementally without re-embedding unchanged content.
