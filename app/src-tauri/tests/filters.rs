@@ -40,3 +40,14 @@ fn a_quoted_value_may_hold_spaces() {
     assert!(filters.keeps(Path::new(r"D:\Documents\Taxes 2024\receipt.pdf")));
     assert!(!filters.keeps(Path::new(r"D:\Documents\Taxes 2023\2024 receipt.pdf")));
 }
+
+#[test]
+fn code_prefix_keeps_only_code_and_what_follows_it_stays_in_the_query() {
+    for typed in ["code:parse config", "parse code: config", "CODE: parse config"] {
+        let filters = Filters::parse(typed);
+
+        assert_eq!(filters.query(), "parse config", "{typed}");
+        assert!(filters.keeps(Path::new(r"D:\src\config.rs")), "{typed}");
+        assert!(!filters.keeps(Path::new(r"D:\Docs\config.pdf")), "{typed}");
+    }
+}

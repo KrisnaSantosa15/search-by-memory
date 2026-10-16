@@ -406,6 +406,7 @@ pub struct Filters {
     extensions: Vec<String>,
     /// Parts of folder names, lowercase; a file must be inside a folder matching each.
     folders: Vec<String>,
+    code_only: bool,
 }
 
 impl Filters {
@@ -414,6 +415,7 @@ impl Filters {
         let mut words = Vec::new();
         let mut extensions = Vec::new();
         let mut folders = Vec::new();
+        let mut code_only = false;
         let typed = words_of(typed);
         for word in &typed {
             let word = word.as_str();
@@ -427,6 +429,13 @@ impl Filters {
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("in") => {
                     folders.push(value.to_lowercase())
                 }
+                // `code:` takes no value: a word typed right after it is part of the Query.
+                Some((prefix, value)) if prefix.eq_ignore_ascii_case("code") => {
+                    code_only = true;
+                    if !value.is_empty() {
+                        words.push(value);
+                    }
+                }
                 _ => words.push(word),
             }
         }
@@ -434,6 +443,7 @@ impl Filters {
             query: words.join(" "),
             extensions,
             folders,
+            code_only,
         }
     }
 
@@ -454,7 +464,8 @@ impl Filters {
             .flat_map(Path::components)
             .map(|component| component.as_os_str().to_string_lossy().to_lowercase())
             .collect();
-        (self.extensions.is_empty() || self.extensions.contains(&extension))
+        (!self.code_only || FileKind::of(path) == FileKind::Code)
+            && (self.extensions.is_empty() || self.extensions.contains(&extension))
             && self
                 .folders
                 .iter()
