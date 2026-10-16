@@ -102,6 +102,10 @@ _Avoid_: Detail Panel, sidebar, inspector
 A Result that is related to the Query but much less so than the best ones; listed under a collapsed group so it never crowds the strong Results.
 _Avoid_: Low-score hit, noise
 
+**Filter Prefix**:
+A `word:value` typed with the Query (`ext:pdf`, `in:taxes`, `date:week`, `code:`, `name:`) that narrows one search to files of a type, in a folder, changed in a span of time, to code, or to names only; it is lifted out of the Query before searching.
+_Avoid_: Operator, search syntax, Exclusion (an Exclusion keeps files out of the index; a Filter Prefix narrows one search)
+
 **Passage view**:
 One Result per Content Match, so a single file may appear several times. Kept in the index API and the Benchmark; the launcher does not show it.
 _Avoid_: Chunk view, flat view
