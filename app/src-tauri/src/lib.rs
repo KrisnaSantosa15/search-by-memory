@@ -481,6 +481,16 @@ impl Filters {
         self.names_only
     }
 
+    /// Whether only filters were typed, no Query words: then the newest files
+    /// that pass them are listed.
+    pub fn lists_newest(&self) -> bool {
+        self.query.is_empty()
+            && (self.code_only
+                || !self.extensions.is_empty()
+                || !self.folders.is_empty()
+                || self.modified.is_some())
+    }
+
     /// Whether the file at `path` passes every filter.
     pub fn keeps(&self, path: &Path) -> bool {
         let extension = path

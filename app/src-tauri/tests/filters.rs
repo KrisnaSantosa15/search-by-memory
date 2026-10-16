@@ -188,6 +188,18 @@ fn name_prefix_asks_for_a_search_by_name_only() {
 }
 
 #[test]
+fn filters_without_query_words_ask_for_the_newest_matching_files() {
+    assert!(Filters::parse("date:today", &now()).lists_newest());
+    assert!(Filters::parse(" ext:pdf in:invoices ", &now()).lists_newest());
+    assert!(Filters::parse("code:", &now()).lists_newest());
+
+    assert!(!Filters::parse("ext:pdf invoice", &now()).lists_newest());
+    assert!(!Filters::parse("", &now()).lists_newest());
+    assert!(!Filters::parse("ext:", &now()).lists_newest());
+    assert!(!Filters::parse("name:", &now()).lists_newest());
+}
+
+#[test]
 fn chips_name_each_filter_in_plain_words() {
     let filters = Filters::parse(
         r#"code: name: ext:pdf ext:.docx in:"taxes 2024" date:week report"#,
