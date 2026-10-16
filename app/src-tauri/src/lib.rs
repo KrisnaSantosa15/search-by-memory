@@ -411,7 +411,7 @@ pub struct Filters {
 
 impl Filters {
     /// Lifts the filter prefixes (e.g. `ext:pdf`) out of `typed`; the rest is the Query.
-    pub fn parse(typed: &str) -> Filters {
+    pub fn parse(typed: &str, _now: &Zoned) -> Filters {
         let mut words = Vec::new();
         let mut extensions = Vec::new();
         let mut folders = Vec::new();
