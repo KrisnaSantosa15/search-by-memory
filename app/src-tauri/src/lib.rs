@@ -399,6 +399,47 @@ fn location_label(location: &Location) -> Option<String> {
     }
 }
 
+/// What was typed into the launcher: the Query, and the filter prefixes found in it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Filters {
+    query: String,
+    extensions: Vec<String>,
+}
+
+impl Filters {
+    /// Lifts the filter prefixes (e.g. `ext:pdf`) out of `typed`; the rest is the Query.
+    pub fn parse(typed: &str) -> Filters {
+        let mut words = Vec::new();
+        let mut extensions = Vec::new();
+        for word in typed.split_whitespace() {
+            match word.split_once(':') {
+                Some((prefix, value)) if prefix.eq_ignore_ascii_case("ext") => {
+                    extensions.push(value.to_lowercase())
+                }
+                _ => words.push(word),
+            }
+        }
+        Filters {
+            query: words.join(" "),
+            extensions,
+        }
+    }
+
+    /// The Query, without its filter prefixes.
+    pub fn query(&self) -> &str {
+        &self.query
+    }
+
+    /// Whether the file at `path` passes every filter.
+    pub fn keeps(&self, path: &Path) -> bool {
+        let extension = path
+            .extension()
+            .map(|extension| extension.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        self.extensions.is_empty() || self.extensions.contains(&extension)
+    }
+}
+
 /// What the window can call; thin wrappers over the functions above.
 mod commands {
     use std::path::{Path, PathBuf};
