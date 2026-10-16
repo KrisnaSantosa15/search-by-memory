@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { Activity, FolderOpen } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Path } from "./Path";
 import { size } from "./size";
 import { Button } from "./ui/Button";
@@ -95,38 +96,67 @@ export type ExclusionList = {
   defaultsTurnedOff: boolean;
 };
 
-const TABS = ["Status", "Folders"] as const;
+const TABS = [
+  { name: "Status", Icon: Activity },
+  { name: "Folders", Icon: FolderOpen },
+] as const;
 
 /** The Settings window: indexing status, Indexed Folders, and Exclusions. */
 export function Settings(props: StatusProps & FoldersProps) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Status");
+  const [tab, setTab] = useState<(typeof TABS)[number]["name"]>("Status");
 
   return (
-    <div className="flex flex-col">
-      <div role="tablist" className="flex gap-1 border-b border-line px-6 pt-4">
-        {TABS.map((name) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            aria-selected={tab === name}
-            onClick={() => setTab(name)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
-              tab === name
-                ? "border-accent text-ink"
-                : "border-transparent text-muted hover:text-ink"
-            }`}
-          >
-            {name}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" aria-label={tab}>
-        {tab === "Status" ? <StatusTab {...props} /> : <FoldersTab {...props} />}
+    <div className="grid h-full min-h-0 grid-cols-[200px_minmax(0,1fr)]">
+      <nav className="border-r border-line bg-chrome/50 p-3">
+        <div role="tablist" aria-orientation="vertical" className="flex flex-col gap-0.5">
+          {TABS.map(({ name, Icon }) => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              aria-selected={tab === name}
+              onClick={() => setTab(name)}
+              className="flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-sm text-muted transition-colors hover:bg-hover/60 hover:text-ink aria-selected:bg-hover aria-selected:font-medium aria-selected:text-ink"
+            >
+              <Icon aria-hidden className="size-4" strokeWidth={1.75} />
+              {name}
+            </button>
+          ))}
+        </div>
+      </nav>
+      <div role="tabpanel" aria-label={tab} className="min-h-0 overflow-y-auto">
+        <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 pt-6 pb-12">
+          {tab === "Status" ? <StatusTab {...props} /> : <FoldersTab {...props} />}
+        </div>
       </div>
     </div>
   );
 }
+
+/** A titled group of settings, as VoiceStudio draws them: a quiet glass panel. */
+function Section(props: {
+  id?: string;
+  title: string;
+  action?: ReactNode;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex min-h-8 items-center justify-between gap-3">
+        <h2 id={props.id} className="text-sm font-semibold">
+          {props.title}
+        </h2>
+        {props.action}
+      </div>
+      {props.description && <p className="text-[13px] text-muted">{props.description}</p>}
+      {props.children}
+    </section>
+  );
+}
+
+/** The panel the rows of a Section sit in. */
+const PANEL = "flex flex-col divide-y divide-line/70 rounded-xl border border-line bg-panel/40";
 
 function FoldersTab(props: FoldersProps) {
   const { folders, addFolder, removeFolder } = props;
@@ -151,24 +181,19 @@ function FoldersTab(props: FoldersProps) {
   };
 
   return (
-    <section className="flex flex-col gap-2 p-6">
-      <div className="flex items-center justify-between">
-        <h2 id="indexed-folders" className="font-semibold">
-          Indexed Folders
-        </h2>
-        <Button
-          variant="primary"
-          onClick={add}
-        >
-          Add folder…
-        </Button>
-      </div>
-      <ul
-        aria-labelledby="indexed-folders"
-        className="flex flex-col divide-y divide-line rounded-xl border border-line bg-panel"
+    <>
+      <Section
+        id="indexed-folders"
+        title="Indexed Folders"
+        action={
+          <Button variant="primary" size="sm" onClick={add}>
+            Add folder…
+          </Button>
+        }
       >
-        {list.map(({ path, connected }) => (
-          <li key={path} className="flex items-center gap-3 px-4 py-2 text-sm">
+        <ul aria-labelledby="indexed-folders" className={PANEL}>
+          {list.map(({ path, connected }) => (
+            <li key={path} className="flex min-h-12 items-center gap-3 px-4 py-2 text-sm">
             <Path path={path} />
             {!connected && (
               <span className="shrink-0 rounded-full bg-raised px-2 py-0.5 text-xs text-muted">
@@ -204,9 +229,10 @@ function FoldersTab(props: FoldersProps) {
             </span>
           </li>
         ))}
-      </ul>
+        </ul>
+      </Section>
       <Exclusions {...props} />
-    </section>
+    </>
   );
 }
 
@@ -229,27 +255,21 @@ function Exclusions(props: FoldersProps) {
   };
 
   return (
-    <>
-      <div className="mt-4 flex items-center justify-between">
-        <h2 id="exclusions" className="font-semibold">
-          Exclusions
-        </h2>
-        {list.defaultsTurnedOff && (
-          <Button
-            variant="outline"
-            onClick={() => change(restoreDefaults)}
-          >
+    <Section
+      id="exclusions"
+      title="Exclusions"
+      description="Files here are never opened or searched."
+      action={
+        list.defaultsTurnedOff && (
+          <Button variant="outline" size="sm" onClick={() => change(restoreDefaults)}>
             Restore defaults
           </Button>
-        )}
-      </div>
-      <p className="text-sm text-muted">Files here are never opened or searched.</p>
-      <ul
-        aria-labelledby="exclusions"
-        className="flex flex-col divide-y divide-line rounded-xl border border-line bg-panel"
-      >
+        )
+      }
+    >
+      <ul aria-labelledby="exclusions" className={`${PANEL} max-h-80 overflow-y-auto`}>
         {list.rows.map((row) => (
-          <li key={label(row)} className="flex items-center gap-3 px-4 py-2 text-sm">
+          <li key={label(row)} className="flex min-h-11 items-center gap-3 px-4 py-1.5 text-sm">
             {row.kind === "folder" ? (
               <Path path={row.path} />
             ) : (
@@ -285,7 +305,7 @@ function Exclusions(props: FoldersProps) {
           placeholder="Exclude names like *.bak or Old Projects"
           value={pattern}
           onChange={(event) => setPattern(event.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-line bg-panel px-3 py-1.5 text-sm placeholder:text-muted"
+          className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-panel/40 px-3 text-sm placeholder:text-muted"
         />
         <Button
           variant="outline"
@@ -303,7 +323,7 @@ function Exclusions(props: FoldersProps) {
           Exclude a folder…
         </Button>
       </form>
-    </>
+    </Section>
   );
 }
 
@@ -336,21 +356,25 @@ function StatusTab({ dashboard, failedFiles, pause, resume, purge }: StatusProps
   const toggle = status.paused ? resume : pause;
 
   return (
-    <section className="flex flex-col gap-1 p-6">
-      <h1 className="text-xl font-semibold">{status.files.toLocaleString()} files found</h1>
-      <p className="text-sm text-muted">{contentProgress(status)}</p>
-      <p className="text-sm text-muted">The index takes {size(status.sizeOnDisk)} on disk</p>
-      <p className="text-sm">{status.state}</p>
-      <Button
-        variant="outline"
-        onClick={() => toggle().then(refresh)}
-        className="self-start"
-      >
-        {status.paused ? "Resume indexing" : "Pause indexing"}
-      </Button>
+    <>
+      <section className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-[-0.03em]">
+          {status.files.toLocaleString()} files found
+        </h1>
+        <p className="text-sm text-muted">{contentProgress(status)}</p>
+        <p className="text-sm text-muted">The index takes {size(status.sizeOnDisk)} on disk</p>
+      </section>
+      <div className={`${PANEL} px-4 py-3`}>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm">{status.state}</p>
+          <Button variant="outline" size="sm" onClick={() => toggle().then(refresh)}>
+            {status.paused ? "Resume indexing" : "Pause indexing"}
+          </Button>
+        </div>
+      </div>
       {failed.length > 0 && <FailedFiles files={failed} />}
       <DeleteIndex purge={purge} />
-    </section>
+    </>
   );
 }
 
@@ -363,14 +387,14 @@ function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
       <Button
         variant="ghost"
         onClick={() => setAsking(true)}
-        className="mt-6 self-start"
+        className="self-start"
       >
         Delete index…
       </Button>
     );
   }
   return (
-    <div className="mt-6 flex flex-col gap-2 rounded-xl border border-line bg-panel p-4 text-sm">
+    <div className="flex flex-col gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm">
       <p>
         This erases everything Search by Memory knows about your files. Your files themselves are
         not touched. Setup starts again.
@@ -396,9 +420,9 @@ function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
 function FailedFiles({ files }: { files: FailedFile[] }) {
   const count = files.length === 1 ? "1 file" : `${files.length.toLocaleString()} files`;
   return (
-    <div className="mt-4 flex flex-col gap-2">
-      <h2 className="font-semibold">{count} could not be read</h2>
-      <ul className="flex flex-col divide-y divide-line rounded-xl border border-line bg-panel">
+    <div className="flex flex-col gap-2">
+      <h2 className="text-sm font-semibold">{count} could not be read</h2>
+      <ul className={`${PANEL} max-h-80 overflow-y-auto`}>
         {files.map((file) => (
           <FailedFileRow key={file.path} file={file} />
         ))}
