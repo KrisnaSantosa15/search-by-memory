@@ -265,6 +265,13 @@ pub struct FailedFile {
     pub detail: String,
 }
 
+/// Why a file in the Name Index is not in the Content Index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotRead {
+    /// An Online-only File: its content is still in the cloud.
+    OnlineOnly,
+}
+
 /// How each reason is stored in `index_jobs.failure_reason`.
 const REASON_NAMES: [(Unreadable, &str); 7] = [
     (Unreadable::PasswordProtected, "password_protected"),
@@ -911,6 +918,23 @@ impl Index {
                 })
             })
             .collect()
+    }
+
+    /// Why the content of the file at `path` is not searched; `None` when it is,
+    /// or when the file is not in the Name Index.
+    pub fn not_read(&self, path: &Path) -> Result<Option<NotRead>> {
+        let path = &normalized(path);
+        let volume = self.volumes.volume_of(path)?;
+        let relative = relative_path(path, &volume)?;
+        let online_only: Option<bool> = self
+            .db
+            .query_row(
+                "SELECT is_online_only FROM files WHERE volume_id = ?1 AND relative_path = ?2",
+                params![volume.id, relative],
+                |row| row.get(0),
+            )
+            .optional()?;
+        Ok((online_only == Some(true)).then_some(NotRead::OnlineOnly))
     }
 
     /// Files in the Name Index.
