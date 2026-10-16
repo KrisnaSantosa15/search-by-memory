@@ -271,6 +271,17 @@ describe("Home", () => {
     expect(contents).toHaveTextContent("660 to go");
   });
 
+  it("keeps Settings at the foot of the sidebar, below the Engine, as VoiceStudio does", async () => {
+    renderHome();
+
+    const engine = await screen.findByRole("list", { name: "Engine" });
+    const settings = screen.getByRole("tab", { name: "Settings" });
+
+    expect(engine.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await userEvent.click(settings);
+    expect(settings).toHaveAttribute("aria-selected", "true");
+  });
+
   it("opens This computer from the sidebar: how busy the processor, memory and graphics card are, and this app's share", async () => {
     renderHome();
 

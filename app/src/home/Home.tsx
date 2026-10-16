@@ -15,6 +15,11 @@ const PAGES = [
   { name: "Settings", Icon: SettingsIcon },
 ] as const;
 
+type Page = (typeof PAGES)[number]["name"];
+
+/** Settings sits apart, at the foot of the sidebar below the Engine, as in VoiceStudio. */
+const FOOT_PAGE: Page = "Settings";
+
 type WindowProps = {
   /** Closes the Home window, which has no frame of its own. */
   close: () => void;
@@ -29,7 +34,24 @@ export type HomeProps = StatusProps &
 
 /** The Home window: what search can do now, how far indexing has got, and the folders it covers. */
 export function Home(props: HomeProps) {
-  const [page, setPage] = useState<(typeof PAGES)[number]["name"]>("Home");
+  const [page, setPage] = useState<Page>("Home");
+  const tab = ({ name, Icon }: (typeof PAGES)[number]) => (
+    <button
+      key={name}
+      type="button"
+      role="tab"
+      aria-selected={page === name}
+      onClick={() => setPage(name)}
+      className="group flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-sm text-muted transition-colors hover:bg-hover/60 hover:text-ink aria-selected:bg-hover aria-selected:font-medium aria-selected:text-ink"
+    >
+      <Icon
+        aria-hidden
+        className="size-4 transition-colors group-aria-selected:text-accent"
+        strokeWidth={1.75}
+      />
+      {name}
+    </button>
+  );
 
   return (
     <div className="grid h-full min-h-0 grid-cols-[232px_minmax(0,1fr)]">
@@ -43,23 +65,7 @@ export function Home(props: HomeProps) {
         </div>
         <nav className="px-3 pt-2">
           <div role="tablist" aria-orientation="vertical" className="flex flex-col gap-0.5">
-            {PAGES.map(({ name, Icon }) => (
-              <button
-                key={name}
-                type="button"
-                role="tab"
-                aria-selected={page === name}
-                onClick={() => setPage(name)}
-                className="group flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-sm text-muted transition-colors hover:bg-hover/60 hover:text-ink aria-selected:bg-hover aria-selected:font-medium aria-selected:text-ink"
-              >
-                <Icon
-                  aria-hidden
-                  className="size-4 transition-colors group-aria-selected:text-accent"
-                  strokeWidth={1.75}
-                />
-                {name}
-              </button>
-            ))}
+            {PAGES.filter(({ name }) => name !== FOOT_PAGE).map(tab)}
           </div>
         </nav>
         <SidebarFolders
@@ -70,6 +76,9 @@ export function Home(props: HomeProps) {
         <div className="mt-auto flex flex-col gap-2 p-3">
           <EngineMonitor dashboard={props.dashboard} deviceUsage={props.deviceUsage} />
           <StatusCard dashboard={props.dashboard} />
+          <div role="tablist" aria-orientation="vertical" className="flex flex-col">
+            {PAGES.filter(({ name }) => name === FOOT_PAGE).map(tab)}
+          </div>
         </div>
       </aside>
       <div className="flex min-h-0 flex-col">
