@@ -80,7 +80,7 @@ export function ReadingProgress({
       {speed !== null && (
         <div className="flex justify-between gap-3 text-xs text-muted">
           <span>{Math.round(speed * 60_000).toLocaleString()} files a minute</span>
-          <span>{timeLeft(status.pending / (speed * 1000))}</span>
+          {status.pending > 0 && <span>{timeLeft(status.pending / (speed * 1000))}</span>}
         </div>
       )}
       {status.current && (

@@ -181,4 +181,22 @@ describe("IndexingStep", () => {
     expect(screen.getByText("About 14 minutes left")).toBeInTheDocument();
   });
 
+  it("says no time is left once every file was read", async () => {
+    const looks = [
+      { at: 0, status: status({ files: 10, indexed: 4, pending: 6 }) },
+      { at: 60_000, status: status({ files: 10, indexed: 10 }) },
+    ];
+    let look = 0;
+    render(
+      <IndexingStep
+        progress={async () => looks[Math.min(look, 1)].status}
+        now={() => looks[Math.min(look++, 1)].at}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText("6 files a minute")).toBeInTheDocument();
+    expect(screen.queryByText(/left$/)).not.toBeInTheDocument();
+  });
 });
