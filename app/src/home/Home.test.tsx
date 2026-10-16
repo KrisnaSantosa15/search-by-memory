@@ -49,6 +49,7 @@ function renderHome(overrides: Partial<HomeProps> = {}) {
     openSearch: vi.fn((_typed: string) => {}),
     changeHotkey: vi.fn(async (_hotkey: string) => true),
     version: async () => "0.1.0",
+    downloadModel: vi.fn(async () => {}),
     ...overrides,
   };
   render(<Home {...props} />);
@@ -137,6 +138,16 @@ describe("Home", () => {
     expect(screen.getByRole("listitem", { name: "Contents" })).toHaveTextContent(
       "Waits for the reading model",
     );
+  });
+
+  it("downloads the reading model again from Home when it could not be loaded", async () => {
+    const props = renderHome({
+      dashboard: async () => ({ ...running, model: { state: "failed", reason: "model.onnx not found" } }),
+    });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Download again" }));
+
+    expect(props.downloadModel).toHaveBeenCalled();
   });
 
   it("says on Home that contents are read once the reading model has loaded", async () => {

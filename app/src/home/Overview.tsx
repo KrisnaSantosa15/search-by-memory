@@ -19,10 +19,12 @@ export type OverviewProps = {
   settings: () => Promise<AppSettings | null>;
   /** Brings up the launcher with `typed` in its Query box. */
   openSearch: (typed: string) => void;
+  /** Fetches the reading model again and loads it once it is on disk. */
+  downloadModel: () => Promise<void>;
 };
 
 /** The Home page: what can be searched now, at a glance. */
-export function Overview({ dashboard, settings, openSearch }: OverviewProps) {
+export function Overview({ dashboard, settings, openSearch, downloadModel }: OverviewProps) {
   const { status, speed } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
   const [hotkey, setHotkey] = useState<string | null>(null);
 
@@ -54,7 +56,7 @@ export function Overview({ dashboard, settings, openSearch }: OverviewProps) {
         <h2 id="progress" className="text-sm font-medium">
           Progress
         </h2>
-        <Pipeline status={status} speed={speed} />
+        <Pipeline status={status} speed={speed} onDownloadModel={downloadModel} />
       </section>
       <ThisComputer model={status.model} hotkey={hotkey} />
     </div>

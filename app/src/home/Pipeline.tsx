@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { gigabytes } from "../onboarding/DownloadStep";
 import { timeLeft } from "../onboarding/timeLeft";
 import type { Dashboard } from "../Settings";
+import { Button } from "../ui/Button";
 import { ProgressBar } from "../ui/ProgressBar";
 
 /** Where a step of getting ready stands. */
@@ -16,6 +17,8 @@ type Step = {
   notes?: ReactNode[];
   /** How far an active step has got, from 0 to 1, with what the bar measures. */
   bar?: { label: string; value: number };
+  /** What the user can do about it, such as trying again. */
+  action?: ReactNode;
 };
 
 /**
@@ -32,6 +35,8 @@ type Props = {
   download?: PipelineDownload | null;
   /** That download stopped, and waits to be tried again. */
   downloadStopped?: boolean;
+  /** Fetches the reading model again, offered when it could not be loaded. */
+  onDownloadModel?: () => void;
 };
 
 /**
@@ -43,9 +48,10 @@ export function Pipeline({
   speed = null,
   download = status.download,
   downloadStopped = false,
+  onDownloadModel,
 }: Props) {
   const steps = [
-    modelStep(status, download, downloadStopped),
+    modelStep(status, download, downloadStopped, onDownloadModel),
     namesStep(status),
     contentsStep(status, speed, download !== null || downloadStopped),
   ];
@@ -62,6 +68,7 @@ function modelStep(
   { model }: Dashboard,
   download: PipelineDownload | null,
   stopped: boolean,
+  onDownloadModel?: () => void,
 ): Step {
   const name = "Reading model";
   if (stopped) {
@@ -89,6 +96,11 @@ function modelStep(
       stage: "failed",
       detail: "Could not be loaded, so files are found by their names only",
       notes: [<span className="font-mono break-all">{model.reason}</span>],
+      action: onDownloadModel && (
+        <Button variant="primary" size="sm" onClick={onDownloadModel} className="self-start">
+          Download again
+        </Button>
+      ),
     };
   }
   return { name, stage: "active", detail: "Loading…" };
@@ -190,6 +202,7 @@ function StepRow({ step, last }: { step: Step; last: boolean }) {
             {note}
           </span>
         ))}
+        {step.action && <span className="flex pt-1">{step.action}</span>}
       </span>
     </li>
   );

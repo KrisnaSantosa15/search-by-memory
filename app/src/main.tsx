@@ -36,6 +36,7 @@ const home = {
   openSearch: (typed: string) => invoke<void>("open_search", { typed }),
   changeHotkey: (hotkey: string) => invoke<boolean>("change_hotkey", { hotkey }),
   version: getVersion,
+  downloadModel: () => invoke<void>("download_model"),
 };
 
 // The Home window opens this page with `?view=settings`; the main window without.
