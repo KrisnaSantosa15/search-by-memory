@@ -42,4 +42,32 @@ describe("IndexingStep", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(onContinue).toHaveBeenCalled();
   });
+
+  it("shows how many files have been read, which one is being read, and how many could not be", async () => {
+    render(
+      <IndexingStep
+        progress={polls(
+          status({
+            files: 1_000,
+            indexed: 340,
+            pending: 655,
+            failed: 5,
+            current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf",
+            state: "Indexing waits until the computer is plugged in",
+          }),
+        )}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText("340 of 1,000 files read")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Files read" })).toHaveAttribute(
+      "aria-valuenow",
+      "34",
+    );
+    expect(screen.getByText("Q3 Report.pdf")).toBeInTheDocument();
+    expect(screen.getByText("5 could not be read")).toBeInTheDocument();
+    expect(screen.getByText("Indexing waits until the computer is plugged in")).toBeInTheDocument();
+  });
 });
