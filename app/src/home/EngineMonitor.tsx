@@ -83,9 +83,7 @@ function parts(status: Dashboard): Part[] {
     {
       Icon: ScanText,
       name: "Contents",
-      doing:
-        status.pending > 0 ? `${thousands.format(status.pending)} to go` : "Every file is read",
-      tone: status.pending > 0 ? "busy" : "ok",
+      ...contents(status),
       amount: total > 0 ? `${Math.floor((status.indexed * 100) / total)}%` : undefined,
       page: "Activity",
     },
@@ -101,6 +99,15 @@ function parts(status: Dashboard): Part[] {
     });
   }
   return list;
+}
+
+function contents(status: Dashboard): Pick<Part, "doing" | "tone"> {
+  if (status.paused) return { doing: "Paused", tone: "waiting" };
+  // Throttling: the state says what the computer is doing that reading waits for.
+  const waits = status.state.match(/^Indexing (waits .*)$/);
+  if (waits) return { doing: `W${waits[1].slice(1)}`, tone: "waiting" };
+  if (status.pending > 0) return { doing: `${thousands.format(status.pending)} to go`, tone: "busy" };
+  return { doing: "Every file is read", tone: "ok" };
 }
 
 function model(status: Dashboard): Pick<Part, "doing" | "tone"> {

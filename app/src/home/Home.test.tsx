@@ -300,6 +300,20 @@ describe("Home", () => {
     expect(props.resume).toHaveBeenCalled();
   });
 
+  it("says in the Engine when reading contents is paused or waits for the computer", async () => {
+    let status: Dashboard = { ...running, paused: true, state: "Indexing is paused" };
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderHome({ dashboard: async () => status });
+    const engine = await screen.findByRole("list", { name: "Engine" });
+    const contents = () => within(engine).getByRole("button", { name: /Contents/ });
+
+    await waitFor(() => expect(contents()).toHaveTextContent("Paused"));
+
+    status = { ...running, state: "Indexing waits while a full-screen app is open" };
+    await vi.advanceTimersByTimeAsync(2_000);
+    await waitFor(() => expect(contents()).toHaveTextContent("Waits while a full-screen app is open"));
+  });
+
   it("keeps Settings at the foot of the sidebar, below the Engine, as VoiceStudio does", async () => {
     renderHome();
 
