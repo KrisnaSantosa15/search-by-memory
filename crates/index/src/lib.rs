@@ -102,6 +102,13 @@ impl Exclusion {
     }
 }
 
+/// The root of the drive the operating system runs from: `C:\` on most Windows
+/// machines; `None` where there is no such drive.
+pub fn system_drive() -> Option<PathBuf> {
+    // Windows names it like `C:`.
+    std::env::var_os("SystemDrive").map(|drive| PathBuf::from(drive).join(std::path::MAIN_SEPARATOR_STR))
+}
+
 /// How much a folder would add to the index: what a scan of it would find.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Estimate {
@@ -410,9 +417,7 @@ impl Index {
             db,
             volumes: Box::new(SystemVolumes),
             availability: Box::new(SystemFileAvailability),
-            // Windows names it like `C:`; elsewhere there is none.
-            system_drive: std::env::var_os("SystemDrive")
-                .map(|drive| PathBuf::from(drive).join(std::path::MAIN_SEPARATOR_STR)),
+            system_drive: system_drive(),
         })
     }
 
