@@ -6,7 +6,6 @@ import { EngineMonitor, type EngineMonitorProps } from "./EngineMonitor";
 import { Overview, type OverviewProps } from "./Overview";
 import { SettingsPage, type SettingsPageProps } from "./SettingsPage";
 import { SidebarFolders } from "./SidebarFolders";
-import { StatusCard } from "./StatusCard";
 
 const PAGES = [
   { name: "Home", Icon: House },
@@ -75,7 +74,6 @@ export function Home(props: HomeProps) {
         />
         <div className="mt-auto flex flex-col gap-2 p-3">
           <EngineMonitor dashboard={props.dashboard} deviceUsage={props.deviceUsage} />
-          <StatusCard dashboard={props.dashboard} />
           <div role="tablist" aria-orientation="vertical" className="flex flex-col">
             {PAGES.filter(({ name }) => name === FOOT_PAGE).map(tab)}
           </div>

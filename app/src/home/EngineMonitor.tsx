@@ -22,6 +22,39 @@ type Part = {
 
 const thousands = new Intl.NumberFormat("en-US");
 
+/** What search is doing, in a few words, with how far it has got where that is known. */
+function summary(status: Dashboard): {
+  title: string;
+  amount?: string;
+  /** A second line; by default, what indexing is doing. */
+  detail?: string;
+  tone: Tone;
+} {
+  if (status.download) {
+    const { done, total } = status.download;
+    const percent = total > 0 ? Math.floor((done * 100) / total) : 0;
+    return {
+      title: "Downloading",
+      amount: `${percent}%`,
+      detail: "Reading waits for it",
+      tone: "busy",
+    };
+  }
+  if (status.model.state === "failed") return { title: "Names only", tone: "failed" };
+  if (status.scanning) return { title: "Finding files", tone: "busy" };
+  if (status.paused) return { title: "Paused", tone: "waiting" };
+  if (status.model.state === "loading") return { title: "Getting ready", tone: "busy" };
+  if (status.pending > 0) {
+    const total = status.indexed + status.pending;
+    return {
+      title: "Reading files",
+      amount: `${Math.floor((status.indexed * 100) / total)}%`,
+      tone: "busy",
+    };
+  }
+  return { title: "Up to date", tone: "ok" };
+}
+
 function parts(status: Dashboard): Part[] {
   const total = status.indexed + status.pending;
   return [
@@ -70,6 +103,8 @@ export type EngineMonitorProps = {
 export function EngineMonitor({ dashboard, deviceUsage }: EngineMonitorProps) {
   const { status } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
   const [open, setOpen] = useState(false);
+  const now = status ? summary(status) : null;
+  const dot = DOTS[now?.tone ?? "busy"];
   const panel = useRef<HTMLDivElement>(null);
 
   // Closes on Escape and on a click anywhere else, as a popover does.
@@ -96,10 +131,12 @@ export function EngineMonitor({ dashboard, deviceUsage }: EngineMonitorProps) {
           className="absolute bottom-full left-0 z-30 mb-2 flex w-[300px] flex-col gap-3 rounded-2xl border border-line bg-panel p-3 shadow-2xl shadow-black/40"
         >
           <div className="flex items-center gap-2.5">
-            <span aria-hidden className="size-2 shrink-0 rounded-full bg-emerald-400" />
+            <span aria-hidden className={`size-2 shrink-0 rounded-full ${dot}`} />
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-sm font-semibold">This computer</span>
-              <span className="truncate text-[11px] text-muted">Search runs here, nothing leaves it</span>
+              <span className="truncate text-[11px] text-muted">
+                Search runs here; nothing leaves it
+              </span>
             </span>
             <Cpu aria-hidden className="size-4 shrink-0 text-muted" strokeWidth={1.75} />
           </div>
@@ -113,7 +150,7 @@ export function EngineMonitor({ dashboard, deviceUsage }: EngineMonitorProps) {
         onClick={() => setOpen((open) => !open)}
         className="group flex h-8 items-center gap-2 rounded-lg border border-line bg-canvas/40 px-2.5 text-[13px] text-muted transition-colors hover:bg-hover/60 hover:text-ink aria-expanded:bg-hover aria-expanded:text-ink"
       >
-        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-emerald-400" />
+        <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${dot}`} />
         <Cpu aria-hidden className="size-3.5 shrink-0" strokeWidth={1.75} />
         <span className="min-w-0 flex-1 truncate text-left">This computer</span>
         <ChevronUp
@@ -122,6 +159,23 @@ export function EngineMonitor({ dashboard, deviceUsage }: EngineMonitorProps) {
           strokeWidth={1.75}
         />
       </button>
+      <div role="status" aria-label="Search status" className="flex flex-col px-2 pt-1.5 pb-1">
+        {now && (
+          <>
+            <span className="flex items-baseline gap-2 text-[13px]">
+              <span className="min-w-0 flex-1 truncate font-semibold">{now.title}</span>
+              {now.amount && (
+                <span className="shrink-0 text-xs font-medium tabular-nums text-accent">{now.amount}</span>
+              )}
+            </span>
+            {(now.detail ?? status?.state) && (
+              <span className="truncate text-[11px] text-muted" title={now.detail ?? status?.state}>
+                {now.detail ?? status?.state}
+              </span>
+            )}
+          </>
+        )}
+      </div>
       <ul aria-label="Engine" className="flex flex-col gap-0.5">
         {status &&
           parts(status).map(({ Icon, name, doing, tone, amount }) => (
