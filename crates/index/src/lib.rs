@@ -874,6 +874,18 @@ impl Index {
         Ok(done)
     }
 
+    /// Puts the files whose content could not be indexed back in the queue, with
+    /// their attempts counted from zero.
+    pub fn retry_failed(&mut self) -> Result<()> {
+        self.db.execute(
+            "UPDATE index_jobs SET status = 'pending', retry_count = 0,
+                 error_message = NULL, failure_reason = NULL
+             WHERE status = 'failed'",
+            [],
+        )?;
+        Ok(())
+    }
+
     /// Files whose content could not be indexed, with why and the last error.
     pub fn failed_files(&self) -> Result<Vec<FailedFile>> {
         let failed: Vec<(String, String, String, Option<String>)> = self

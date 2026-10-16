@@ -182,6 +182,24 @@ fn rescan_queues_only_files_that_changed() {
 }
 
 #[test]
+fn files_that_could_not_be_read_go_back_in_the_queue_when_tried_again() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "broken.docx", "not really a zip archive");
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+    index
+        .run_jobs(&BagOfWords::default(), &mut store(), usize::MAX)
+        .unwrap();
+    assert_eq!(index.failed_files().unwrap().len(), 1);
+
+    index.retry_failed().unwrap();
+
+    assert_eq!(index.failed_files().unwrap(), []);
+    assert_eq!(index.pending_jobs().unwrap(), 1);
+}
+
+#[test]
 fn file_that_cannot_be_indexed_is_reported_and_does_not_block_others() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     let good = write(folder.path(), "good.txt", "notes about the garden fence\n");
