@@ -244,7 +244,7 @@ describe("App", () => {
     await screen.findByText("3 files found");
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
-    await screen.findByText("Ctrl + Shift + Space");
+    await screen.findByRole("button", { name: "Keys for search: Ctrl + Shift + Space" });
     await waitFor(() => expect(screen.getByRole("button", { name: /continue/i })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     await userEvent.click(await screen.findByRole("button", { name: /start searching/i }));
