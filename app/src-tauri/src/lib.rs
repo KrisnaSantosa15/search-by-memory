@@ -7,7 +7,7 @@ use jiff::{Timestamp, Zoned};
 use sbm_core::{AppDirs, Location, ThrottleReason, Unreadable};
 use sbm_embed_onnx::Accelerator;
 use sbm_engine::Status;
-use sbm_index::{Exclusion, FailedFile, MatchReason, SearchResult};
+use sbm_index::{Exclusion, FailedFile, MatchReason, NotRead, SearchResult};
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
 
@@ -310,16 +310,42 @@ pub struct FailedRow {
 pub fn failed_row(failed: FailedFile) -> FailedRow {
     FailedRow {
         path: failed.path,
-        reason: match failed.reason {
-            Unreadable::PasswordProtected => "passwordProtected",
-            Unreadable::TooLarge => "tooLarge",
-            Unreadable::Damaged => "damaged",
-            Unreadable::InUse => "inUse",
-            Unreadable::NoAccess => "noAccess",
-            Unreadable::Gone => "gone",
-            Unreadable::Other => "other",
-        },
+        reason: reason_name(failed.reason),
         detail: failed.detail,
+    }
+}
+
+/// The name the window words an `Unreadable` reason by.
+fn reason_name(reason: Unreadable) -> &'static str {
+    match reason {
+        Unreadable::PasswordProtected => "passwordProtected",
+        Unreadable::TooLarge => "tooLarge",
+        Unreadable::Damaged => "damaged",
+        Unreadable::InUse => "inUse",
+        Unreadable::NoAccess => "noAccess",
+        Unreadable::Gone => "gone",
+        Unreadable::Other => "other",
+    }
+}
+
+/// Why a Result's content is not searched, as the Preview Pane words it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum NotReadRow {
+    OnlineOnly,
+    Format,
+    Pending,
+    Failed { reason: &'static str },
+}
+
+pub fn not_read_row(not_read: NotRead) -> NotReadRow {
+    match not_read {
+        NotRead::OnlineOnly => NotReadRow::OnlineOnly,
+        NotRead::Format => NotReadRow::Format,
+        NotRead::Pending => NotReadRow::Pending,
+        NotRead::Failed(reason) => NotReadRow::Failed {
+            reason: reason_name(reason),
+        },
     }
 }
 

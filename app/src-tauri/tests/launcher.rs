@@ -2,9 +2,10 @@
 
 use std::path::PathBuf;
 
-use sbm_app::{FileKind, ResultRow, result_row};
-use sbm_core::Location;
-use sbm_index::{MatchReason, SearchResult};
+use sbm_app::{FileKind, ResultRow, not_read_row, result_row};
+use sbm_core::{Location, Unreadable};
+use sbm_index::{MatchReason, NotRead, SearchResult};
+use serde_json::json;
 
 fn result(location: Option<Location>, match_reason: MatchReason) -> SearchResult {
     SearchResult {
@@ -18,6 +19,19 @@ fn result(location: Option<Location>, match_reason: MatchReason) -> SearchResult
         match_reason,
         weaker: false,
     }
+}
+
+#[test]
+fn why_content_is_not_searched_is_sent_as_a_kind_and_for_failures_a_reason() {
+    let sent = |not_read| serde_json::to_value(not_read_row(not_read)).unwrap();
+
+    assert_eq!(sent(NotRead::OnlineOnly), json!({ "kind": "onlineOnly" }));
+    assert_eq!(sent(NotRead::Format), json!({ "kind": "format" }));
+    assert_eq!(sent(NotRead::Pending), json!({ "kind": "pending" }));
+    assert_eq!(
+        sent(NotRead::Failed(Unreadable::PasswordProtected)),
+        json!({ "kind": "failed", "reason": "passwordProtected" })
+    );
 }
 
 #[test]
