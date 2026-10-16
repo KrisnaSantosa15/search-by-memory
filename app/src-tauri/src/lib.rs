@@ -906,6 +906,25 @@ mod commands {
     #[derive(Default)]
     pub struct Preparing(Mutex<Arc<AtomicBool>>);
 
+    /// Fetches the reading model again after it could not be loaded, such as
+    /// when the app was closed before onboarding's download finished: the
+    /// Engine starts anew and loads the model once the download is done.
+    #[tauri::command]
+    pub async fn download_model(
+        app: AppHandle,
+        running: State<'_, Running>,
+        preparing: State<'_, Preparing>,
+        downloading: State<'_, Downloading>,
+    ) -> Result<bool, String> {
+        let settings = Settings::load(&data_dir()).ok_or("onboarding has not finished")?;
+        // The Engine whose model never loaded stops first; the new one opens the same index.
+        let failed = running.0.lock().unwrap().take();
+        drop(failed);
+        let engine = start_engine(&settings.accelerator, Some(downloading.inner().clone()))?;
+        *running.0.lock().unwrap() = Some(engine);
+        prepare(app, preparing, downloading, settings.accelerator).await
+    }
+
     /// Stops the running download; `prepare` then returns `false`, keeping
     /// what is on disk so the next `prepare` resumes it.
     #[tauri::command]
@@ -1674,7 +1693,8 @@ pub fn run() {
             commands::quit,
             commands::hide_launcher,
             commands::open_search,
-            commands::change_hotkey
+            commands::change_hotkey,
+            commands::download_model
         ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
