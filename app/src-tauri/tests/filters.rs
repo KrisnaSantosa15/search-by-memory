@@ -41,6 +41,15 @@ fn in_prefix_keeps_files_inside_a_folder_whose_name_contains_it() {
 }
 
 #[test]
+fn in_prefix_matches_folder_names_not_the_drive() {
+    let filters = Filters::parse("in:d receipt", &now());
+
+    assert!(!filters.keeps(Path::new(r"D:\Work\receipt.pdf")));
+    assert!(!filters.keeps(Path::new("D:/Work/receipt.pdf")));
+    assert!(filters.keeps(Path::new(r"C:\Documents\receipt.pdf")));
+}
+
+#[test]
 fn a_quoted_value_may_hold_spaces() {
     let filters = Filters::parse(r#"receipt in:"taxes 2024" march"#, &now());
 

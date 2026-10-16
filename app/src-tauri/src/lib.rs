@@ -1,6 +1,6 @@
 //! The desktop app: Tauri commands over the Engine and first-run setup.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use jiff::civil::Date;
 use jiff::{Timestamp, Zoned};
@@ -491,7 +491,11 @@ impl Filters {
             .parent()
             .into_iter()
             .flat_map(Path::components)
-            .map(|component| component.as_os_str().to_string_lossy().to_lowercase())
+            // Folder names only: the drive and root are not folders.
+            .filter_map(|component| match component {
+                Component::Normal(name) => Some(name.to_string_lossy().to_lowercase()),
+                _ => None,
+            })
             .collect();
         (!self.code_only || FileKind::of(path) == FileKind::Code)
             && (self.extensions.is_empty() || self.extensions.contains(&extension))
