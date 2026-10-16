@@ -184,6 +184,7 @@
     - Done: onboarding's Indexing step shows the same three steps; contents say they start once the download finishes.
     - Done: Checking your computer… while speed choices load; Done step key caps, finishing opens Home; app start after onboarding opens Home (`--hidden` stays in the tray); Home offers Download again when the model could not be loaded (`download_model`); empty launcher: examples, recent searches (WebView storage), Filter Prefix tips; brand mark is the app icon. Checked in the real window (scratch data, DirectML).
   - Fixed: a folder added while the Engine's pass read the USN Journal was never scanned (the pass wrote back the cursor `add_indexed_folder` had cleared); `apply_changes` now keeps the cursor when the volume's cursor or Indexed Folders changed meanwhile, so the next pass rescans. Checked with `sbm index` adding 6 folders in turn (2 → 94 files).
+  - In progress: Engine monitor (user, 2026-10-17): sidebar panel above Settings (moved to the bottom, as in VoiceStudio): Engine parts with live state, and This computer's CPU / RAM / GPU usage with this app's own share.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
