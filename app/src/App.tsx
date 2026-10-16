@@ -14,6 +14,7 @@ import { type Estimate, LocationStep } from "./onboarding/LocationStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 import { WelcomeStep } from "./onboarding/WelcomeStep";
 import { Wizard } from "./onboarding/Wizard";
+import { BrandMark } from "./ui/BrandMark";
 
 
 /** Onboarding's steps, as the rail names them. */
@@ -224,7 +225,8 @@ export default function App() {
         data-tauri-drag-region
         className="flex h-10 shrink-0 items-center justify-between border-b border-line pl-5"
       >
-        <span data-tauri-drag-region className="text-xs text-muted">
+        <span data-tauri-drag-region className="flex items-center gap-2 text-xs font-medium text-muted">
+          <BrandMark className="size-4.5" />
           Search by Memory
         </span>
         <button
