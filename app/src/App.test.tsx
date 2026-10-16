@@ -14,6 +14,19 @@ afterEach(async () => {
 
 const cpuOnly = [{ id: "cpu", graphicsCard: null, recommended: true, extraDownload: 0 }];
 
+const idle = {
+  files: 0,
+  indexed: 0,
+  pending: 0,
+  readySince: null,
+  state: "",
+  paused: false,
+  sizeOnDisk: 0,
+  scanning: false,
+  current: null,
+  failed: 0,
+};
+
 describe("App", () => {
   it("starts onboarding with the speed choices this machine offers", async () => {
     mockIPC((command) => {
@@ -135,13 +148,14 @@ describe("App", () => {
     expect(started).toEqual([{ choice: "cpu", location: "C:\\Users\\ana" }]);
   });
 
-  it("sets the search keys after the location, then finishing saves what onboarding decided", async () => {
+  it("shows indexing after the location, then the search keys, then finishing saves what onboarding decided", async () => {
     const finished: unknown[] = [];
     mockIPC(
       (command, payload) => {
         if (command === "speed_choices") return cpuOnly;
         if (command === "prepare") return true;
         if (command === "default_location") return "C:\\Users\\ana";
+        if (command === "dashboard") return { ...idle, files: 3, pending: 3 };
         if (command === "try_hotkey") return true;
         if (command === "finish_onboarding") finished.push(payload);
       },
@@ -150,6 +164,9 @@ describe("App", () => {
     render(<App />);
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
     await screen.findByText("C:\\Users\\ana");
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    await screen.findByText("3 files found");
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     await screen.findByText("Alt + Space");

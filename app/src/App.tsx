@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { Launcher, type ResultRow } from "./Launcher";
 import type { TextPreview } from "./Lines";
 import type { PdfPagePreview } from "./PdfPage";
+import type { Dashboard } from "./Settings";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { HotkeyStep } from "./onboarding/HotkeyStep";
+import { IndexingStep } from "./onboarding/IndexingStep";
 import { type Estimate, LocationStep } from "./onboarding/LocationStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 
@@ -15,6 +17,7 @@ type DownloadProgress = { done: number; total: number; secondsLeft: number | nul
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
 const estimateLocation = (location: string) => invoke<Estimate>("estimate_location", { location });
 const pickLocation = () => invoke<string | null>("pick_location");
+const indexingProgress = () => invoke<Dashboard>("dashboard");
 
 const launcher = {
   search: (query: string, onlyCode: boolean) =>
@@ -49,6 +52,8 @@ export default function App() {
   // Where to search: the personal folder until the user picks another.
   const [location, setLocation] = useState<string | null>(null);
   const [indexing, setIndexing] = useState(false);
+  // The user has seen indexing start and gone on to the search keys.
+  const [shown, setShown] = useState(false);
   const [hotkey, setHotkey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -95,7 +100,8 @@ export default function App() {
         />
       );
     }
-    if (indexing) return <HotkeyStep tryHotkey={tryHotkey} onContinue={setHotkey} />;
+    if (shown) return <HotkeyStep tryHotkey={tryHotkey} onContinue={setHotkey} />;
+    if (indexing) return <IndexingStep progress={indexingProgress} onContinue={() => setShown(true)} />;
     if (location) {
       return (
         <LocationStep
