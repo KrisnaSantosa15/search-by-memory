@@ -42,8 +42,29 @@ fn a_quoted_value_may_hold_spaces() {
 }
 
 #[test]
+fn a_prefix_with_nothing_after_it_yet_filters_nothing() {
+    for typed in ["invoice ext:", "invoice in:", r#"invoice in:"""#] {
+        let filters = Filters::parse(typed);
+
+        assert_eq!(filters.query(), "invoice", "{typed}");
+        assert!(filters.keeps(Path::new(r"D:\Work\invoice.docx")), "{typed}");
+    }
+}
+
+#[test]
+fn unknown_prefixes_stay_in_the_query() {
+    let typed = r"note: see https://example.org and C:\Temp\x";
+
+    assert_eq!(Filters::parse(typed).query(), typed);
+}
+
+#[test]
 fn code_prefix_keeps_only_code_and_what_follows_it_stays_in_the_query() {
-    for typed in ["code:parse config", "parse code: config", "CODE: parse config"] {
+    for typed in [
+        "code:parse config",
+        "parse code: config",
+        "CODE: parse config",
+    ] {
         let filters = Filters::parse(typed);
 
         assert_eq!(filters.query(), "parse config", "{typed}");
