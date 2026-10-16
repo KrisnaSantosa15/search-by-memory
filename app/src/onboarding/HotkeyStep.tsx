@@ -55,7 +55,7 @@ export function HotkeyStep({ tryHotkey, listenPressed, onContinue }: Props) {
       </div>
       <button
         type="button"
-        aria-label="Keys for search"
+        aria-label={`Keys for search: ${spoken(hotkey)}`}
         onKeyDown={record}
        className="flex justify-center rounded-xl border border-line bg-panel p-6 transition-colors hover:bg-raised focus:border-accent focus:outline-none"
       >

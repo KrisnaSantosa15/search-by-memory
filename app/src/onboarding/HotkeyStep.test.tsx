@@ -16,6 +16,14 @@ describe("HotkeyStep", () => {
     expect(onContinue).toHaveBeenCalledWith("Ctrl+Shift+Space");
   });
 
+  it("names the keys on the button that records them, for screen readers", async () => {
+    render(<HotkeyStep tryHotkey={vi.fn(async () => true)} onContinue={() => {}} />);
+
+    expect(
+      await screen.findByRole("button", { name: "Keys for search: Ctrl + Shift + Space" }),
+    ).toBeInTheDocument();
+  });
+
   it("says the keys work once the user tries them", async () => {
     let pressed = () => {};
     render(
