@@ -119,6 +119,32 @@ describe("Home", () => {
     await waitFor(() => expect(model).toHaveTextContent("Ready on your processor"));
   });
 
+  it("says on Home when the reading model could not be loaded, so only names are searched", async () => {
+    renderHome({
+      dashboard: async () => ({
+        ...running,
+        model: { state: "failed", reason: "model.onnx not found" },
+      }),
+    });
+
+    const model = await screen.findByRole("listitem", { name: "Reading model" });
+    expect(model).toHaveTextContent("Could not be loaded, so files are found by their names only");
+    expect(model).toHaveTextContent("model.onnx not found");
+    expect(screen.getByRole("listitem", { name: "Contents" })).toHaveTextContent(
+      "Waits for the reading model",
+    );
+  });
+
+  it("says on Home that contents are read once the reading model has loaded", async () => {
+    renderHome({ dashboard: async () => ({ ...running, model: { state: "loading" } }) });
+
+    const model = await screen.findByRole("listitem", { name: "Reading model" });
+    expect(model).toHaveTextContent("Loading");
+    expect(screen.getByRole("listitem", { name: "Contents" })).toHaveTextContent(
+      "Starts once the reading model has loaded",
+    );
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
