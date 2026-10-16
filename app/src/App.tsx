@@ -7,12 +7,14 @@ import type { PdfPagePreview } from "./PdfPage";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { HotkeyStep } from "./onboarding/HotkeyStep";
-import { LocationStep } from "./onboarding/LocationStep";
+import { type Estimate, LocationStep } from "./onboarding/LocationStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 
 type DownloadProgress = { done: number; total: number; secondsLeft: number | null };
 
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
+const estimateLocation = (location: string) => invoke<Estimate>("estimate_location", { location });
+const pickLocation = () => invoke<string | null>("pick_location");
 
 const launcher = {
   search: (query: string, onlyCode: boolean) =>
@@ -98,7 +100,8 @@ export default function App() {
       return (
         <LocationStep
           defaultLocation={location}
-          pickFolder={() => invoke<string | null>("pick_location")}
+          estimate={estimateLocation}
+          pickFolder={pickLocation}
           onContinue={(location) =>
             invoke("start_indexing", { choice, location }).then(() => setIndexing(true))
           }

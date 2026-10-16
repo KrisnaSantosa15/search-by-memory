@@ -517,6 +517,31 @@ mod commands {
         cancel.store(true, Ordering::SeqCst);
     }
 
+    /// What `location` would add to the index, with the Default Exclusions it
+    /// would get; counted on a thread of its own, as a big folder takes a while.
+    #[tauri::command]
+    pub async fn estimate_location(location: PathBuf) -> Result<LocationEstimate, String> {
+        tauri::async_runtime::spawn_blocking(move || {
+            let mut exclusions = Exclusion::defaults();
+            if let Some(drive) = sbm_index::system_drive() {
+                exclusions.extend(Exclusion::system_drive_defaults(&drive));
+            }
+            let found = sbm_index::estimate(&location, &exclusions);
+            LocationEstimate {
+                files: found.files,
+                bytes: found.bytes,
+            }
+        })
+        .await
+        .map_err(|error| error.to_string())
+    }
+
+    #[derive(Serialize)]
+    pub struct LocationEstimate {
+        files: u64,
+        bytes: u64,
+    }
+
     /// Where onboarding offers to search first: the user's personal folder.
     #[tauri::command]
     pub fn default_location() -> PathBuf {
@@ -1140,6 +1165,7 @@ pub fn run() {
             commands::cancel_prepare,
             commands::default_location,
             commands::pick_location,
+            commands::estimate_location,
             commands::start_indexing,
             commands::settings,
             commands::try_hotkey,
