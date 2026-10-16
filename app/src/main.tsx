@@ -33,6 +33,7 @@ const home = {
   retryFailed: () => invoke<void>("retry_failed"),
   settings: () => invoke<AppSettings | null>("settings"),
   openSearch: (typed: string) => invoke<void>("open_search", { typed }),
+  changeHotkey: (hotkey: string) => invoke<boolean>("change_hotkey", { hotkey }),
 };
 
 // The Home window opens this page with `?view=settings`; the main window without.

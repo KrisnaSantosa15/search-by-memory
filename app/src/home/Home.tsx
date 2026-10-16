@@ -1,8 +1,9 @@
-import { Activity, FolderOpen, House, X } from "lucide-react";
+import { Activity, FolderOpen, House, Settings as SettingsIcon, X } from "lucide-react";
 import { useState } from "react";
 import { ActivityPage, FoldersPage, type FoldersProps, type StatusProps } from "../Settings";
 import { BrandMark } from "../ui/BrandMark";
 import { Overview, type OverviewProps } from "./Overview";
+import { SettingsPage, type SettingsPageProps } from "./SettingsPage";
 import { SidebarFolders } from "./SidebarFolders";
 import { StatusCard } from "./StatusCard";
 
@@ -10,6 +11,7 @@ const PAGES = [
   { name: "Home", Icon: House },
   { name: "Activity", Icon: Activity },
   { name: "Folders", Icon: FolderOpen },
+  { name: "Settings", Icon: SettingsIcon },
 ] as const;
 
 type WindowProps = {
@@ -17,7 +19,11 @@ type WindowProps = {
   close: () => void;
 };
 
-export type HomeProps = StatusProps & FoldersProps & OverviewProps & WindowProps;
+export type HomeProps = StatusProps &
+  FoldersProps &
+  OverviewProps &
+  SettingsPageProps &
+  WindowProps;
 
 /** The Home window: what search can do now, how far indexing has got, and the folders it covers. */
 export function Home(props: HomeProps) {
@@ -83,8 +89,10 @@ export function Home(props: HomeProps) {
               <Overview {...props} />
             ) : page === "Activity" ? (
               <ActivityPage {...props} />
-            ) : (
+            ) : page === "Folders" ? (
               <FoldersPage {...props} />
+            ) : (
+              <SettingsPage {...props} />
             )}
           </div>
         </div>

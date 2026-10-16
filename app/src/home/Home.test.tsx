@@ -47,6 +47,7 @@ function renderHome(overrides: Partial<HomeProps> = {}) {
     retryFailed: vi.fn(async () => {}),
     settings: async () => ({ accelerator: "cuda", hotkey: "Ctrl+Shift+Space" }),
     openSearch: vi.fn((_typed: string) => {}),
+    changeHotkey: vi.fn(async (_hotkey: string) => true),
     ...overrides,
   };
   render(<Home {...props} />);
@@ -401,6 +402,23 @@ describe("Home", () => {
 
     expect(props.purge).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Delete index…" })).toBeInTheDocument();
+  });
+
+  it("changes the search keys in Settings, keeping the old ones when another app uses the new", async () => {
+    const changeHotkey = vi.fn(async (hotkey: string) => hotkey !== "Ctrl+Alt+KeyF");
+    await renderPage("Settings", { changeHotkey });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Keys for search: Ctrl + Shift + Space" }));
+    await userEvent.keyboard("{Control>}{Alt>}f{/Alt}{/Control}");
+
+    expect(changeHotkey).toHaveBeenLastCalledWith("Ctrl+Alt+KeyF");
+    expect(await screen.findByText("Another app already uses Ctrl + Alt + F, so search keeps Ctrl + Shift + Space.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keys for search: Ctrl + Shift + Space" })).toBeInTheDocument();
+
+    await userEvent.keyboard("{Control>}{Alt>}k{/Alt}{/Control}");
+
+    expect(await screen.findByText("Saved. Press Ctrl + Alt + K in any app to search.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keys for search: Ctrl + Alt + K" })).toBeInTheDocument();
   });
 
   it("lists the Indexed Folders and says which drives are disconnected", async () => {
