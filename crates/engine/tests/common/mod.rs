@@ -57,6 +57,29 @@ impl ChangeSource for NoJournal {
     }
 }
 
+/// Like [`NoJournal`], but each pass waits at the journal until [`GatedJournal::open`],
+/// so a test can look at the Engine in the middle of a pass. Clones share one gate.
+#[derive(Clone, Default)]
+pub struct GatedJournal(Arc<(Mutex<bool>, std::sync::Condvar)>);
+
+impl GatedJournal {
+    pub fn open(&self) {
+        let (open, changed) = &*self.0;
+        *open.lock().unwrap() = true;
+        changed.notify_all();
+    }
+}
+
+impl ChangeSource for GatedJournal {
+    fn changes_since(&self, volume_id: &str, since: Option<&ChangeCursor>) -> Result<Changes> {
+        let (open, changed) = &*self.0;
+        let _open = changed
+            .wait_while(open.lock().unwrap(), |open| !*open)
+            .unwrap();
+        NoJournal.changes_since(volume_id, since)
+    }
+}
+
 pub fn write(root: &Path, relative: &str, content: &str) -> PathBuf {
     let path = root.join(relative);
     fs::create_dir_all(path.parent().unwrap()).unwrap();

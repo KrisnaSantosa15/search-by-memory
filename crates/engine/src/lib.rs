@@ -62,6 +62,9 @@ pub struct Status {
     pub model: ModelStatus,
     /// Why Initial Indexing is holding back, if it is; Live Updates go on.
     pub throttled: Option<ThrottleReason>,
+    /// The names in a newly added Indexed Folder are still being found; they
+    /// are searchable once this turns false.
+    pub scanning: bool,
     /// Content indexing stopped by [`Engine::pause`].
     pub paused: bool,
     /// When a pause from [`Engine::pause_until`] ends by itself.
@@ -133,6 +136,8 @@ struct Work {
     model_error: Option<String>,
     /// Why Initial Indexing held back when last checked.
     throttled: Option<ThrottleReason>,
+    /// The pass that finds the names in the newest Indexed Folder.
+    scan_pass: u64,
 }
 
 impl Engine {
@@ -215,7 +220,10 @@ impl Engine {
     /// Remembers `folder` as an Indexed Folder and indexes it.
     pub fn add_indexed_folder(&self, folder: &Path) -> Result<()> {
         self.index.lock().unwrap().add_indexed_folder(folder)?;
-        self.request_pass();
+        let mut work = self.shared.work.lock().unwrap();
+        work.requested += 1;
+        work.scan_pass = work.requested;
+        self.shared.changed.notify_all();
         Ok(())
     }
 
@@ -327,6 +335,7 @@ impl Engine {
                 (None, None) => ModelStatus::Loading,
             },
             throttled: work.throttled,
+            scanning: work.completed < work.scan_pass,
             paused: work.paused,
             paused_until: work.paused_until,
             size_on_disk: size_on_disk(&self.data_dir),

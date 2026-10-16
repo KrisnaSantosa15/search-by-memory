@@ -6,7 +6,8 @@ use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant, SystemTime};
 
 use common::{
-    BagOfWords, BrokenJournal, ChangingActivity, NoJournal, RecordingJournal, SteadyActivity, write,
+    BagOfWords, BrokenJournal, ChangingActivity, GatedJournal, NoJournal, RecordingJournal,
+    SteadyActivity, write,
 };
 use sbm_core::ThrottleReason;
 use sbm_engine::{Engine, LoadedModel, ModelStatus};
@@ -536,6 +537,23 @@ fn a_turned_off_default_exclusion_is_still_listed_among_the_defaults() {
 
     assert!(!engine.exclusions().unwrap().contains(&node_modules));
     assert!(engine.default_exclusions().contains(&node_modules));
+}
+
+#[test]
+fn names_are_being_found_until_the_first_pass_over_a_new_folder_ends() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "notes.txt", "groceries\n");
+    let journal = GatedJournal::default();
+    let engine =
+        Engine::start(data.path(), Arc::new(BagOfWords), Box::new(journal.clone())).unwrap();
+
+    engine.add_indexed_folder(folder.path()).unwrap();
+    assert!(engine.status().unwrap().scanning);
+
+    journal.open();
+    engine.wait_until_idle();
+    assert!(!engine.status().unwrap().scanning);
+    assert_eq!(engine.status().unwrap().files, 1);
 }
 
 #[test]
