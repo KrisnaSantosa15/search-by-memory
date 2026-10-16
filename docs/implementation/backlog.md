@@ -172,7 +172,7 @@
   - Done: `in:` matches folder names only, not the drive; a Query of filters only (`date:today`) lists the newest files that pass them (`Engine::newest_files`), the Preview Pane says "It fits the filters".
   - Not yet: Filter Prefixes not checked in the real window.
   - Done: the Preview Pane says why only a Result's name is searched: online only (download it), format not read (pictures, videos, audio, other), not read yet, could not be read (with the reason). `Index`/`Engine::not_read`, `ResultRow.notRead`.
-  - Next: stage 4: Speed, Download and Search keys steps in the VoiceStudio card style.
+  - In progress: stage 4: Speed, Download and Search keys steps in the VoiceStudio card style; then a real-window check of stage 4 (filters, why only a name is searched, restyled steps).
   - Found: Live Updates run before Initial Indexing (`live DESC`), so a folder that keeps changing can hold content reading back; check with the Benchmark of a busy Downloads folder.
   - Found: while Initial Indexing runs (debug build, DirectML), a Query stayed "Searching…" for over 10 s; check whether Query embedding waits behind indexing batches.
 
