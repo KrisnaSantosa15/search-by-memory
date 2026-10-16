@@ -1033,7 +1033,8 @@ mod commands {
     }
 
     /// Results for what was typed in File view, best first, within its filter
-    /// prefixes; none before the Engine has started.
+    /// prefixes (only filters: the newest files that pass them); none before
+    /// the Engine has started.
     #[tauri::command]
     pub async fn search(running: State<'_, Running>, typed: String) -> Result<Searched, String> {
         let filters = Filters::parse(&typed, &jiff::Zoned::now());
@@ -1042,7 +1043,9 @@ mod commands {
             return Ok(Searched::new(&filters, Vec::new()));
         };
         let keep = |path: &Path| filters.keeps(path);
-        let results = if filters.names_only() {
+        let results = if filters.lists_newest() {
+            engine.newest_files(RESULTS, &keep)
+        } else if filters.names_only() {
             engine.search_names(filters.query(), RESULTS, &keep)
         } else {
             engine.search_where(filters.query(), View::File, RESULTS, &keep)
