@@ -9,7 +9,7 @@ describe("HotkeyStep", () => {
     const onContinue = vi.fn();
     render(<HotkeyStep tryHotkey={tryHotkey} onContinue={onContinue} />);
 
-    expect(await screen.findByText("Ctrl + Shift + Space")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Keys for search: Ctrl + Shift + Space" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(tryHotkey).toHaveBeenCalledWith("Ctrl+Shift+Space");
@@ -59,7 +59,7 @@ describe("HotkeyStep", () => {
     await userEvent.click(screen.getByRole("button", { name: /keys for search/i }));
     await userEvent.keyboard("{Control>}{Shift>}k{/Shift}{/Control}");
 
-    expect(await screen.findByText("Ctrl + Shift + K")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Keys for search: Ctrl + Shift + K" })).toBeInTheDocument();
     expect(screen.queryByText(/another app already uses these keys/i)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     expect(onContinue).toHaveBeenCalledWith("Ctrl+Shift+KeyK");
