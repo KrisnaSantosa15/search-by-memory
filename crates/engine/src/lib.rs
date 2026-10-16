@@ -261,6 +261,11 @@ impl Engine {
         self.index.lock().unwrap().exclusions()
     }
 
+    /// Every Default Exclusion, on or turned off.
+    pub fn default_exclusions(&self) -> Vec<Exclusion> {
+        self.index.lock().unwrap().default_exclusions()
+    }
+
     /// Blocks until all work queued so far is done.
     pub fn wait_until_idle(&self) {
         let work = self.shared.work.lock().unwrap();

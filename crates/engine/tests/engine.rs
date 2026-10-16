@@ -527,6 +527,18 @@ fn restored_default_exclusions_take_their_files_out_of_search() {
 }
 
 #[test]
+fn a_turned_off_default_exclusion_is_still_listed_among_the_defaults() {
+    let data = TempDir::new().unwrap();
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    let node_modules = Exclusion::Name("node_modules".to_string());
+
+    engine.remove_exclusion(&node_modules).unwrap();
+
+    assert!(!engine.exclusions().unwrap().contains(&node_modules));
+    assert!(engine.default_exclusions().contains(&node_modules));
+}
+
+#[test]
 fn purge_erases_the_indexes_from_disk_and_leaves_other_files() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     write(
