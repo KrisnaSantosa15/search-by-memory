@@ -110,8 +110,12 @@ function contents(status: Dashboard): Pick<Part, "doing" | "tone"> {
   return { doing: "Every file is read", tone: "ok" };
 }
 
-function model(status: Dashboard): Pick<Part, "doing" | "tone"> {
-  const { model } = status;
+function model(status: Dashboard): Pick<Part, "doing" | "tone" | "amount"> {
+  const { model, download } = status;
+  if (download) {
+    const percent = download.total > 0 ? Math.floor((download.done * 100) / download.total) : 0;
+    return { doing: "Downloading…", tone: "busy", amount: `${percent}%` };
+  }
   if (model.state === "failed") return { doing: "Could not be loaded", tone: "failed" };
   if (model.state === "loading") return { doing: "Getting ready…", tone: "busy" };
   const where = model.device === "cpu" ? "the processor" : "the graphics card";

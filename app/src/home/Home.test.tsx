@@ -314,6 +314,18 @@ describe("Home", () => {
     await waitFor(() => expect(contents()).toHaveTextContent("Waits while a full-screen app is open"));
   });
 
+  it("shows in the Engine how far the reading model's download has got", async () => {
+    renderHome({
+      dashboard: async () => ({ ...running, model: { state: "loading" }, download: { done: 4, total: 10 } }),
+    });
+
+    const engine = await screen.findByRole("list", { name: "Engine" });
+    const model = await within(engine).findByRole("button", { name: /Reading model/ });
+
+    expect(model).toHaveTextContent("Downloading");
+    expect(model).toHaveTextContent("40%");
+  });
+
   it("keeps Settings at the foot of the sidebar, below the Engine, as VoiceStudio does", async () => {
     renderHome();
 
