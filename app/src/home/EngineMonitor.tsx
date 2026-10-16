@@ -1,4 +1,13 @@
-import { BrainCircuit, ChevronUp, Cpu, FileSearch, FileWarning, ScanText } from "lucide-react";
+import {
+  BrainCircuit,
+  ChevronUp,
+  Cpu,
+  FileSearch,
+  FileWarning,
+  Pause,
+  Play,
+  ScanText,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useIndexingProgress } from "../IndexingProgress";
 import type { Dashboard } from "../Settings";
@@ -112,6 +121,8 @@ const DOTS: Record<Tone, string> = {
 export type EngineMonitorProps = {
   dashboard: () => Promise<Dashboard>;
   deviceUsage: () => Promise<DeviceUsage>;
+  pause: () => Promise<void>;
+  resume: () => Promise<void>;
 };
 
 type Props = EngineMonitorProps & {
@@ -123,8 +134,8 @@ type Props = EngineMonitorProps & {
  * The sidebar's Engine panel, as VoiceStudio shows its engines: what each part
  * of search is doing, and how busy This computer is, opened above it.
  */
-export function EngineMonitor({ dashboard, deviceUsage, onOpen }: Props) {
-  const { status } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
+export function EngineMonitor({ dashboard, deviceUsage, pause, resume, onOpen }: Props) {
+  const { status, refresh } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
   const [open, setOpen] = useState(false);
   const now = status ? summary(status) : null;
   const dot = DOTS[now?.tone ?? "busy"];
@@ -164,6 +175,29 @@ export function EngineMonitor({ dashboard, deviceUsage, onOpen }: Props) {
             <Cpu aria-hidden className="size-4 shrink-0 text-muted" strokeWidth={1.75} />
           </div>
           <DevicePanel deviceUsage={deviceUsage} open={open} />
+          {status && (status.paused || status.pending > 0) && (
+            <button
+              type="button"
+              onClick={() => (status.paused ? resume() : pause()).then(refresh)}
+              className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-2 text-left transition-colors hover:bg-hover/60"
+            >
+              {status.paused ? (
+                <Play aria-hidden className="size-4 shrink-0 text-accent" strokeWidth={1.75} />
+              ) : (
+                <Pause aria-hidden className="size-4 shrink-0 text-accent" strokeWidth={1.75} />
+              )}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-xs font-medium">
+                  {status.paused ? "Resume reading" : "Pause reading"}
+                </span>
+                <span aria-hidden className="truncate text-[10.5px] leading-[14px] text-muted">
+                  {status.paused
+                    ? "Contents are read again in the background"
+                    : "Frees the computer; names stay searchable"}
+                </span>
+              </span>
+            </button>
+          )}
         </div>
       )}
       <button

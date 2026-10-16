@@ -76,6 +76,8 @@ export function Home(props: HomeProps) {
           <EngineMonitor
             dashboard={props.dashboard}
             deviceUsage={props.deviceUsage}
+            pause={props.pause}
+            resume={props.resume}
             onOpen={setPage}
           />
           <div role="tablist" aria-orientation="vertical" className="flex flex-col">

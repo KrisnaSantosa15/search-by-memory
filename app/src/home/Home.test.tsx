@@ -282,6 +282,24 @@ describe("Home", () => {
     expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("pauses reading from This computer when the computer is needed, then offers to resume it", async () => {
+    let status = running;
+    const props = renderHome({
+      dashboard: async () => status,
+      pause: vi.fn(async () => {
+        status = { ...running, paused: true };
+      }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "This computer" }));
+    const panel = await screen.findByRole("dialog", { name: "This computer" });
+
+    await userEvent.click(within(panel).getByRole("button", { name: "Pause reading" }));
+
+    expect(props.pause).toHaveBeenCalled();
+    await userEvent.click(await within(panel).findByRole("button", { name: "Resume reading" }));
+    expect(props.resume).toHaveBeenCalled();
+  });
+
   it("keeps Settings at the foot of the sidebar, below the Engine, as VoiceStudio does", async () => {
     renderHome();
 
