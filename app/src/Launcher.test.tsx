@@ -694,6 +694,16 @@ describe("Launcher", () => {
     expect(screen.getByRole("searchbox")).toHaveValue("dentist invoice");
   });
 
+  it("fills the box with an example Query that is clicked, while nothing is typed", async () => {
+    const search = vi.fn(answers(report));
+    render(<Launcher search={search} {...actions()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "slow-cooked beef recipe" }));
+
+    expect(screen.getByRole("searchbox")).toHaveValue("slow-cooked beef recipe");
+    await waitFor(() => expect(search).toHaveBeenLastCalledWith("slow-cooked beef recipe"));
+  });
+
   it("hides with Escape", async () => {
     const spies = actions();
     render(<Launcher search={answers()} {...spies} />);

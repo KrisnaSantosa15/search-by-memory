@@ -445,15 +445,37 @@ function status(typed: string, searching: boolean, found: number, weaker: number
   return weaker > 0 ? `${results}, ${weaker} weaker` : results;
 }
 
-/** What the Preview Pane offers while nothing is typed: searches from before, to run again. */
+/** Queries the empty launcher offers to try: by meaning, by kind of file, by time. */
+const EXAMPLES = [
+  "the dentist invoice from March",
+  "slow-cooked beef recipe",
+  "ext:pdf contract renewal",
+  "date:week presentation",
+];
+
+/** What the Preview Pane offers while nothing is typed: examples, and searches from before. */
 function Suggestions({ recent, onPick }: { recent: string[]; onPick: (typed: string) => void }) {
   return (
     <div className="flex flex-col gap-6 pt-6">
-      <p className="text-center text-sm leading-relaxed text-muted">
-        Describe it the way you remember it,
-        <br />
-        like “the dentist invoice from March” or “slow-cooked beef recipe”.
-      </p>
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-center text-sm leading-relaxed text-muted">
+          Describe it the way you remember it, for example:
+        </p>
+        <ul aria-label="Examples" className="flex flex-wrap justify-center gap-2">
+          {EXAMPLES.map((example) => (
+            <li key={example}>
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onPick(example)}
+                className="rounded-full border border-line bg-panel/50 px-3 py-1 text-[13px] transition-colors hover:border-accent/50 hover:bg-accent-soft hover:text-ink"
+              >
+                {example}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
       {recent.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 id="recent-searches" className="px-1 text-xs font-semibold text-muted">
