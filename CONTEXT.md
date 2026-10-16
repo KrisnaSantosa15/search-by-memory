@@ -95,7 +95,7 @@ The way the launcher lists Results: one per file, shown with its best Content Ma
 _Avoid_: Grouped view, document view
 
 **Preview Pane**:
-The right-hand side of the launcher, showing the selected Result: its best Content Match with the Query's words marked, where the file is, why it matched, its Copies, and the actions to open or show it.
+The right-hand side of the launcher, showing the selected Result: its best Content Match with the Query's words marked, where the file is, why it matched, its Copies, and the actions to open or show it. When only the file's name is searched, it says why (online only, format not read, not read yet, could not be read).
 _Avoid_: Detail Panel, sidebar, inspector
 
 **Weaker Match**:
@@ -103,7 +103,7 @@ A Result that is related to the Query but much less so than the best ones; liste
 _Avoid_: Low-score hit, noise
 
 **Filter Prefix**:
-A `word:value` typed with the Query (`ext:pdf`, `in:taxes`, `date:week`, `code:`, `name:`) that narrows one search to files of a type, in a folder, changed in a span of time, to code, or to names only; it is lifted out of the Query before searching.
+A `word:value` typed with the Query (`ext:pdf`, `in:taxes`, `date:week`, `code:`, `name:`) that narrows one search to files of a type, in a folder, changed in a span of time, to code, or to names only; it is lifted out of the Query before searching. Filter Prefixes with no Query words list the newest files that pass them.
 _Avoid_: Operator, search syntax, Exclusion (an Exclusion keeps files out of the index; a Filter Prefix narrows one search)
 
 **Passage view**:
