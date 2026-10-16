@@ -1,9 +1,11 @@
-import { Activity, FolderOpen, X } from "lucide-react";
+import { Activity, FolderOpen, House, X } from "lucide-react";
 import { useState } from "react";
 import { ActivityPage, FoldersPage, type FoldersProps, type StatusProps } from "../Settings";
+import { Overview } from "./Overview";
 
 const PAGES = [
-  { name: "Status", Icon: Activity },
+  { name: "Home", Icon: House },
+  { name: "Activity", Icon: Activity },
   { name: "Folders", Icon: FolderOpen },
 ] as const;
 
@@ -16,7 +18,7 @@ export type HomeProps = StatusProps & FoldersProps & WindowProps;
 
 /** The Home window: indexing status, Indexed Folders, and Exclusions. */
 export function Home(props: HomeProps) {
-  const [page, setPage] = useState<(typeof PAGES)[number]["name"]>("Status");
+  const [page, setPage] = useState<(typeof PAGES)[number]["name"]>("Home");
 
   return (
     <div className="flex h-full flex-col">
@@ -57,7 +59,13 @@ export function Home(props: HomeProps) {
         </nav>
         <div role="tabpanel" aria-label={page} className="min-h-0 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 pt-6 pb-12">
-            {page === "Status" ? <ActivityPage {...props} /> : <FoldersPage {...props} />}
+            {page === "Home" ? (
+              <Overview {...props} />
+            ) : page === "Activity" ? (
+              <ActivityPage {...props} />
+            ) : (
+              <FoldersPage {...props} />
+            )}
           </div>
         </div>
       </div>

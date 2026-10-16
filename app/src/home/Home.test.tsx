@@ -51,6 +51,13 @@ function renderHome(overrides: Partial<HomeProps> = {}) {
   return props;
 }
 
+/** Renders Home and goes to one of its pages. */
+async function renderPage(page: string, overrides: Partial<HomeProps> = {}) {
+  const props = renderHome(overrides);
+  await userEvent.click(screen.getByRole("tab", { name: page }));
+  return props;
+}
+
 describe("Home", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -64,8 +71,21 @@ describe("Home", () => {
     expect(props.close).toHaveBeenCalled();
   });
 
+  it("opens on Home, which counts the files found, the share read, and the index's size", async () => {
+    renderHome();
+
+    const glance = await screen.findByRole("list", { name: "At a glance" });
+    const tiles = within(glance).getAllByRole("listitem").map((tile) => tile.textContent);
+    expect(screen.getByRole("tab", { name: "Home" })).toHaveAttribute("aria-selected", "true");
+    expect(tiles).toEqual([
+      expect.stringMatching(/12,345.*Files found/),
+      expect.stringMatching(/34%.*Contents read/),
+      expect.stringMatching(/1\.2 GB.*Index size/),
+    ]);
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
-    renderHome({
+    await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
     });
 
@@ -75,7 +95,7 @@ describe("Home", () => {
   });
 
   it("shows the files found and how far content search reaches", async () => {
-    renderHome();
+    await renderPage("Activity");
 
     expect(await screen.findByText("12,345 files found")).toBeInTheDocument();
     expect(
@@ -84,7 +104,7 @@ describe("Home", () => {
   });
 
   it("shows the content index as complete before any file is found", async () => {
-    renderHome({
+    await renderPage("Activity", {
       dashboard: async () => ({ ...running, files: 0, indexed: 0, pending: 0, readySince: null }),
     });
 
@@ -92,7 +112,7 @@ describe("Home", () => {
   });
 
   it("shows how much disk the index takes", async () => {
-    renderHome();
+    await renderPage("Activity");
 
     expect(await screen.findByText("The index takes 1.2 GB on disk")).toBeInTheDocument();
   });
@@ -100,7 +120,7 @@ describe("Home", () => {
   it("keeps the status up to date while it is open", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let files = 10;
-    renderHome({ dashboard: async () => ({ ...running, files }) });
+    await renderPage("Activity", { dashboard: async () => ({ ...running, files }) });
     expect(await screen.findByText("10 files found")).toBeInTheDocument();
 
     files = 25;
@@ -110,7 +130,7 @@ describe("Home", () => {
   });
 
   it("says why indexing waits", async () => {
-    renderHome({
+    await renderPage("Activity", {
       dashboard: async () => ({
         ...running,
         state: "Indexing waits while a full-screen app is open",
@@ -123,7 +143,7 @@ describe("Home", () => {
   });
 
   it("lists the files whose content could not be indexed, and why in plain words", async () => {
-    renderHome({
+    await renderPage("Activity", {
       failedFiles: async () => [
         {
           path: "C:\\Users\\ana\\Documents\\locked.pdf",
@@ -142,7 +162,7 @@ describe("Home", () => {
     let failed = [
       { path: "C:\\Users\\ana\\Documents\\open.docx", reason: "inUse" as const, detail: "in use" },
     ];
-    const props = renderHome({
+    const props = await renderPage("Activity", {
       failedFiles: async () => failed,
       retryFailed: vi.fn(async () => {
         failed = [];
@@ -156,7 +176,7 @@ describe("Home", () => {
   });
 
   it("shows the underlying error of a failed file only when asked", async () => {
-    renderHome({
+    await renderPage("Activity", {
       failedFiles: async () => [
         {
           path: "C:\\Users\\ana\\Documents\\report.docx",
@@ -176,7 +196,7 @@ describe("Home", () => {
 
   it("pauses indexing, then offers to resume it", async () => {
     let paused = false;
-    const props = renderHome({
+    const props = await renderPage("Activity", {
       dashboard: async () => ({
         ...running,
         paused,
@@ -196,7 +216,7 @@ describe("Home", () => {
   });
 
   it("deletes the index once the user confirms it", async () => {
-    const props = renderHome();
+    const props = await renderPage("Activity");
 
     await userEvent.click(await screen.findByRole("button", { name: "Delete index…" }));
     expect(props.purge).not.toHaveBeenCalled();
@@ -206,7 +226,7 @@ describe("Home", () => {
   });
 
   it("keeps the index when the user changes their mind", async () => {
-    const props = renderHome();
+    const props = await renderPage("Activity");
 
     await userEvent.click(await screen.findByRole("button", { name: "Delete index…" }));
     await userEvent.click(screen.getByRole("button", { name: "Keep" }));
