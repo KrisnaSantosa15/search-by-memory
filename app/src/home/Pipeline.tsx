@@ -30,7 +30,10 @@ export function Pipeline({ status }: { status: Dashboard }) {
   );
 }
 
-function modelStep({ download }: Dashboard): Step {
+function modelStep({ download, model }: Dashboard): Step {
+  if (model.state === "ready") {
+    return { name: "Reading model", stage: "done", detail: `Ready on ${deviceName(model.device)}` };
+  }
   if (download) {
     return {
       name: "Reading model",
@@ -40,6 +43,11 @@ function modelStep({ download }: Dashboard): Step {
     };
   }
   return { name: "Reading model", stage: "active", detail: "Loading…" };
+}
+
+/** Where the model runs, in plain words: `cuda` and `directml:1` are graphics cards. */
+export function deviceName(device: string): string {
+  return device === "cpu" ? "your processor" : "your graphics card";
 }
 
 function namesStep({ files }: Dashboard): Step {

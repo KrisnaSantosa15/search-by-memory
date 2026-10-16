@@ -106,6 +106,19 @@ describe("Home", () => {
     expect(contents).toHaveTextContent("Starts once the download finishes");
   });
 
+  it("says on Home where the reading model runs once it is ready", async () => {
+    let device = "cuda";
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderHome({ dashboard: async () => ({ ...running, model: { state: "ready", device } }) });
+
+    const model = await screen.findByRole("listitem", { name: "Reading model" });
+    expect(model).toHaveTextContent("Ready on your graphics card");
+
+    device = "cpu";
+    await vi.advanceTimersByTimeAsync(2_000);
+    await waitFor(() => expect(model).toHaveTextContent("Ready on your processor"));
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
