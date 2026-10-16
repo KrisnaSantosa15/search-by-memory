@@ -1,4 +1,82 @@
 use std::collections::BTreeMap;
+use std::sync::Mutex;
+
+use crate::system_activity::platform::{CpuTimes, cpu_times};
+
+/// How busy this computer is, and how much of that is this app, sampled on
+/// demand. Processor shares cover the time since the previous sample.
+#[derive(Default)]
+pub struct SystemUsage {
+    last: Mutex<Last>,
+}
+
+#[derive(Default)]
+struct Last {
+    cpu: Option<CpuTimes>,
+    gpu: Option<platform::GpuQuery>,
+}
+
+/// One sample of [`SystemUsage`]; a part the system did not report is `None` or empty.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Usage {
+    /// `None` on the first sample, which has nothing to compare with.
+    pub cpu: Option<CpuUsage>,
+    pub memory: Option<MemoryUsage>,
+    pub gpus: Vec<GpuLoad>,
+}
+
+/// Share of all processors' time in use since the previous sample, from 0 to 100.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CpuUsage {
+    pub percent: f64,
+    /// The share of that used by this app's process.
+    pub own_percent: f64,
+}
+
+/// Physical memory, in bytes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MemoryUsage {
+    pub used: u64,
+    pub total: u64,
+    /// Used by this app's process (its working set).
+    pub own: u64,
+}
+
+impl SystemUsage {
+    pub fn sample(&self) -> Usage {
+        let mut last = self.last.lock().unwrap();
+        let times = cpu_times();
+        let cpu = match (&last.cpu, &times) {
+            (Some(before), Some(after)) => cpu_usage(before, after),
+            _ => None,
+        };
+        last.cpu = times;
+        let counters = last
+            .gpu
+            .get_or_insert_with(platform::GpuQuery::open)
+            .collect();
+        Usage {
+            cpu,
+            memory: platform::memory(),
+            gpus: gpu_loads(&counters, std::process::id()),
+        }
+    }
+}
+
+fn cpu_usage(before: &CpuTimes, after: &CpuTimes) -> Option<CpuUsage> {
+    let all = after.all.saturating_sub(before.all);
+    if all == 0 {
+        return None;
+    }
+    let idle = after.idle.saturating_sub(before.idle);
+    let own = after.own.saturating_sub(before.own);
+    let share = |time: u64| (time as f64 * 100.0 / all as f64).clamp(0.0, 100.0);
+    let percent = share(all.saturating_sub(idle));
+    Some(CpuUsage {
+        percent,
+        own_percent: share(own).min(percent),
+    })
+}
 
 /// One instance of a Windows performance counter: its instance name and value.
 #[derive(Debug, Clone, PartialEq)]
@@ -105,4 +183,159 @@ fn adapter_instance(instance: &str) -> Option<(u64, &str)> {
         phys.split_once('_').map_or("", |(_, rest)| rest)
     });
     Some((luid, rest))
+}
+
+#[cfg(windows)]
+mod platform {
+    use windows_sys::Win32::System::Performance::{
+        PDH_CSTATUS_VALID_DATA, PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_MORE_DATA,
+        PdhAddEnglishCounterW, PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterArrayW,
+        PdhOpenQueryW,
+    };
+    use windows_sys::Win32::System::ProcessStatus::{
+        K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
+    };
+    use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    use windows_sys::Win32::System::Threading::GetCurrentProcess;
+
+    use super::{CounterValue, GpuCounters, MemoryUsage};
+
+    pub fn memory() -> Option<MemoryUsage> {
+        let mut status: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
+        status.dwLength = size_of::<MEMORYSTATUSEX>() as u32;
+        let mut own: PROCESS_MEMORY_COUNTERS = unsafe { std::mem::zeroed() };
+        own.cb = size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+        let read = unsafe {
+            GlobalMemoryStatusEx(&mut status) != 0
+                && K32GetProcessMemoryInfo(GetCurrentProcess(), &mut own, own.cb) != 0
+        };
+        read.then(|| MemoryUsage {
+            used: status.ullTotalPhys.saturating_sub(status.ullAvailPhys),
+            total: status.ullTotalPhys,
+            own: own.WorkingSetSize as u64,
+        })
+    }
+
+    /// An open PDH query over the GPU counters. Utilization is a rate, so it
+    /// reads from the second collection on.
+    pub struct GpuQuery {
+        query: isize,
+        engines: isize,
+        adapter_memory: isize,
+        process_memory: isize,
+    }
+
+    // A PDH query handle may be used from any thread, one at a time.
+    unsafe impl Send for GpuQuery {}
+
+    impl GpuQuery {
+        pub fn open() -> Self {
+            let mut query = 0;
+            if unsafe { PdhOpenQueryW(std::ptr::null(), 0, &mut query) } != 0 {
+                query = 0;
+            }
+            let counter = |path: &str| {
+                let path: Vec<u16> = path.encode_utf16().chain([0]).collect();
+                let mut counter = 0;
+                if query == 0
+                    || unsafe { PdhAddEnglishCounterW(query, path.as_ptr(), 0, &mut counter) } != 0
+                {
+                    return 0;
+                }
+                counter
+            };
+            Self {
+                engines: counter(r"\GPU Engine(*)\Utilization Percentage"),
+                adapter_memory: counter(r"\GPU Adapter Memory(*)\Dedicated Usage"),
+                process_memory: counter(r"\GPU Process Memory(*)\Dedicated Usage"),
+                query,
+            }
+        }
+
+        pub fn collect(&self) -> GpuCounters {
+            if self.query == 0 || unsafe { PdhCollectQueryData(self.query) } != 0 {
+                return GpuCounters::default();
+            }
+            GpuCounters {
+                engines: values(self.engines),
+                adapter_memory: values(self.adapter_memory),
+                process_memory: values(self.process_memory),
+            }
+        }
+    }
+
+    impl Drop for GpuQuery {
+        fn drop(&mut self) {
+            if self.query != 0 {
+                unsafe { PdhCloseQuery(self.query) };
+            }
+        }
+    }
+
+    /// Every instance of `counter` with a valid value.
+    fn values(counter: isize) -> Vec<CounterValue> {
+        if counter == 0 {
+            return Vec::new();
+        }
+        let (mut size, mut count) = (0u32, 0u32);
+        let asked = unsafe {
+            PdhGetFormattedCounterArrayW(
+                counter,
+                PDH_FMT_DOUBLE,
+                &mut size,
+                &mut count,
+                std::ptr::null_mut(),
+            )
+        };
+        if asked != PDH_MORE_DATA || size == 0 {
+            return Vec::new();
+        }
+        // Items first, then the names they point to; u64 keeps the items aligned.
+        let mut buffer = vec![0u64; (size as usize).div_ceil(8)];
+        let items = buffer.as_mut_ptr() as *mut PDH_FMT_COUNTERVALUE_ITEM_W;
+        let read =
+            unsafe { PdhGetFormattedCounterArrayW(counter, PDH_FMT_DOUBLE, &mut size, &mut count, items) };
+        if read != 0 {
+            return Vec::new();
+        }
+        let items = unsafe { std::slice::from_raw_parts(items, count as usize) };
+        items
+            .iter()
+            .filter(|item| item.FmtValue.CStatus == PDH_CSTATUS_VALID_DATA)
+            .map(|item| CounterValue {
+                instance: unsafe { wide(item.szName) },
+                value: unsafe { item.FmtValue.Anonymous.doubleValue },
+            })
+            .collect()
+    }
+
+    unsafe fn wide(text: *const u16) -> String {
+        if text.is_null() {
+            return String::new();
+        }
+        let length = (0..).take_while(|&i| unsafe { *text.add(i) } != 0).count();
+        String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(text, length) })
+    }
+}
+
+#[cfg(not(windows))]
+mod platform {
+    use super::{GpuCounters, MemoryUsage};
+
+    /// Not measured outside Windows yet.
+    pub fn memory() -> Option<MemoryUsage> {
+        None
+    }
+
+    pub struct GpuQuery;
+
+    impl GpuQuery {
+        pub fn open() -> Self {
+            GpuQuery
+        }
+
+        pub fn collect(&self) -> GpuCounters {
+            GpuCounters::default()
+        }
+    }
 }

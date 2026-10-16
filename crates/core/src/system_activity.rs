@@ -61,7 +61,7 @@ impl Activity for SystemActivity {
 }
 
 #[cfg(windows)]
-mod platform {
+pub(crate) mod platform {
     use windows_sys::Win32::Foundation::FILETIME;
     use windows_sys::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
     use windows_sys::Win32::System::Threading::{
@@ -130,7 +130,7 @@ mod platform {
 }
 
 #[cfg(not(windows))]
-mod platform {
+pub(crate) mod platform {
     pub struct CpuTimes {
         pub all: u64,
         pub idle: u64,

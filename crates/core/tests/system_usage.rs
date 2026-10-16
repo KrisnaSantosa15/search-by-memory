@@ -1,6 +1,6 @@
 //! How busy this computer and this app are, for the Engine monitor.
 
-use sbm_core::{CounterValue, GpuCounters, GpuLoad, gpu_loads};
+use sbm_core::{CounterValue, GpuCounters, GpuLoad, SystemUsage, gpu_loads};
 
 const ADAPTER: &str = "luid_0x00000000_0x0000C2F1_phys_0";
 
@@ -65,4 +65,30 @@ fn a_gpus_load_never_reads_above_full() {
     };
 
     assert_eq!(gpu_loads(&counters, 200)[0].percent, 100.0);
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_reports_how_busy_the_processor_and_memory_are_and_this_apps_share() {
+    let usage = SystemUsage::default();
+    usage.sample();
+    // Some work of its own between the two samples.
+    let start = std::time::Instant::now();
+    while start.elapsed() < std::time::Duration::from_millis(300) {
+        std::hint::black_box((0..1_000).sum::<u64>());
+    }
+
+    let now = usage.sample();
+
+    let cpu = now.cpu.expect("a second sample measures the processor");
+    assert!((0.0..=100.0).contains(&cpu.percent), "{cpu:?}");
+    assert!(cpu.own_percent > 0.0 && cpu.own_percent <= cpu.percent, "{cpu:?}");
+    let memory = now.memory.expect("memory is measured");
+    assert!(memory.used > 0 && memory.used <= memory.total, "{memory:?}");
+    assert!(memory.own > 0 && memory.own <= memory.used, "{memory:?}");
+}
+
+#[test]
+fn the_first_sample_cannot_say_how_busy_the_processor_was() {
+    assert_eq!(SystemUsage::default().sample().cpu, None);
 }
