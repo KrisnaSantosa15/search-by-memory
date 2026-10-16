@@ -1011,9 +1011,11 @@ mod commands {
         Settings::load(&data_dir())
     }
 
-    /// Saves what onboarding decided and hides the window until the hotkey.
+    /// Saves what onboarding decided, hides the window until the hotkey, and
+    /// opens Home to follow the reading.
     #[tauri::command]
     pub fn finish_onboarding(
+        app: AppHandle,
         window: WebviewWindow,
         choice: String,
         hotkey: String,
@@ -1026,7 +1028,9 @@ mod commands {
             .save(&data_dir())
             .map_err(|error| error.to_string())?;
         become_launcher(&window).map_err(|error| error.to_string())?;
-        window.hide().map_err(|error| error.to_string())
+        window.hide().map_err(|error| error.to_string())?;
+        open_settings(&app);
+        Ok(())
     }
 
     /// Erases the index (FR-06) and the saved settings, and starts onboarding
