@@ -1,4 +1,4 @@
-import { spoken } from "./HotkeyStep";
+import { spoken } from "../ui/KeysPicker";
 import { Button } from "../ui/Button";
 
 type Props = {

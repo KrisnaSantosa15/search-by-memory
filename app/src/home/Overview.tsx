@@ -1,7 +1,7 @@
 import { BookOpenCheck, Database, Files, Search } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useIndexingProgress } from "../IndexingProgress";
-import { keys, spoken } from "../onboarding/HotkeyStep";
+import { keys, spoken } from "../ui/KeysPicker";
 import type { AppSettings, Dashboard } from "../Settings";
 import { size } from "../size";
 import { HeroArt } from "./HeroArt";

@@ -1,6 +1,6 @@
 import { BrainCircuit, Cpu, Keyboard, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
-import { spoken } from "../onboarding/HotkeyStep";
+import { spoken } from "../ui/KeysPicker";
 import type { ModelState } from "../Settings";
 
 /** What search runs on, here: the model, where it runs, the keys, and that it all stays local. */
