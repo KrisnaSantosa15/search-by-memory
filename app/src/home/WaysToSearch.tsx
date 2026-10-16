@@ -7,7 +7,7 @@ import {
   Image,
   TextCursorInput,
 } from "lucide-react";
-import { TONES, type Tone } from "./Overview";
+import { TONES, type Tone } from "../ui/tones";
 
 /** The Filter Prefixes Home suggests, each as the text it starts a search with. */
 const WAYS: { typed: string; title: string; description: string; Icon: typeof FileText; tone: Tone }[] = [
