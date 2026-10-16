@@ -3,9 +3,9 @@
 use std::time::{Duration, UNIX_EPOCH};
 
 use jiff::Zoned;
-use sbm_app::dashboard;
+use sbm_app::{ModelRow, dashboard};
 use sbm_core::ThrottleReason;
-use sbm_engine::Status;
+use sbm_engine::{ModelStatus, Status};
 
 #[test]
 fn dashboard_reports_files_found_and_how_far_content_search_reaches() {
@@ -86,4 +86,38 @@ fn dashboard_reports_whether_names_are_still_being_found_and_what_is_being_read(
         Some(std::path::Path::new("C:/Users/ana/Documents/report.pdf"))
     );
     assert_eq!(dashboard.failed, 2);
+}
+
+#[test]
+fn dashboard_says_whether_the_model_that_reads_files_is_loading_ready_or_failed() {
+    let with_model = |model| Status {
+        model,
+        ..Status::default()
+    };
+
+    let loading = dashboard(&with_model(ModelStatus::Loading), &Zoned::now());
+    let ready = dashboard(
+        &with_model(ModelStatus::Ready {
+            device: "cuda".into(),
+        }),
+        &Zoned::now(),
+    );
+    let failed = dashboard(
+        &with_model(ModelStatus::Failed("model.onnx not found".into())),
+        &Zoned::now(),
+    );
+
+    assert_eq!(loading.model, ModelRow::Loading);
+    assert_eq!(
+        ready.model,
+        ModelRow::Ready {
+            device: "cuda".into()
+        }
+    );
+    assert_eq!(
+        failed.model,
+        ModelRow::Failed {
+            reason: "model.onnx not found".into()
+        }
+    );
 }

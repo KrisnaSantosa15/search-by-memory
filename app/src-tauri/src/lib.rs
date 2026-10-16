@@ -6,7 +6,7 @@ use jiff::civil::Date;
 use jiff::{Timestamp, Zoned};
 use sbm_core::{AppDirs, Location, ThrottleReason, Unreadable};
 use sbm_embed_onnx::Accelerator;
-use sbm_engine::Status;
+use sbm_engine::{ModelStatus, Status};
 use sbm_index::{Exclusion, FailedFile, MatchReason, NotRead, SearchResult};
 use sbm_setup::{CUDA_RUNTIME_DIR, Gpu, cuda_runtime, speed_options};
 use serde::{Deserialize, Serialize};
@@ -222,6 +222,29 @@ pub struct Dashboard {
     pub current: Option<PathBuf>,
     /// Files whose content could not be read.
     pub failed: usize,
+    /// The model that reads what is inside files.
+    pub model: ModelRow,
+    /// The download content reading waits for, while it runs; set by the command.
+    pub download: Option<DownloadRow>,
+}
+
+/// Whether the model that reads what is inside files can be used yet.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "state", rename_all = "camelCase")]
+pub enum ModelRow {
+    /// Still loading, or waiting for its download: files are found by name only.
+    Loading,
+    /// Reading on `device`, the Accelerator's name, e.g. `cuda` or `cpu`.
+    Ready { device: String },
+    /// Could not be loaded: files are found by name only.
+    Failed { reason: String },
+}
+
+/// How far a running download has got, in bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct DownloadRow {
+    pub done: u64,
+    pub total: u64,
 }
 
 pub fn dashboard(status: &Status, now: &Zoned) -> Dashboard {
@@ -232,6 +255,16 @@ pub fn dashboard(status: &Status, now: &Zoned) -> Dashboard {
         scanning: status.scanning,
         current: status.current.clone(),
         failed: status.failed,
+        model: match &status.model {
+            ModelStatus::Loading => ModelRow::Loading,
+            ModelStatus::Ready { device } => ModelRow::Ready {
+                device: device.clone(),
+            },
+            ModelStatus::Failed(reason) => ModelRow::Failed {
+                reason: reason.clone(),
+            },
+        },
+        download: None,
         files: status.files,
         indexed: status.indexed,
         pending: status.pending,
@@ -728,8 +761,8 @@ mod commands {
     use tauri_plugin_opener::OpenerExt;
 
     use super::{
-        Dashboard, ExclusionList, ExclusionRow, FailedRow, Filters, Searched, Settings,
-        SpeedChoice, TextPreview, data_dir, failed_row,
+        Dashboard, DownloadRow, ExclusionList, ExclusionRow, FailedRow, Filters, Searched,
+        Settings, SpeedChoice, TextPreview, data_dir, failed_row,
     };
 
     /// Matryoshka dimensions, as `sbm` uses: 256 scored as well as 512 and 768.
@@ -825,32 +858,38 @@ mod commands {
 
     #[derive(Default)]
     struct Download {
-        /// How far the running download has got, in percent; `None` when none runs.
-        percent: Option<u8>,
+        /// How far the running download has got; `None` when none runs.
+        progress: Option<DownloadRow>,
         /// A download has finished: everything search needs is on disk.
         finished: bool,
     }
 
     impl Downloading {
         fn begin(&self) {
-            self.0.0.lock().unwrap().percent = Some(0);
+            self.0.0.lock().unwrap().progress = Some(DownloadRow { done: 0, total: 0 });
         }
 
         fn report(&self, done: u64, total: u64) {
-            let percent = (done * 100).checked_div(total).unwrap_or(0).min(100) as u8;
-            self.0.0.lock().unwrap().percent = Some(percent);
+            self.0.0.lock().unwrap().progress = Some(DownloadRow { done, total });
         }
 
         fn end(&self, finished: bool) {
             let mut download = self.0.0.lock().unwrap();
-            download.percent = None;
+            download.progress = None;
             download.finished |= finished;
             self.0.1.notify_all();
         }
 
         /// How far the running download has got, in percent; `None` when none runs.
         pub fn percent(&self) -> Option<u8> {
-            self.0.0.lock().unwrap().percent
+            self.progress().map(|DownloadRow { done, total }| {
+                (done * 100).checked_div(total).unwrap_or(0).min(100) as u8
+            })
+        }
+
+        /// How far the running download has got; `None` when none runs.
+        pub fn progress(&self) -> Option<DownloadRow> {
+            self.0.0.lock().unwrap().progress
         }
 
         /// Blocks until a download has finished.
@@ -1096,11 +1135,17 @@ mod commands {
 
     /// What the Status tab shows; an error before the Engine has started.
     #[tauri::command]
-    pub async fn dashboard(running: State<'_, Running>) -> Result<Dashboard, String> {
+    pub async fn dashboard(
+        running: State<'_, Running>,
+        downloading: State<'_, Downloading>,
+    ) -> Result<Dashboard, String> {
         let running = running.0.lock().unwrap();
         let engine = running.as_ref().ok_or("search has not started yet")?;
         let status = engine.status().map_err(|error| error.to_string())?;
-        Ok(super::dashboard(&status, &jiff::Zoned::now()))
+        Ok(Dashboard {
+            download: downloading.progress(),
+            ..super::dashboard(&status, &jiff::Zoned::now())
+        })
     }
 
     #[tauri::command]
