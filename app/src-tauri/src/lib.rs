@@ -404,6 +404,8 @@ fn location_label(location: &Location) -> Option<String> {
 pub struct Filters {
     query: String,
     extensions: Vec<String>,
+    /// Parts of folder names, lowercase; a file must be inside a folder matching each.
+    folders: Vec<String>,
 }
 
 impl Filters {
@@ -411,10 +413,14 @@ impl Filters {
     pub fn parse(typed: &str) -> Filters {
         let mut words = Vec::new();
         let mut extensions = Vec::new();
+        let mut folders = Vec::new();
         for word in typed.split_whitespace() {
             match word.split_once(':') {
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("ext") => {
                     extensions.push(value.trim_start_matches('.').to_lowercase())
+                }
+                Some((prefix, value)) if prefix.eq_ignore_ascii_case("in") => {
+                    folders.push(value.to_lowercase())
                 }
                 _ => words.push(word),
             }
@@ -422,6 +428,7 @@ impl Filters {
         Filters {
             query: words.join(" "),
             extensions,
+            folders,
         }
     }
 
@@ -436,7 +443,17 @@ impl Filters {
             .extension()
             .map(|extension| extension.to_string_lossy().to_lowercase())
             .unwrap_or_default();
-        self.extensions.is_empty() || self.extensions.contains(&extension)
+        let folder_names: Vec<String> = path
+            .parent()
+            .into_iter()
+            .flat_map(Path::components)
+            .map(|component| component.as_os_str().to_string_lossy().to_lowercase())
+            .collect();
+        (self.extensions.is_empty() || self.extensions.contains(&extension))
+            && self
+                .folders
+                .iter()
+                .all(|part| folder_names.iter().any(|name| name.contains(part)))
     }
 }
 

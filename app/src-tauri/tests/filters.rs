@@ -22,3 +22,12 @@ fn several_ext_prefixes_keep_files_with_any_of_them_written_with_or_without_the_
     assert!(filters.keeps(Path::new(r"D:\Work\budget.CSV")));
     assert!(!filters.keeps(Path::new(r"D:\Work\budget.pdf")));
 }
+
+#[test]
+fn in_prefix_keeps_files_inside_a_folder_whose_name_contains_it() {
+    let filters = Filters::parse("in:tax receipt");
+
+    assert_eq!(filters.query(), "receipt");
+    assert!(filters.keeps(Path::new(r"D:\Documents\Taxes 2024\receipt.pdf")));
+    assert!(!filters.keeps(Path::new(r"D:\Documents\receipt tax.pdf")));
+}
