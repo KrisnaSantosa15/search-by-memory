@@ -505,6 +505,18 @@ describe("Launcher", () => {
     );
   });
 
+  it("says a file found by name whose content is still queued is not read yet", async () => {
+    const queued = { ...foundByName, notRead: { kind: "pending" as const } };
+    render(<Launcher search={answers(queued)} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "report");
+
+    const preview = await screen.findByRole("region", { name: "Preview" });
+    expect(preview).toHaveTextContent(
+      "Only its name is searched for now: what is inside is not read yet.",
+    );
+  });
+
   it("shows the code icon while the search keeps to code", async () => {
     const search = vi.fn(async (typed: string) => ({
       query: "retry with backoff",
