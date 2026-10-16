@@ -84,6 +84,14 @@ impl Exclusion {
             .collect()
     }
 
+    /// How a turned-off Default Exclusion is remembered.
+    fn key(&self) -> String {
+        match self {
+            Exclusion::Name(pattern) => pattern.clone(),
+            Exclusion::Folder(folder) => folder.to_string_lossy().into_owned(),
+        }
+    }
+
     fn excludes(&self, path: &Path) -> bool {
         match self {
             Exclusion::Name(pattern) => path
@@ -310,6 +318,14 @@ impl Index {
         Self::migrated(Connection::open_in_memory()?)
     }
 
+    /// The system drive's own Default Exclusions, turned off or not.
+    fn system_drive_defaults(&self) -> Vec<Exclusion> {
+        self.system_drive
+            .as_deref()
+            .map(Exclusion::system_drive_defaults)
+            .unwrap_or_default()
+    }
+
     /// Treats `drive` as the system drive, whose own Default Exclusions apply.
     pub fn with_system_drive(self, drive: &Path) -> Self {
         Self {
@@ -509,6 +525,10 @@ impl Index {
                 tx.commit()?;
             }
             Exclusion::Folder(folder) => {
+                let default = self
+                    .system_drive_defaults()
+                    .into_iter()
+                    .find(|default| default == exclusion);
                 let folder = normalized(folder);
                 let volume = self.volumes.volume_of(&folder)?;
                 let path = relative_path(&folder, &volume)?;
@@ -517,6 +537,12 @@ impl Index {
                     "DELETE FROM exclusions WHERE volume_id = ?1 AND relative_path = ?2",
                     params![volume.id, path],
                 )?;
+                if let Some(default) = default {
+                    tx.execute(
+                        "INSERT OR IGNORE INTO turned_off_defaults (pattern) VALUES (?1)",
+                        params![default.key()],
+                    )?;
+                }
                 tx.execute(
                     "DELETE FROM change_cursors WHERE volume_id = ?1",
                     params![volume.id],
@@ -553,9 +579,11 @@ impl Index {
             .into_iter()
             .filter(|default| !matches!(default, Exclusion::Name(pattern) if turned_off.contains(pattern)))
             .collect();
-        if let Some(drive) = &self.system_drive {
-            exclusions.extend(Exclusion::system_drive_defaults(drive));
-        }
+        exclusions.extend(
+            self.system_drive_defaults()
+                .into_iter()
+                .filter(|default| !turned_off.contains(&default.key())),
+        );
         for row in saved {
             exclusions.push(match row {
                 (Some(pattern), _, _) => Exclusion::Name(pattern),

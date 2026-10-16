@@ -27,6 +27,27 @@ fn personal_folder_on_the_system_drive_is_indexed_without_its_app_data() {
 }
 
 #[test]
+fn a_system_drive_default_exclusion_can_be_turned_off_and_restored() {
+    let drive = TempDir::new().unwrap();
+    write(drive.path(), "Windows/Logs/setup-notes.txt", "log");
+    let mut index = Index::open_in_memory()
+        .unwrap()
+        .with_system_drive(drive.path());
+    index.add_indexed_folder(drive.path()).unwrap();
+    let windows = Exclusion::Folder(drive.path().join("Windows"));
+
+    index.remove_exclusion(&windows).unwrap();
+    index.scan_all().unwrap();
+    assert!(!index.exclusions().unwrap().contains(&windows));
+    assert_eq!(index.search_names("setup-notes", 20).unwrap().len(), 1);
+
+    index.restore_default_exclusions().unwrap();
+    index.scan_all().unwrap();
+    assert!(index.exclusions().unwrap().contains(&windows));
+    assert_eq!(index.search_names("setup-notes", 20).unwrap(), []);
+}
+
+#[test]
 fn indexed_folder_is_remembered_and_its_files_become_content_searchable() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     let recipe = write(
