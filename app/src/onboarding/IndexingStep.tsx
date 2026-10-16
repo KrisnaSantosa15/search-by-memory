@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Dashboard } from "../Settings";
 import { Button } from "../ui/Button";
 import { ProgressBar } from "../ui/ProgressBar";
+import { gigabytes } from "./DownloadStep";
 import { timeLeft } from "./timeLeft";
 
 type Props = {
@@ -10,11 +11,19 @@ type Props = {
   every?: number;
   /** The clock, in milliseconds. */
   now?: () => number;
+  /** The download content reading waits for, while it runs. */
+  download?: Download | null;
   onContinue: () => void;
 };
 
 /** Onboarding step that shows indexing as it happens. */
-export function IndexingStep({ progress, every = 1000, now = Date.now, onContinue }: Props) {
+export function IndexingStep({
+  progress,
+  every = 1000,
+  now = Date.now,
+  download = null,
+  onContinue,
+}: Props) {
   const [latest, setLatest] = useState<Look | null>(null);
   // The first look, which the speed is measured from.
   const [first, setFirst] = useState<Look | null>(null);
@@ -51,11 +60,28 @@ export function IndexingStep({ progress, every = 1000, now = Date.now, onContinu
       <p className="text-sm font-medium">
         {namesFound ? `${status.files.toLocaleString()} files found` : "Finding files…"}
       </p>
+      {download && <DownloadProgress {...download} />}
       {namesFound && <ContentProgress status={status} speed={speed(first, latest)} />}
       <Button variant="primary" disabled={!namesFound} onClick={onContinue} className="self-end">
         Continue
       </Button>
     </section>
+  );
+}
+
+/** Bytes on disk so far, out of `total`; `secondsLeft` is `null` until the speed is known. */
+export type Download = { done: number; total: number; secondsLeft: number | null };
+
+function DownloadProgress({ done, total, secondsLeft }: Download) {
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-line bg-panel/40 p-4">
+      <span className="text-sm">Downloading what search needs to read your files</span>
+      <ProgressBar label="Download" value={total > 0 ? done / total : 0} />
+      <div className="flex justify-between gap-3 text-xs text-muted">
+        <span>{`${gigabytes(done)} of ${gigabytes(total)} GB`}</span>
+        <span>{timeLeft(secondsLeft)}</span>
+      </div>
+    </div>
   );
 }
 

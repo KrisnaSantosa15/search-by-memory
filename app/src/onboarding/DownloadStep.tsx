@@ -80,6 +80,6 @@ function CancelButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function gigabytes(bytes: number): string {
+export function gigabytes(bytes: number): string {
   return (bytes / 1e9).toFixed(1);
 }

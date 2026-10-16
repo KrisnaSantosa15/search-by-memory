@@ -44,6 +44,7 @@ export default function App() {
   // Each attempt starts the download again; it resumes where the last one stopped.
   const [attempt, setAttempt] = useState(0);
   const [stopped, setStopped] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
   const [progress, setProgress] = useState<DownloadProgress>({
     done: 0,
     total: 0,
@@ -71,7 +72,10 @@ export default function App() {
     ).then((unlisten) => {
       invoke<boolean>("prepare", { choice })
         .then((complete) => {
-          if (complete) return askLocation();
+          if (complete) {
+            setDownloaded(true);
+            return askLocation();
+          }
           // Cancelled: what was downloaded stays, and picking again resumes it.
           backToSpeeds();
         })
@@ -105,7 +109,15 @@ export default function App() {
       );
     }
     if (shown) return <HotkeyStep tryHotkey={tryHotkey} onContinue={setHotkey} />;
-    if (indexing) return <IndexingStep progress={indexingProgress} onContinue={() => setShown(true)} />;
+    if (indexing) {
+      return (
+        <IndexingStep
+          progress={indexingProgress}
+          download={downloaded || stopped ? null : progress}
+          onContinue={() => setShown(true)}
+        />
+      );
+    }
     if (location) {
       return (
         <LocationStep

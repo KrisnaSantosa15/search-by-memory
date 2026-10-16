@@ -107,6 +107,32 @@ describe("App", () => {
     expect(cancelled).toBe(false);
   });
 
+  it("shows the download on the indexing step when the user went on before it ended", async () => {
+    mockIPC(
+      (command) => {
+        if (command === "speed_choices") return cpuOnly;
+        if (command === "prepare") return new Promise(() => {});
+        if (command === "default_location") return "C:\\Users\\ana";
+        if (command === "dashboard") return { ...idle, files: 3, pending: 3 };
+      },
+      { shouldMockEvents: true },
+    );
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
+    await screen.findByText("C:\\Users\\ana");
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    await act(() =>
+      emit("setup-progress", { done: 500_000_000, total: 1_000_000_000, secondsLeft: null }),
+    );
+
+    expect(await screen.findByRole("progressbar", { name: "Download" })).toHaveAttribute(
+      "aria-valuenow",
+      "50",
+    );
+  });
+
   it("offers to try again when the download stops", async () => {
     let attempts = 0;
     mockIPC(

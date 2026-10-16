@@ -71,6 +71,24 @@ describe("IndexingStep", () => {
     expect(screen.getByText("Indexing waits until the computer is plugged in")).toBeInTheDocument();
   });
 
+  it("shows the download that reading what is inside the files waits for", async () => {
+    render(
+      <IndexingStep
+        progress={polls(status({ files: 1_000, pending: 1_000 }))}
+        download={{ done: 1_200_000_000, total: 3_000_000_000, secondsLeft: 170 }}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText("Downloading what search needs to read your files")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Download" })).toHaveAttribute(
+      "aria-valuenow",
+      "40",
+    );
+    expect(screen.getByText("1.2 of 3.0 GB")).toBeInTheDocument();
+  });
+
   it("says how fast files are read and how long the rest takes", async () => {
     // A minute passes between the first look and every later one.
     const looks = [
