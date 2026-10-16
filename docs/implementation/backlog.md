@@ -171,7 +171,7 @@
   - Done: stage 4a: Filter Prefixes anywhere in the Query, combinable (`sbm_app::Filters`): `ext:` (several = any), `in:` (folder name contains; quoted values), `date:` today / yesterday / week / month / year (last 7/30/365 days) / `2025` / `2025-03` by modified time, `code:`, `name:` (`Engine::search_names`, names only); empty prefixes ignored, unknown ones stay in the Query. `search` takes the typed text and answers `{ query, results, chips }`; chips shown in the Query bar.
   - Done: `in:` matches folder names only, not the drive; a Query of filters only (`date:today`) lists the newest files that pass them (`Engine::newest_files`), the Preview Pane says "It fits the filters".
   - Not yet: Filter Prefixes not checked in the real window.
-  - In progress (agreed 2026-10-16): the Preview Pane says why a Result's content is not searched (online only, format not read, not read yet, could not be read).
+  - Done: the Preview Pane says why only a Result's name is searched: online only (download it), format not read (pictures, videos, audio, other), not read yet, could not be read (with the reason). `Index`/`Engine::not_read`, `ResultRow.notRead`.
   - Next: stage 4: Speed, Download and Search keys steps in the VoiceStudio card style.
   - Found: Live Updates run before Initial Indexing (`live DESC`), so a folder that keeps changing can hold content reading back; check with the Benchmark of a busy Downloads folder.
   - Found: while Initial Indexing runs (debug build, DirectML), a Query stayed "Searching…" for over 10 s; check whether Query embedding waits behind indexing batches.
