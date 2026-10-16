@@ -342,6 +342,35 @@ fn search_names_finds_files_by_name_only_once_the_model_is_loaded() {
 }
 
 #[test]
+fn newest_files_lists_the_files_keep_accepts_newest_modified_first() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let modified = |relative: &str, days_ago: u64| {
+        let path = write(folder.path(), relative, "anything\n");
+        let time = SystemTime::now() - Duration::from_secs(days_ago * 24 * 60 * 60);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(time)
+            .unwrap();
+        path
+    };
+    let older = modified("older.txt", 3);
+    let newest = modified("newest.txt", 1);
+    modified("photo.jpg", 0);
+    modified("oldest.txt", 9);
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    let is_text = |path: &std::path::Path| path.extension().is_some_and(|e| e == "txt");
+    let results = engine.newest_files(2, &is_text).unwrap();
+
+    let found: Vec<_> = results.iter().map(|result| &result.path).collect();
+    assert_eq!(found, [&newest, &older]);
+}
+
+#[test]
 fn throttled_engine_indexes_live_updates_but_holds_back_initial_indexing() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     write(folder.path(), "old.txt", "notes from the team meeting\n");

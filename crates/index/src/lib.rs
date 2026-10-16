@@ -1233,6 +1233,33 @@ impl Index {
             .collect::<rusqlite::Result<_>>()?;
         Ok(matches)
     }
+
+    /// Up to `limit` files that `keep` accepts, newest modified first.
+    pub fn newest_files(
+        &self,
+        limit: usize,
+        keep: &dyn Fn(&Path) -> bool,
+    ) -> Result<Vec<NameMatch>> {
+        let mut statement = self
+            .db
+            .prepare("SELECT volume_id, relative_path FROM files ORDER BY mtime_ns DESC")?;
+        let mut rows = statement.query([])?;
+        let mut found = Vec::new();
+        while found.len() < limit
+            && let Some(row) = rows.next()?
+        {
+            let (path, connected) =
+                self.path_of(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?)?;
+            if keep(&path) {
+                found.push(NameMatch {
+                    path,
+                    exact: false,
+                    connected,
+                });
+            }
+        }
+        Ok(found)
+    }
 }
 
 /// Records where `volume` is mounted, to show its files while it is disconnected.

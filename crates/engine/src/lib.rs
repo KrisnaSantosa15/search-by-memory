@@ -431,6 +431,30 @@ impl Engine {
             .collect())
     }
 
+    /// Up to `limit` files that `keep` accepts, newest modified first, as name Results.
+    pub fn newest_files(
+        &self,
+        limit: usize,
+        keep: &dyn Fn(&Path) -> bool,
+    ) -> Result<Vec<SearchResult>> {
+        Ok(self
+            .index
+            .lock()
+            .unwrap()
+            .newest_files(limit, keep)?
+            .into_iter()
+            .map(|file| SearchResult {
+                path: file.path,
+                copies: Vec::new(),
+                connected: file.connected,
+                snippet: None,
+                location: None,
+                match_reason: MatchReason::Name,
+                weaker: false,
+            })
+            .collect())
+    }
+
     fn request_pass(&self) {
         self.shared.work.lock().unwrap().requested += 1;
         self.shared.changed.notify_all();
