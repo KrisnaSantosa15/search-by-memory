@@ -72,7 +72,11 @@ export function ReadingProgress({
           <span className="text-xs text-muted">{status.failed.toLocaleString()} could not be read</span>
         )}
       </div>
-      <ProgressBar label="Files read" value={total > 0 ? status.indexed / total : 0} />
+      {/* Files given up on are done with too, so the bar fills once nothing is pending. */}
+      <ProgressBar
+        label="Files read"
+        value={total > 0 ? (status.indexed + status.failed) / total : 0}
+      />
       {speed !== null && (
         <div className="flex justify-between gap-3 text-xs text-muted">
           <span>{Math.round(speed * 60_000).toLocaleString()} files a minute</span>

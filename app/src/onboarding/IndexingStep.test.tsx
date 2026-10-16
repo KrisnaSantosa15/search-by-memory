@@ -62,13 +62,30 @@ describe("IndexingStep", () => {
     );
 
     expect(await screen.findByText("340 of 1,000 files read")).toBeInTheDocument();
+    // 340 read and 5 given up on, of 1,000.
     expect(screen.getByRole("progressbar", { name: "Files read" })).toHaveAttribute(
       "aria-valuenow",
-      "34",
+      "35",
     );
     expect(screen.getByText("Q3 Report.pdf")).toBeInTheDocument();
     expect(screen.getByText("5 could not be read")).toBeInTheDocument();
     expect(screen.queryByText("Indexing: 655 files to go")).not.toBeInTheDocument();
+  });
+
+  it("fills the bar once every file was read or given up on", async () => {
+    render(
+      <IndexingStep
+        progress={polls(status({ files: 17, indexed: 5, failed: 1 }))}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText("5 of 6 files read")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Files read" })).toHaveAttribute(
+      "aria-valuenow",
+      "100",
+    );
   });
 
   it("says why reading waits while no file is being read", async () => {
@@ -163,4 +180,5 @@ describe("IndexingStep", () => {
     expect(await screen.findByText("60 files a minute")).toBeInTheDocument();
     expect(screen.getByText("About 14 minutes left")).toBeInTheDocument();
   });
+
 });
