@@ -2,28 +2,40 @@ import { useEffect, useState } from "react";
 import type { Dashboard } from "../Settings";
 import { Button } from "../ui/Button";
 import { ProgressBar } from "../ui/ProgressBar";
+import { timeLeft } from "./DownloadStep";
 
 type Props = {
   progress: () => Promise<Dashboard>;
   /** Milliseconds between looks at the progress. */
   every?: number;
+  /** The clock, in milliseconds. */
+  now?: () => number;
   onContinue: () => void;
 };
 
 /** Onboarding step that shows indexing as it happens. */
-export function IndexingStep({ progress, every = 1000, onContinue }: Props) {
-  const [status, setStatus] = useState<Dashboard | null>(null);
+export function IndexingStep({ progress, every = 1000, now = Date.now, onContinue }: Props) {
+  const [latest, setLatest] = useState<Look | null>(null);
+  // The first look, which the speed is measured from.
+  const [first, setFirst] = useState<Look | null>(null);
+  const status = latest?.status ?? null;
 
   useEffect(() => {
     let current = true;
-    const look = () => progress().then((status) => current && setStatus(status));
+    const look = () =>
+      progress().then((status) => {
+        if (!current) return;
+        const look = { status, at: now() };
+        setLatest(look);
+        setFirst((first) => first ?? look);
+      });
     look();
     const timer = setInterval(look, every);
     return () => {
       current = false;
       clearInterval(timer);
     };
-  }, [progress, every]);
+  }, [progress, every, now]);
 
   // Names are searchable once the first pass over the location has ended.
   const namesFound = status !== null && !status.scanning;
@@ -39,7 +51,7 @@ export function IndexingStep({ progress, every = 1000, onContinue }: Props) {
       <p className="text-sm font-medium">
         {namesFound ? `${status.files.toLocaleString()} files found` : "Finding files…"}
       </p>
-      {namesFound && <ContentProgress status={status} />}
+      {namesFound && <ContentProgress status={status} speed={speed(first, latest)} />}
       <Button variant="primary" disabled={!namesFound} onClick={onContinue} className="self-end">
         Continue
       </Button>
@@ -48,7 +60,7 @@ export function IndexingStep({ progress, every = 1000, onContinue }: Props) {
 }
 
 /** How far reading what is inside the files has got. */
-function ContentProgress({ status }: { status: Dashboard }) {
+function ContentProgress({ status, speed }: { status: Dashboard; speed: number | null }) {
   // Only files with content to read count: not online-only files or unknown formats.
   const total = status.indexed + status.pending + status.failed;
   return (
@@ -62,6 +74,12 @@ function ContentProgress({ status }: { status: Dashboard }) {
         )}
       </div>
       <ProgressBar label="Files read" value={total > 0 ? status.indexed / total : 0} />
+      {speed !== null && (
+        <div className="flex justify-between gap-3 text-xs text-muted">
+          <span>{Math.round(speed * 60_000).toLocaleString()} files a minute</span>
+          <span>{timeLeft(status.pending / (speed * 1000))}</span>
+        </div>
+      )}
       {status.current && (
         <span className="truncate font-mono text-xs text-muted" title={status.current}>
           {fileName(status.current)}
@@ -70,6 +88,16 @@ function ContentProgress({ status }: { status: Dashboard }) {
       {status.state && <span className="text-xs text-muted">{status.state}</span>}
     </div>
   );
+}
+
+/** A look at the progress, and when it was taken. */
+type Look = { status: Dashboard; at: number };
+
+/** Files read per millisecond since the first look; `null` until some were read. */
+function speed(first: Look | null, latest: Look | null): number | null {
+  if (!first || !latest || latest.at <= first.at) return null;
+  const read = latest.status.indexed - first.status.indexed;
+  return read > 0 ? read / (latest.at - first.at) : null;
 }
 
 /** The last part of a Windows or POSIX path. */

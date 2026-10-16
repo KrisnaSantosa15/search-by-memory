@@ -74,7 +74,7 @@ function gigabytes(bytes: number): string {
   return (bytes / 1e9).toFixed(1);
 }
 
-function timeLeft(seconds: number | null): string {
+export function timeLeft(seconds: number | null): string {
   if (seconds === null) return "Working out how long this takes";
   if (seconds < 60) return "Less than a minute left";
   const minutes = Math.round(seconds / 60);

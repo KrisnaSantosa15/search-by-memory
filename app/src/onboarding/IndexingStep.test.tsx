@@ -70,4 +70,24 @@ describe("IndexingStep", () => {
     expect(screen.getByText("5 could not be read")).toBeInTheDocument();
     expect(screen.getByText("Indexing waits until the computer is plugged in")).toBeInTheDocument();
   });
+
+  it("says how fast files are read and how long the rest takes", async () => {
+    // A minute passes between the first look and every later one.
+    const looks = [
+      { at: 0, status: status({ files: 1_000, indexed: 100, pending: 900 }) },
+      { at: 60_000, status: status({ files: 1_000, indexed: 160, pending: 840 }) },
+    ];
+    let look = 0;
+    render(
+      <IndexingStep
+        progress={async () => looks[Math.min(look, 1)].status}
+        now={() => looks[Math.min(look++, 1)].at}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText("60 files a minute")).toBeInTheDocument();
+    expect(screen.getByText("About 14 minutes left")).toBeInTheDocument();
+  });
 });
