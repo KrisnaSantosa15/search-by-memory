@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -34,6 +35,7 @@ const home = {
   settings: () => invoke<AppSettings | null>("settings"),
   openSearch: (typed: string) => invoke<void>("open_search", { typed }),
   changeHotkey: (hotkey: string) => invoke<boolean>("change_hotkey", { hotkey }),
+  version: getVersion,
 };
 
 // The Home window opens this page with `?view=settings`; the main window without.

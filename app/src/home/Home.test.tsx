@@ -48,6 +48,7 @@ function renderHome(overrides: Partial<HomeProps> = {}) {
     settings: async () => ({ accelerator: "cuda", hotkey: "Ctrl+Shift+Space" }),
     openSearch: vi.fn((_typed: string) => {}),
     changeHotkey: vi.fn(async (_hotkey: string) => true),
+    version: async () => "0.1.0",
     ...overrides,
   };
   render(<Home {...props} />);
@@ -419,6 +420,15 @@ describe("Home", () => {
 
     expect(await screen.findByText("Saved. Press Ctrl + Alt + K in any app to search.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Keys for search: Ctrl + Alt + K" })).toBeInTheDocument();
+  });
+
+  it("says in Settings what reads the files and which version this is", async () => {
+    await renderPage("Settings", {
+      settings: async () => ({ accelerator: "cpu", hotkey: "Ctrl+Shift+Space" }),
+    });
+
+    expect(await screen.findByText("Processor")).toBeInTheDocument();
+    expect(screen.getByText("Version 0.1.0")).toBeInTheDocument();
   });
 
   it("lists the Indexed Folders and says which drives are disconnected", async () => {
