@@ -508,8 +508,30 @@ fn period(value: &str, now: &Zoned) -> Option<(Timestamp, Timestamp)> {
         "week" => days_back(7),
         "month" => days_back(30),
         "year" => days_back(365),
-        _ => None,
+        value => calendar_span(value, now),
     }
+}
+
+/// The calendar year (`2025`) or month (`2025-03`) that `value` names, in `now`'s time zone.
+fn calendar_span(value: &str, now: &Zoned) -> Option<(Timestamp, Timestamp)> {
+    let number = |digits: &str, length: usize| {
+        (digits.len() == length && digits.bytes().all(|byte| byte.is_ascii_digit()))
+            .then(|| digits.parse::<i16>().ok())
+            .flatten()
+    };
+    let (first, length) = match value.split_once('-') {
+        None => (
+            Date::new(number(value, 4)?, 1, 1).ok()?,
+            jiff::Span::new().years(1),
+        ),
+        Some((year, month)) => (
+            Date::new(number(year, 4)?, number(month, 2)? as i8, 1).ok()?,
+            jiff::Span::new().months(1),
+        ),
+    };
+    let start = first.to_zoned(now.time_zone().clone()).ok()?;
+    let end = start.checked_add(length).ok()?;
+    Some((start.timestamp(), end.timestamp()))
 }
 
 /// The words of `typed`, split at spaces outside double quotes; quotes are kept.

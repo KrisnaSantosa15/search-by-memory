@@ -139,3 +139,27 @@ fn date_week_month_and_year_keep_files_modified_in_the_last_7_30_and_365_days() 
         assert!(!filters.keeps(&outside), "{word}");
     }
 }
+
+#[test]
+fn date_with_a_year_or_a_month_keeps_files_modified_in_that_calendar_span() {
+    let folder = tempfile::tempdir().unwrap();
+    for (value, inside, outside) in [
+        ("2025", "2025-12-31T23:00", "2026-01-01T01:00"),
+        ("2025", "2025-01-01T01:00", "2024-12-31T23:00"),
+        ("2025-03", "2025-03-31T23:00", "2025-04-01T01:00"),
+        ("2025-03", "2025-03-01T01:00", "2025-02-28T23:00"),
+    ] {
+        let inside = modified_at(folder.path(), "in.txt", &format!("{inside}[Asia/Jakarta]"));
+        let outside = modified_at(
+            folder.path(),
+            "out.txt",
+            &format!("{outside}[Asia/Jakarta]"),
+        );
+
+        let filters = Filters::parse(&format!("report date:{value}"), &now());
+
+        assert_eq!(filters.query(), "report", "{value}");
+        assert!(filters.keeps(&inside), "{value}");
+        assert!(!filters.keeps(&outside), "{value}");
+    }
+}
