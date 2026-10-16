@@ -451,6 +451,22 @@ describe("Launcher", () => {
     expect(chips).toEqual(["PDF", "Last 7 days"]);
   });
 
+  it("says a file listed for filters alone fits them, rather than that its name matched", async () => {
+    const recent = { ...report, snippet: null, location: null, page: null, matchReason: "name" as const };
+    const search = async (): Promise<Searched> => ({
+      query: "",
+      results: [recent],
+      chips: [{ kind: "date", label: "Today" }],
+    });
+    render(<Launcher search={search} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "date:today");
+
+    const preview = await screen.findByRole("region", { name: "Preview" });
+    expect(preview).toHaveTextContent("It fits the filters");
+    expect(preview).not.toHaveTextContent("Its name matches");
+  });
+
   it("shows the code icon while the search keeps to code", async () => {
     const search = vi.fn(async (typed: string) => ({
       query: "retry with backoff",

@@ -77,7 +77,7 @@ export function Preview(props: Props) {
         {facts.length > 0 && <p className="text-sm text-muted">{facts.join(", ")}</p>}
       </div>
       <p className="text-sm">
-        {MATCH_REASONS[result.matchReason]}
+        {query.trim() ? MATCH_REASONS[result.matchReason] : "It fits the filters"}
         {result.location && `, ${result.location.toLowerCase()}`}
       </p>
       <div className="flex gap-2">
