@@ -89,6 +89,22 @@ describe("IndexingStep", () => {
     expect(screen.getByText("1.2 of 3.0 GB")).toBeInTheDocument();
   });
 
+  it("offers to try the download again when it stopped", async () => {
+    const onRetryDownload = vi.fn();
+    render(
+      <IndexingStep
+        progress={polls(status({ files: 1_000, pending: 1_000 }))}
+        onRetryDownload={onRetryDownload}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText(/download stopped/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetryDownload).toHaveBeenCalled();
+  });
+
   it("says how fast files are read and how long the rest takes", async () => {
     // A minute passes between the first look and every later one.
     const looks = [

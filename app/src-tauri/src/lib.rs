@@ -508,7 +508,8 @@ mod commands {
                 &cancel,
                 &mut report,
             );
-            downloading.end();
+            let complete = matches!(finished, Ok(Finished::Complete));
+            downloading.end(complete);
             Ok(finished.map_err(|error| error.to_string())? == Finished::Complete)
         })
         .await
@@ -516,36 +517,47 @@ mod commands {
     }
 
     /// Whether `prepare` is downloading, and how far it has got; the model loads
-    /// only once it is done, as onboarding may go on meanwhile.
+    /// only once a download has finished, as onboarding may go on meanwhile and a
+    /// stopped download may be tried again.
     #[derive(Clone, Default)]
-    pub struct Downloading(Arc<(Mutex<Option<u8>>, Condvar)>);
+    pub struct Downloading(Arc<(Mutex<Download>, Condvar)>);
+
+    #[derive(Default)]
+    struct Download {
+        /// How far the running download has got, in percent; `None` when none runs.
+        percent: Option<u8>,
+        /// A download has finished: everything search needs is on disk.
+        finished: bool,
+    }
 
     impl Downloading {
         fn begin(&self) {
-            *self.0.0.lock().unwrap() = Some(0);
+            self.0.0.lock().unwrap().percent = Some(0);
         }
 
         fn report(&self, done: u64, total: u64) {
             let percent = (done * 100).checked_div(total).unwrap_or(0).min(100) as u8;
-            *self.0.0.lock().unwrap() = Some(percent);
+            self.0.0.lock().unwrap().percent = Some(percent);
         }
 
-        fn end(&self) {
-            *self.0.0.lock().unwrap() = None;
+        fn end(&self, finished: bool) {
+            let mut download = self.0.0.lock().unwrap();
+            download.percent = None;
+            download.finished |= finished;
             self.0.1.notify_all();
         }
 
         /// How far the running download has got, in percent; `None` when none runs.
         pub fn percent(&self) -> Option<u8> {
-            *self.0.0.lock().unwrap()
+            self.0.0.lock().unwrap().percent
         }
 
-        /// Blocks until no download runs.
+        /// Blocks until a download has finished.
         fn wait(&self) {
-            let _done = self
+            let _finished = self
                 .0
                 .1
-                .wait_while(self.0.0.lock().unwrap(), |running| running.is_some())
+                .wait_while(self.0.0.lock().unwrap(), |download| !download.finished)
                 .unwrap();
         }
     }

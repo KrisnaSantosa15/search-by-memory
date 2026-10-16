@@ -13,6 +13,8 @@ type Props = {
   now?: () => number;
   /** The download content reading waits for, while it runs. */
   download?: Download | null;
+  /** Set when that download stopped; starts it again from where it stopped. */
+  onRetryDownload?: () => void;
   onContinue: () => void;
 };
 
@@ -22,6 +24,7 @@ export function IndexingStep({
   every = 1000,
   now = Date.now,
   download = null,
+  onRetryDownload,
   onContinue,
 }: Props) {
   const [latest, setLatest] = useState<Look | null>(null);
@@ -61,6 +64,17 @@ export function IndexingStep({
         {namesFound ? `${status.files.toLocaleString()} files found` : "Finding files…"}
       </p>
       {download && <DownloadProgress {...download} />}
+      {onRetryDownload && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-warning/40 bg-warning/10 p-4">
+          <p className="text-sm">
+            The download stopped, so what is inside your files waits. Check your internet
+            connection; it picks up where it left off.
+          </p>
+          <Button variant="primary" onClick={onRetryDownload} className="shrink-0">
+            Try again
+          </Button>
+        </div>
+      )}
       {namesFound && <ContentProgress status={status} speed={speed(first, latest)} />}
       <Button variant="primary" disabled={!namesFound} onClick={onContinue} className="self-end">
         Continue

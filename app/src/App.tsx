@@ -90,6 +90,12 @@ export default function App() {
   const askLocation = () =>
     invoke<string>("default_location").then((home) => setLocation((location) => location ?? home));
 
+  // Starts the download again; it resumes where the last one stopped.
+  const retryDownload = () => {
+    setStopped(false);
+    setAttempt((attempt) => attempt + 1);
+  };
+
   const backToSpeeds = () => {
     setChoice(null);
     setStopped(false);
@@ -113,6 +119,7 @@ export default function App() {
         <IndexingStep
           progress={indexingProgress}
           download={downloaded || stopped ? null : progress}
+          onRetryDownload={stopped ? retryDownload : undefined}
           onContinue={() => setShown(true)}
         />
       );
@@ -133,14 +140,7 @@ export default function App() {
       return (
         <DownloadStep
           {...progress}
-          onRetry={
-            stopped
-              ? () => {
-                  setStopped(false);
-                  setAttempt((attempt) => attempt + 1);
-                }
-              : undefined
-          }
+          onRetry={stopped ? retryDownload : undefined}
           onCancel={() => (stopped ? backToSpeeds() : invoke("cancel_prepare"))}
           onContinue={askLocation}
         />
