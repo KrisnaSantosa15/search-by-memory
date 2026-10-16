@@ -59,7 +59,7 @@ export function SettingsPage({ settings, changeHotkey, purge, version }: Setting
         <DeleteIndex purge={purge} />
       </Section>
       <Section title="About">
-        <div className={`${PANEL} flex-row! items-center gap-3 px-4 py-3`}>
+        <div className="flex items-center gap-3 rounded-xl border border-line bg-panel/40 px-4 py-3">
           <BrandMark className="size-9 shrink-0" />
           <span className="flex flex-col">
             <span className="text-sm font-semibold">Search by Memory</span>
