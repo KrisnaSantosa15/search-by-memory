@@ -10,6 +10,7 @@ describe("DownloadStep", () => {
         total={3_000_000_000}
         secondsLeft={170}
         onCancel={() => {}}
+        onContinue={() => {}}
       />,
     );
 
@@ -24,7 +25,15 @@ describe("DownloadStep", () => {
     [65, "About 1 minute left"],
     [4800, "About 1 hour 20 minutes left"],
   ])("says the time left in plain words (%s s)", (secondsLeft, words) => {
-    render(<DownloadStep done={0} total={1} secondsLeft={secondsLeft} onCancel={() => {}} />);
+    render(
+      <DownloadStep
+        done={0}
+        total={1}
+        secondsLeft={secondsLeft}
+        onCancel={() => {}}
+        onContinue={() => {}}
+      />,
+    );
 
     expect(screen.getByText(words)).toBeInTheDocument();
   });

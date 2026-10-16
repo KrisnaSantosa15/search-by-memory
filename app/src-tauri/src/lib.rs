@@ -403,7 +403,7 @@ fn location_label(location: &Location) -> Option<String> {
 mod commands {
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::{Arc, Mutex};
+    use std::sync::{Arc, Condvar, Mutex};
     use std::time::{Duration, Instant, SystemTime};
 
     use sbm_change_usn::UsnJournal;
@@ -466,9 +466,12 @@ mod commands {
     pub async fn prepare(
         app: AppHandle,
         preparing: State<'_, Preparing>,
+        downloading: State<'_, Downloading>,
         choice: String,
     ) -> Result<bool, String> {
         let accelerator: Accelerator = choice.parse()?;
+        let downloading = downloading.inner().clone();
+        downloading.begin();
         // A fresh flag each time, so an earlier Cancel cannot stop this one.
         let cancel = Arc::new(AtomicBool::new(false));
         *preparing
@@ -486,6 +489,7 @@ mod commands {
                     return;
                 }
                 last_report = Some(Instant::now());
+                downloading.report(progress.done, progress.total);
                 let _ = app.emit(
                     "setup-progress",
                     DownloadProgress {
@@ -503,12 +507,47 @@ mod commands {
                 &Web::new(),
                 &cancel,
                 &mut report,
-            )
-            .map_err(|error| error.to_string())?;
-            Ok(finished == Finished::Complete)
+            );
+            downloading.end();
+            Ok(finished.map_err(|error| error.to_string())? == Finished::Complete)
         })
         .await
         .map_err(|error| error.to_string())?
+    }
+
+    /// Whether `prepare` is downloading, and how far it has got; the model loads
+    /// only once it is done, as onboarding may go on meanwhile.
+    #[derive(Clone, Default)]
+    pub struct Downloading(Arc<(Mutex<Option<u8>>, Condvar)>);
+
+    impl Downloading {
+        fn begin(&self) {
+            *self.0.0.lock().unwrap() = Some(0);
+        }
+
+        fn report(&self, done: u64, total: u64) {
+            let percent = (done * 100).checked_div(total).unwrap_or(0).min(100) as u8;
+            *self.0.0.lock().unwrap() = Some(percent);
+        }
+
+        fn end(&self) {
+            *self.0.0.lock().unwrap() = None;
+            self.0.1.notify_all();
+        }
+
+        /// How far the running download has got, in percent; `None` when none runs.
+        pub fn percent(&self) -> Option<u8> {
+            *self.0.0.lock().unwrap()
+        }
+
+        /// Blocks until no download runs.
+        fn wait(&self) {
+            let _done = self
+                .0
+                .1
+                .wait_while(self.0.0.lock().unwrap(), |running| running.is_some())
+                .unwrap();
+        }
     }
 
     /// The cancel flag of the download `prepare` is running.
@@ -575,10 +614,11 @@ mod commands {
     #[tauri::command]
     pub fn start_indexing(
         running: State<'_, Running>,
+        downloading: State<'_, Downloading>,
         choice: String,
         location: PathBuf,
     ) -> Result<(), String> {
-        let engine = start_engine(&choice)?;
+        let engine = start_engine(&choice, Some(downloading.inner().clone()))?;
         engine
             .add_indexed_folder(&location)
             .map_err(|error| error.to_string())?;
@@ -668,7 +708,7 @@ mod commands {
     /// Starts again from finished onboarding: the Engine on the saved
     /// Accelerator, and the saved hotkey; the window stays hidden.
     pub fn resume(app: &AppHandle, settings: &Settings) -> Result<(), String> {
-        let engine = start_engine(&settings.accelerator)?;
+        let engine = start_engine(&settings.accelerator, None)?;
         *app.state::<Running>().0.lock().unwrap() = Some(engine);
         app.global_shortcut()
             .register(settings.hotkey.as_str())
@@ -677,11 +717,15 @@ mod commands {
 
     /// The Engine on `choice`'s Accelerator, falling back to the processor:
     /// names searchable at once, content once the model is loaded.
-    fn start_engine(choice: &str) -> Result<Engine, String> {
+    /// With `downloading`, the model loads once that download is done.
+    fn start_engine(choice: &str, downloading: Option<Downloading>) -> Result<Engine, String> {
         let accelerator: Accelerator = choice.parse()?;
         let dirs = AppDirs::current();
         let model_dir = dirs.cache.join(EMBEDDING_MODEL_DIR);
         let load = move || {
+            if let Some(downloading) = downloading {
+                downloading.wait();
+            }
             let mut accelerators = vec![accelerator];
             if accelerator != Accelerator::Cpu {
                 accelerators.push(Accelerator::Cpu);
@@ -1113,9 +1157,17 @@ mod commands {
         let app = app.clone();
         std::thread::spawn(move || {
             loop {
-                let status = with_engine(&app, Engine::status);
-                if let Some(Ok(status)) = status {
-                    let text = super::indexing_state(&status, &jiff::Zoned::now());
+                // A download onboarding went on from comes first: content waits for it.
+                let text = match app.state::<Downloading>().percent() {
+                    Some(percent) => Some(format!("Downloading what search needs: {percent}%")),
+                    None => match with_engine(&app, Engine::status) {
+                        Some(Ok(status)) => {
+                            Some(super::indexing_state(&status, &jiff::Zoned::now()))
+                        }
+                        _ => None,
+                    },
+                };
+                if let Some(text) = text {
                     let _ = state.set_text(&text);
                     let _ = tray.set_tooltip(Some(format!("Search by Memory: {text}")));
                 }
@@ -1143,6 +1195,7 @@ pub fn run() {
         .manage(commands::Running::default())
         .manage(commands::Launching::default())
         .manage(commands::Preparing::default())
+        .manage(commands::Downloading::default())
         .on_window_event(|window, event| {
             let launching = window
                 .state::<commands::Launching>()

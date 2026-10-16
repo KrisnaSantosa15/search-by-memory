@@ -86,6 +86,27 @@ describe("App", () => {
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
   });
 
+  it("lets the user go on to the location while the download runs", async () => {
+    let cancelled = false;
+    mockIPC(
+      (command) => {
+        if (command === "speed_choices") return cpuOnly;
+        if (command === "prepare") return new Promise(() => {});
+        if (command === "default_location") return "C:\\Users\\ana";
+        if (command === "cancel_prepare") cancelled = true;
+      },
+      { shouldMockEvents: true },
+    );
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
+
+    await screen.findByRole("progressbar");
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    expect(await screen.findByText("C:\\Users\\ana")).toBeInTheDocument();
+    expect(cancelled).toBe(false);
+  });
+
   it("offers to try again when the download stops", async () => {
     let attempts = 0;
     mockIPC(

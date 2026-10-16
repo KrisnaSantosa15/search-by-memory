@@ -71,7 +71,7 @@ export default function App() {
     ).then((unlisten) => {
       invoke<boolean>("prepare", { choice })
         .then((complete) => {
-          if (complete) return invoke<string>("default_location").then(setLocation);
+          if (complete) return askLocation();
           // Cancelled: what was downloaded stays, and picking again resumes it.
           backToSpeeds();
         })
@@ -82,6 +82,10 @@ export default function App() {
       unlisten.then((stop) => stop());
     };
   }, [choice, attempt]);
+
+  // The personal folder, unless the user is already past the download.
+  const askLocation = () =>
+    invoke<string>("default_location").then((home) => setLocation((location) => location ?? home));
 
   const backToSpeeds = () => {
     setChoice(null);
@@ -127,6 +131,7 @@ export default function App() {
               : undefined
           }
           onCancel={() => (stopped ? backToSpeeds() : invoke("cancel_prepare"))}
+          onContinue={askLocation}
         />
       );
     }

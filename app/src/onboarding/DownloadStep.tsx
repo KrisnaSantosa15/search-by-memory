@@ -10,10 +10,12 @@ type Props = {
   onRetry?: () => void;
   /** Stops the download, keeping what is on disk, to pick another speed. */
   onCancel: () => void;
+  /** Goes on with onboarding while the download runs. */
+  onContinue: () => void;
 };
 
 /** Onboarding step that fetches what search needs, as one progress bar. */
-export function DownloadStep({ done, total, secondsLeft, onRetry, onCancel }: Props) {
+export function DownloadStep({ done, total, secondsLeft, onRetry, onCancel, onContinue }: Props) {
   const percent = total > 0 ? Math.floor((done / total) * 100) : 0;
 
   return (
@@ -39,7 +41,14 @@ export function DownloadStep({ done, total, secondsLeft, onRetry, onCancel }: Pr
           <span>{timeLeft(secondsLeft)}</span>
         </div>
       </div>
-      {!onRetry && <CancelButton onClick={onCancel} />}
+      {!onRetry && (
+        <div className="flex items-center justify-between gap-3">
+          <CancelButton onClick={onCancel} />
+          <Button variant="primary" onClick={onContinue}>
+            Continue
+          </Button>
+        </div>
+      )}
       {onRetry && (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-accent bg-accent-soft p-4">
           <p className="text-sm">
