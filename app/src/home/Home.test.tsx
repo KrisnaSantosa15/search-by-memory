@@ -145,6 +145,14 @@ describe("Home", () => {
     );
   });
 
+  it("says on Home while the files' names are still being found", async () => {
+    renderHome({ dashboard: async () => ({ ...running, scanning: true }) });
+
+    expect(await screen.findByRole("listitem", { name: "File names" })).toHaveTextContent(
+      "Finding files…",
+    );
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),

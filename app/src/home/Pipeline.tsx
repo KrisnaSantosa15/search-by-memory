@@ -60,7 +60,8 @@ export function deviceName(device: string): string {
   return device === "cpu" ? "your processor" : "your graphics card";
 }
 
-function namesStep({ files }: Dashboard): Step {
+function namesStep({ files, scanning }: Dashboard): Step {
+  if (scanning) return { name: "File names", stage: "active", detail: "Finding files…" };
   return { name: "File names", stage: "done", detail: `${files.toLocaleString()} files found` };
 }
 
