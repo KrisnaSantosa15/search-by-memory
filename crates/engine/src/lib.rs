@@ -388,28 +388,13 @@ impl Engine {
         limit: usize,
         keep: &dyn Fn(&Path) -> bool,
     ) -> Result<Vec<SearchResult>> {
-        let index = self.index.lock().unwrap();
         let Some(model) = self.shared.model.get() else {
             if view == View::Passage {
                 return Ok(Vec::new());
             }
-            return Ok(index
-                .search_names(query, limit * CANDIDATES_PER_RESULT)?
-                .into_iter()
-                .filter(|name| keep(&name.path))
-                .take(limit)
-                .map(|name| SearchResult {
-                    path: name.path,
-                    copies: Vec::new(),
-                    connected: name.connected,
-                    snippet: None,
-                    location: None,
-                    match_reason: MatchReason::Name,
-                    weaker: false,
-                })
-                .collect());
+            return self.search_names(query, limit, keep);
         };
-        index.search_where(
+        self.index.lock().unwrap().search_where(
             query,
             &*model.embedder,
             &SharedStore(&model.store),
@@ -417,6 +402,33 @@ impl Engine {
             limit,
             keep,
         )
+    }
+
+    /// Finds files by name only, over only the files `keep` accepts; one Result per file.
+    pub fn search_names(
+        &self,
+        query: &str,
+        limit: usize,
+        keep: &dyn Fn(&Path) -> bool,
+    ) -> Result<Vec<SearchResult>> {
+        Ok(self
+            .index
+            .lock()
+            .unwrap()
+            .search_names(query, limit * CANDIDATES_PER_RESULT)?
+            .into_iter()
+            .filter(|name| keep(&name.path))
+            .take(limit)
+            .map(|name| SearchResult {
+                path: name.path,
+                copies: Vec::new(),
+                connected: name.connected,
+                snippet: None,
+                location: None,
+                match_reason: MatchReason::Name,
+                weaker: false,
+            })
+            .collect())
     }
 
     fn request_pass(&self) {

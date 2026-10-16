@@ -324,6 +324,24 @@ fn search_where_keeps_only_the_files_asked_for_while_the_model_loads() {
 }
 
 #[test]
+fn search_names_finds_files_by_name_only_once_the_model_is_loaded() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let named = write(folder.path(), "invoice march.txt", "beef\n");
+    write(folder.path(), "notes.txt", "the invoice for march\n");
+    write(folder.path(), "invoice.rs", "fn total() {}\n");
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    let is_text = |path: &std::path::Path| path.extension().is_some_and(|e| e == "txt");
+    let results = engine.search_names("invoice", 20, &is_text).unwrap();
+
+    let found: Vec<_> = results.iter().map(|result| &result.path).collect();
+    assert_eq!(found, [&named]);
+    assert_eq!(results[0].match_reason, MatchReason::Name);
+}
+
+#[test]
 fn throttled_engine_indexes_live_updates_but_holds_back_initial_indexing() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     write(folder.path(), "old.txt", "notes from the team meeting\n");
