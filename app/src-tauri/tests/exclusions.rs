@@ -30,6 +30,7 @@ fn exclusions_are_listed_with_the_defaults_marked() {
             },
             ExclusionRow::Folder {
                 path: PathBuf::from("C:/Users/ana/private"),
+                default: false,
             },
         ]
     );
@@ -46,6 +47,25 @@ fn a_default_missing_from_the_active_exclusions_is_turned_off() {
 }
 
 #[test]
+fn a_system_drive_folder_default_is_marked_and_can_be_restored_once_off() {
+    let windows = Exclusion::Folder(PathBuf::from("C:/Windows"));
+    let defaults = [Exclusion::defaults(), vec![windows.clone()]].concat();
+
+    let on = exclusion_list(&defaults, &defaults);
+    let off = exclusion_list(&Exclusion::defaults(), &defaults);
+
+    assert_eq!(
+        on.rows.last(),
+        Some(&ExclusionRow::Folder {
+            path: PathBuf::from("C:/Windows"),
+            default: true,
+        })
+    );
+    assert!(!on.defaults_turned_off);
+    assert!(off.defaults_turned_off);
+}
+
+#[test]
 fn a_row_turns_back_into_the_exclusion_it_lists() {
     let name = ExclusionRow::Name {
         pattern: "*.bak".to_string(),
@@ -53,6 +73,7 @@ fn a_row_turns_back_into_the_exclusion_it_lists() {
     };
     let folder = ExclusionRow::Folder {
         path: PathBuf::from("D:/old"),
+        default: false,
     };
 
     assert_eq!(Exclusion::from(name), Exclusion::Name("*.bak".to_string()));

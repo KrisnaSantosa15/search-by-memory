@@ -243,6 +243,9 @@ pub enum ExclusionRow {
     },
     Folder {
         path: PathBuf,
+        /// A Default Exclusion of the system drive, which can be turned off and restored.
+        #[serde(default)]
+        default: bool,
     },
 }
 
@@ -250,7 +253,7 @@ impl From<ExclusionRow> for Exclusion {
     fn from(row: ExclusionRow) -> Self {
         match row {
             ExclusionRow::Name { pattern, .. } => Exclusion::Name(pattern),
-            ExclusionRow::Folder { path } => Exclusion::Folder(path),
+            ExclusionRow::Folder { path, .. } => Exclusion::Folder(path),
         }
     }
 }
@@ -276,7 +279,10 @@ pub fn exclusion_list(active: &[Exclusion], defaults: &[Exclusion]) -> Exclusion
                     pattern: pattern.clone(),
                     default: defaults.contains(exclusion),
                 },
-                Exclusion::Folder(path) => ExclusionRow::Folder { path: path.clone() },
+                Exclusion::Folder(path) => ExclusionRow::Folder {
+                    path: path.clone(),
+                    default: defaults.contains(exclusion),
+                },
             })
             .collect(),
     }

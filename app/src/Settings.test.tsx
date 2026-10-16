@@ -267,6 +267,20 @@ describe("Settings", () => {
     expect(screen.queryByRole("button", { name: "Restore defaults" })).not.toBeInTheDocument();
   });
 
+  it("marks the system drive's default folders and offers to turn them off", async () => {
+    const windows: ExclusionRow = { kind: "folder", path: "C:\\Windows", default: true };
+    const props = renderSettings({
+      exclusions: async () => ({ rows: [windows], defaultsTurnedOff: false }),
+    });
+    await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
+
+    const list = await screen.findByRole("list", { name: "Exclusions" });
+    expect(within(list).getByRole("listitem")).toHaveTextContent("Default");
+    await userEvent.click(screen.getByRole("button", { name: "Turn off C:\\Windows" }));
+
+    expect(props.removeExclusion).toHaveBeenCalledWith(windows);
+  });
+
   it("removes the user's Exclusions and turns off default ones", async () => {
     const nodeModules: ExclusionRow = { kind: "name", pattern: "node_modules", default: true };
     const backups: ExclusionRow = { kind: "name", pattern: "*.bak", default: false };

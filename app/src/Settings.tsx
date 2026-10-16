@@ -81,7 +81,7 @@ type FoldersProps = {
 /** One Exclusion; see `ExclusionRow` in `src-tauri`. */
 export type ExclusionRow =
   | { kind: "name"; pattern: string; default: boolean }
-  | { kind: "folder"; path: string };
+  | { kind: "folder"; path: string; default?: boolean };
 
 export type ExclusionList = {
   rows: ExclusionRow[];
@@ -249,7 +249,7 @@ function Exclusions(props: FoldersProps) {
             ) : (
               <span className="font-mono">{row.pattern}</span>
             )}
-            {row.kind === "name" && row.default && (
+            {isDefault(row) && (
               <span className="shrink-0 rounded-full bg-raised px-2 py-0.5 text-xs text-muted">
                 Default
               </span>
@@ -302,7 +302,7 @@ function Exclusions(props: FoldersProps) {
 }
 
 function isDefault(row: ExclusionRow): boolean {
-  return row.kind === "name" && row.default;
+  return row.default === true;
 }
 
 /** What an Exclusion row shows: its name pattern or folder. */
