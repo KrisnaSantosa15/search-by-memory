@@ -95,6 +95,33 @@ fn files_beneath_default_exclusions_are_not_in_the_name_index() {
 }
 
 #[test]
+fn on_the_system_drive_windows_programs_and_every_users_app_data_stay_out() {
+    let drive = TempDir::new().unwrap();
+    for file in [
+        "Windows/System32/readme.txt",
+        "Program Files/Tool/readme.txt",
+        "Program Files (x86)/Old/readme.txt",
+        "ProgramData/Vendor/readme.txt",
+        "Users/ana/AppData/Local/Cache/readme.txt",
+        "Users/budi/AppData/Roaming/App/readme.txt",
+        "Users/Default/readme.txt",
+        "Users/Public/readme.txt",
+        "Users/ana/Documents/readme.txt",
+    ] {
+        touch(drive.path(), file);
+    }
+    let mut index = Index::open_in_memory().unwrap();
+
+    index
+        .scan(drive.path(), &Exclusion::system_drive_defaults(drive.path()))
+        .unwrap();
+    let matches = index.search_names("readme", 20).unwrap();
+
+    let paths: Vec<_> = matches.iter().map(|m| m.path.as_path()).collect();
+    assert_eq!(paths, [drive.path().join("Users/ana/Documents/readme.txt")]);
+}
+
+#[test]
 fn indexed_folder_is_scanned_even_when_its_own_name_is_excluded() {
     let parent = TempDir::new().unwrap();
     let folder = parent.path().join("target");

@@ -33,6 +33,19 @@ const DEFAULT_EXCLUDED_NAMES: [&str; 8] = [
     "$RECYCLE.BIN",
 ];
 
+/// Folders excluded on the system drive only, relative to its root (FR-03);
+/// each user's `AppData` is excluded too.
+const SYSTEM_DRIVE_EXCLUDED_FOLDERS: [&str; 8] = [
+    "Windows",
+    "Program Files",
+    "Program Files (x86)",
+    "ProgramData",
+    "$Recycle.Bin",
+    "System Volume Information",
+    "Users/Default",
+    "Users/Public",
+];
+
 /// A folder or name pattern the user does not want indexed.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Exclusion {
@@ -49,6 +62,25 @@ impl Exclusion {
         DEFAULT_EXCLUDED_NAMES
             .iter()
             .map(|name| Exclusion::Name(name.to_string()))
+            .collect()
+    }
+
+    /// The Default Exclusions that apply only on the system drive whose root is
+    /// `drive` (FR-03): Windows, installed programs, and every user's AppData.
+    /// Personal folders such as Documents stay in.
+    pub fn system_drive_defaults(drive: &Path) -> Vec<Exclusion> {
+        let users = drive.join("Users");
+        let app_data = std::fs::read_dir(&users)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter(|user| user.file_type().is_ok_and(|kind| kind.is_dir()))
+            .map(|user| user.path().join("AppData"));
+        SYSTEM_DRIVE_EXCLUDED_FOLDERS
+            .iter()
+            .map(|folder| drive.join(folder))
+            .chain(app_data)
+            .map(Exclusion::Folder)
             .collect()
     }
 
