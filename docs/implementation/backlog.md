@@ -177,11 +177,13 @@
   - Found: a name-only Result ranks below unrelated content-only Results ("holiday" puts `retry.rs` above `holiday beach.jpg` on 7 files); the Download step counts 0.0 of 3.0 GB although the model is already on disk (Speed says 1.9 GB); speed keeps falling after reading ends.
   - Found: Live Updates run before Initial Indexing (`live DESC`), so a folder that keeps changing can hold content reading back; check with the Benchmark of a busy Downloads folder.
   - Found: while Initial Indexing runs (debug build, DirectML), a Query stayed "Searching…" for over 10 s; check whether Query embedding waits behind indexing batches.
-  - In progress: stage 5 (user, 2026-10-16): launcher scrolls to the selected row; Settings window becomes Home (dashboard, model and download status, sidebar); onboarding and Home say reading waits for the download.
+  - Done: stage 5 (user, 2026-10-16): launcher scrolls to the selected row; Settings window becomes Home (dashboard, model and download status, sidebar); onboarding and Home say reading waits for the download.
     - Done: ↑/↓ keep the selected Result (and the weaker matches row) in view.
     - Done: `Dashboard.model` (loading / ready on device / failed with reason) and `download` (bytes of the running download).
     - Done: Settings window is now Home (1080×720, tray "Open Home"): sidebar with brand, Home / Activity / Folders / Settings, "Searching in" folders, live status card; Home page: hero Query box look-alike with the search keys (`open_search` command, launcher `search-for` event), tiles (files, % read, index size), Progress (reading model → file names → contents, with download, speed, time left, current file), On this computer (model, device, keys, privacy), Ways to search (Filter Prefix cards); Settings page: change search keys (`change_hotkey`), reading speed, Delete index (moved from Activity), About with version.
     - Done: onboarding's Indexing step shows the same three steps; contents say they start once the download finishes.
+    - Done: Checking your computer… while speed choices load; Done step key caps, finishing opens Home; app start after onboarding opens Home (`--hidden` stays in the tray); Home offers Download again when the model could not be loaded (`download_model`); empty launcher: examples, recent searches (WebView storage), Filter Prefix tips; brand mark is the app icon. Checked in the real window (scratch data, DirectML).
+  - Found: a folder added while the Engine's pass reads the USN Journal is never scanned: `apply_changes` writes back the cursor `add_indexed_folder` just deleted (race; `sbm index <new folder>` on an existing index, Home's Add folder, re-onboarding). Fix: cursor read/write in one write transaction, or a conditional cursor write.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
