@@ -414,7 +414,7 @@ impl Filters {
         for word in typed.split_whitespace() {
             match word.split_once(':') {
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("ext") => {
-                    extensions.push(value.to_lowercase())
+                    extensions.push(value.trim_start_matches('.').to_lowercase())
                 }
                 _ => words.push(word),
             }

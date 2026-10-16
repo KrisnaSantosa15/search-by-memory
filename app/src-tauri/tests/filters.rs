@@ -12,3 +12,13 @@ fn ext_prefix_keeps_only_files_with_that_extension_and_leaves_the_rest_as_the_qu
     assert!(filters.keeps(Path::new(r"D:\Work\March invoice.pdf")));
     assert!(!filters.keeps(Path::new(r"D:\Work\March invoice.docx")));
 }
+
+#[test]
+fn several_ext_prefixes_keep_files_with_any_of_them_written_with_or_without_the_dot() {
+    let filters = Filters::parse("budget ext:.XLSX ext:csv");
+
+    assert_eq!(filters.query(), "budget");
+    assert!(filters.keeps(Path::new(r"D:\Work\Budget 2025.xlsx")));
+    assert!(filters.keeps(Path::new(r"D:\Work\budget.CSV")));
+    assert!(!filters.keeps(Path::new(r"D:\Work\budget.pdf")));
+}
