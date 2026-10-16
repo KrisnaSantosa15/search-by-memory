@@ -92,3 +92,20 @@ fn windows_reports_how_busy_the_processor_and_memory_are_and_this_apps_share() {
 fn the_first_sample_cannot_say_how_busy_the_processor_was() {
     assert_eq!(SystemUsage::default().sample().cpu, None);
 }
+
+#[cfg(windows)]
+#[test]
+fn windows_reports_the_video_memory_in_use_on_this_machines_graphics_cards() {
+    let usage = SystemUsage::default();
+    usage.sample();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    let gpus = usage.sample().gpus;
+
+    assert!(!gpus.is_empty(), "this test expects a machine with a GPU");
+    assert!(gpus.iter().any(|gpu| gpu.memory_used > 0), "{gpus:?}");
+    for gpu in &gpus {
+        assert!((0.0..=100.0).contains(&gpu.percent), "{gpu:?}");
+        assert!(gpu.adapter != 0, "{gpu:?}");
+    }
+}
