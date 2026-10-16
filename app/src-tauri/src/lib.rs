@@ -281,6 +281,7 @@ pub fn dashboard(status: &Status, now: &Zoned) -> Dashboard {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceUsage {
     pub cpu: Option<CpuUsageRow>,
+    pub processor: Option<ProcessorRow>,
     pub memory: Option<MemoryUsageRow>,
     pub gpus: Vec<GpuUsageRow>,
 }
@@ -290,6 +291,16 @@ pub struct DeviceUsage {
 pub struct CpuUsageRow {
     pub percent: f64,
     pub own_percent: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessorRow {
+    pub name: String,
+    pub cores: usize,
+    pub threads: usize,
+    /// Base speed, to one decimal place.
+    pub ghz: f64,
 }
 
 /// Bytes of physical memory.
@@ -313,11 +324,17 @@ pub struct GpuUsageRow {
     pub own_memory: u64,
 }
 
-pub fn device_usage(usage: &Usage, _processor: Option<&Processor>, gpus: &[Gpu]) -> DeviceUsage {
+pub fn device_usage(usage: &Usage, processor: Option<&Processor>, gpus: &[Gpu]) -> DeviceUsage {
     DeviceUsage {
         cpu: usage.cpu.map(|cpu| CpuUsageRow {
             percent: cpu.percent,
             own_percent: cpu.own_percent,
+        }),
+        processor: processor.map(|processor| ProcessorRow {
+            name: processor.name.clone(),
+            cores: processor.cores,
+            threads: processor.threads,
+            ghz: (f64::from(processor.mhz) / 100.0).round() / 10.0,
         }),
         memory: usage.memory.map(|memory| MemoryUsageRow {
             used: memory.used,
