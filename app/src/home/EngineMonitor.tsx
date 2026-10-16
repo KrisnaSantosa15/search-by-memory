@@ -1,4 +1,4 @@
-import { BrainCircuit, ChevronUp, Cpu, FileSearch, ScanText } from "lucide-react";
+import { BrainCircuit, ChevronUp, Cpu, FileSearch, FileWarning, ScanText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useIndexingProgress } from "../IndexingProgress";
 import type { Dashboard } from "../Settings";
@@ -16,9 +16,14 @@ type Part = {
   /** What it is doing, in a few words. */
   doing: string;
   tone: Tone;
-  /** How far it has got, where that is known. */
+  /** How far it has got, or what to do about it, where that is known. */
   amount?: string;
+  /** The page that shows more of it. */
+  page: EnginePage;
 };
+
+/** The Home pages a part of the Engine opens. */
+export type EnginePage = "Home" | "Activity" | "Folders";
 
 const thousands = new Intl.NumberFormat("en-US");
 
@@ -57,13 +62,14 @@ function summary(status: Dashboard): {
 
 function parts(status: Dashboard): Part[] {
   const total = status.indexed + status.pending;
-  return [
-    { Icon: BrainCircuit, name: "Reading model", ...model(status) },
+  const list: Part[] = [
+    { Icon: BrainCircuit, name: "Reading model", page: "Home", ...model(status) },
     {
       Icon: FileSearch,
       name: "File names",
       doing: status.scanning ? "Finding files…" : `${thousands.format(status.files)} files`,
       tone: status.scanning ? "busy" : "ok",
+      page: "Folders",
     },
     {
       Icon: ScanText,
@@ -72,8 +78,20 @@ function parts(status: Dashboard): Part[] {
         status.pending > 0 ? `${thousands.format(status.pending)} to go` : "Every file is read",
       tone: status.pending > 0 ? "busy" : "ok",
       amount: total > 0 ? `${Math.floor((status.indexed * 100) / total)}%` : undefined,
+      page: "Activity",
     },
   ];
+  if (status.failed > 0) {
+    list.push({
+      Icon: FileWarning,
+      name: "Unreadable files",
+      doing: `${thousands.format(status.failed)} could not be read`,
+      tone: "failed",
+      amount: "Check",
+      page: "Activity",
+    });
+  }
+  return list;
 }
 
 function model(status: Dashboard): Pick<Part, "doing" | "tone"> {
@@ -96,11 +114,16 @@ export type EngineMonitorProps = {
   deviceUsage: () => Promise<DeviceUsage>;
 };
 
+type Props = EngineMonitorProps & {
+  /** Goes to the page that shows more of a part. */
+  onOpen: (page: EnginePage) => void;
+};
+
 /**
  * The sidebar's Engine panel, as VoiceStudio shows its engines: what each part
  * of search is doing, and how busy This computer is, opened above it.
  */
-export function EngineMonitor({ dashboard, deviceUsage }: EngineMonitorProps) {
+export function EngineMonitor({ dashboard, deviceUsage, onOpen }: Props) {
   const { status } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
   const [open, setOpen] = useState(false);
   const now = status ? summary(status) : null;
@@ -178,19 +201,31 @@ export function EngineMonitor({ dashboard, deviceUsage }: EngineMonitorProps) {
       </div>
       <ul aria-label="Engine" className="flex flex-col gap-0.5">
         {status &&
-          parts(status).map(({ Icon, name, doing, tone, amount }) => (
-            <li key={name} className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5">
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-raised text-muted">
-                <Icon aria-hidden className="size-3.5" strokeWidth={1.75} />
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[13px] font-medium">{name}</span>
-                <span className="truncate text-[11px] text-muted" title={doing}>
-                  {doing}
+          parts(status).map(({ Icon, name, doing, tone, amount, page }) => (
+            <li key={name}>
+              <button
+                type="button"
+                onClick={() => onOpen(page)}
+                className="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-hover/60"
+              >
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-raised text-muted">
+                  <Icon aria-hidden className="size-3.5" strokeWidth={1.75} />
                 </span>
-              </span>
-              {amount && <span className="shrink-0 text-[11px] tabular-nums text-muted">{amount}</span>}
-              <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOTS[tone]}`} />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[13px] font-medium">{name}</span>
+                  <span className="truncate text-[11px] text-muted" title={doing}>
+                    {doing}
+                  </span>
+                </span>
+                {amount && (
+                  <span
+                    className={`shrink-0 text-[11px] tabular-nums ${tone === "failed" ? "text-danger" : "text-muted"}`}
+                  >
+                    {amount}
+                  </span>
+                )}
+                <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOTS[tone]}`} />
+              </button>
             </li>
           ))}
       </ul>

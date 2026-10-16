@@ -271,6 +271,17 @@ describe("Home", () => {
     expect(contents).toHaveTextContent("660 to go");
   });
 
+  it("flags in the Engine the files that could not be read, and goes to them in Activity", async () => {
+    renderHome({ dashboard: async () => ({ ...running, failed: 3 }) });
+
+    const engine = await screen.findByRole("list", { name: "Engine" });
+    const unreadable = await within(engine).findByRole("button", { name: /Unreadable files/ });
+    expect(unreadable).toHaveTextContent("3 could not be read");
+    await userEvent.click(unreadable);
+
+    expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("keeps Settings at the foot of the sidebar, below the Engine, as VoiceStudio does", async () => {
     renderHome();
 

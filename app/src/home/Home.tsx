@@ -73,7 +73,11 @@ export function Home(props: HomeProps) {
           onOpen={() => setPage("Folders")}
         />
         <div className="mt-auto flex flex-col gap-2 p-3">
-          <EngineMonitor dashboard={props.dashboard} deviceUsage={props.deviceUsage} />
+          <EngineMonitor
+            dashboard={props.dashboard}
+            deviceUsage={props.deviceUsage}
+            onOpen={setPage}
+          />
           <div role="tablist" aria-orientation="vertical" className="flex flex-col">
             {PAGES.filter(({ name }) => name === FOOT_PAGE).map(tab)}
           </div>
