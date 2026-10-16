@@ -63,6 +63,20 @@ impl SystemUsage {
     }
 }
 
+/// The processor: its name, as the system shows it, with its cores, threads
+/// and base speed.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Processor {
+    pub name: String,
+    pub cores: usize,
+    pub threads: usize,
+    pub mhz: u32,
+}
+
+pub fn processor() -> Option<Processor> {
+    platform::processor()
+}
+
 fn cpu_usage(before: &CpuTimes, after: &CpuTimes) -> Option<CpuUsage> {
     let all = after.all.saturating_sub(before.all);
     if all == 0 {
@@ -124,7 +138,11 @@ pub fn gpu_loads(counters: &GpuCounters, own_pid: u32) -> Vec<GpuLoad> {
             continue;
         };
         let engine = rest.split("_engtype_").next().unwrap_or(rest);
-        let load = engines.entry(adapter).or_default().entry(engine).or_default();
+        let load = engines
+            .entry(adapter)
+            .or_default()
+            .entry(engine)
+            .or_default();
         load.0 += value;
         if pid == own_pid {
             load.1 += value;
@@ -198,7 +216,110 @@ mod platform {
     use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
     use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
-    use super::{CounterValue, GpuCounters, MemoryUsage};
+    use windows_sys::Win32::System::Registry::{
+        HKEY_LOCAL_MACHINE, RRF_RT_REG_DWORD, RRF_RT_REG_SZ, RegGetValueW,
+    };
+    use windows_sys::Win32::System::SystemInformation::{
+        GetLogicalProcessorInformationEx, RelationProcessorCore,
+    };
+
+    use super::{CounterValue, GpuCounters, MemoryUsage, Processor};
+
+    const PROCESSOR_KEY: &str = r"HARDWARE\DESCRIPTION\System\CentralProcessor\0";
+
+    pub fn processor() -> Option<Processor> {
+        let name = registry_text(PROCESSOR_KEY, "ProcessorNameString")?;
+        Some(Processor {
+            name: name.split_whitespace().collect::<Vec<_>>().join(" "),
+            cores: cores()?,
+            threads: std::thread::available_parallelism().ok()?.get(),
+            mhz: registry_number(PROCESSOR_KEY, "~MHz")?,
+        })
+    }
+
+    fn wide_z(text: &str) -> Vec<u16> {
+        text.encode_utf16().chain([0]).collect()
+    }
+
+    fn registry_text(key: &str, value: &str) -> Option<String> {
+        let (key, value) = (wide_z(key), wide_z(value));
+        let mut size = 0u32;
+        let get = |data: *mut u16, size: &mut u32| unsafe {
+            RegGetValueW(
+                HKEY_LOCAL_MACHINE,
+                key.as_ptr(),
+                value.as_ptr(),
+                RRF_RT_REG_SZ,
+                std::ptr::null_mut(),
+                data.cast(),
+                size,
+            )
+        };
+        if get(std::ptr::null_mut(), &mut size) != 0 {
+            return None;
+        }
+        let mut text = vec![0u16; (size as usize).div_ceil(2)];
+        if get(text.as_mut_ptr(), &mut size) != 0 {
+            return None;
+        }
+        let length = text.iter().position(|&c| c == 0).unwrap_or(text.len());
+        Some(String::from_utf16_lossy(&text[..length]))
+    }
+
+    fn registry_number(key: &str, value: &str) -> Option<u32> {
+        let (key, value) = (wide_z(key), wide_z(value));
+        let (mut number, mut size) = (0u32, 4u32);
+        let read = unsafe {
+            RegGetValueW(
+                HKEY_LOCAL_MACHINE,
+                key.as_ptr(),
+                value.as_ptr(),
+                RRF_RT_REG_DWORD,
+                std::ptr::null_mut(),
+                (&mut number as *mut u32).cast(),
+                &mut size,
+            )
+        };
+        (read == 0).then_some(number)
+    }
+
+    /// Physical cores: one record each in the processor-core relationship list.
+    fn cores() -> Option<usize> {
+        let mut length = 0u32;
+        unsafe {
+            GetLogicalProcessorInformationEx(
+                RelationProcessorCore,
+                std::ptr::null_mut(),
+                &mut length,
+            )
+        };
+        if length == 0 {
+            return None;
+        }
+        let mut buffer = vec![0u64; (length as usize).div_ceil(8)];
+        let read = unsafe {
+            GetLogicalProcessorInformationEx(
+                RelationProcessorCore,
+                buffer.as_mut_ptr().cast(),
+                &mut length,
+            )
+        };
+        if read == 0 {
+            return None;
+        }
+        let bytes = buffer.as_ptr() as *const u8;
+        let (mut offset, mut cores) = (0usize, 0usize);
+        while offset + 8 <= length as usize {
+            // Each record starts with its relationship (i32) and its size (u32).
+            let size = unsafe { (bytes.add(offset + 4) as *const u32).read_unaligned() } as usize;
+            if size == 0 {
+                break;
+            }
+            cores += 1;
+            offset += size;
+        }
+        (cores > 0).then_some(cores)
+    }
 
     pub fn memory() -> Option<MemoryUsage> {
         let mut status: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
@@ -293,8 +414,9 @@ mod platform {
         // Items first, then the names they point to; u64 keeps the items aligned.
         let mut buffer = vec![0u64; (size as usize).div_ceil(8)];
         let items = buffer.as_mut_ptr() as *mut PDH_FMT_COUNTERVALUE_ITEM_W;
-        let read =
-            unsafe { PdhGetFormattedCounterArrayW(counter, PDH_FMT_DOUBLE, &mut size, &mut count, items) };
+        let read = unsafe {
+            PdhGetFormattedCounterArrayW(counter, PDH_FMT_DOUBLE, &mut size, &mut count, items)
+        };
         if read != 0 {
             return Vec::new();
         }
@@ -320,7 +442,12 @@ mod platform {
 
 #[cfg(not(windows))]
 mod platform {
-    use super::{GpuCounters, MemoryUsage};
+    use super::{GpuCounters, MemoryUsage, Processor};
+
+    /// Not named outside Windows yet.
+    pub fn processor() -> Option<Processor> {
+        None
+    }
 
     /// Not measured outside Windows yet.
     pub fn memory() -> Option<MemoryUsage> {

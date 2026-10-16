@@ -12,7 +12,8 @@ mod system_volumes;
 pub use system_activity::SystemActivity;
 pub use system_file_availability::SystemFileAvailability;
 pub use system_usage::{
-    CounterValue, CpuUsage, GpuCounters, GpuLoad, MemoryUsage, SystemUsage, Usage, gpu_loads,
+    CounterValue, CpuUsage, GpuCounters, GpuLoad, MemoryUsage, Processor, SystemUsage, Usage,
+    gpu_loads, processor,
 };
 pub use system_volumes::SystemVolumes;
 

@@ -32,7 +32,12 @@ fn a_gpus_load_is_its_busiest_engine_summed_over_processes_as_task_manager_count
     let loads = gpu_loads(&counters, 200);
 
     assert_eq!(loads.len(), 1);
-    let GpuLoad { adapter, percent, own_percent, .. } = loads[0];
+    let GpuLoad {
+        adapter,
+        percent,
+        own_percent,
+        ..
+    } = loads[0];
     assert_eq!(adapter, 0xC2F1);
     assert_eq!(percent, 35.0);
     assert_eq!(own_percent, 30.0);
@@ -82,7 +87,10 @@ fn windows_reports_how_busy_the_processor_and_memory_are_and_this_apps_share() {
 
     let cpu = now.cpu.expect("a second sample measures the processor");
     assert!((0.0..=100.0).contains(&cpu.percent), "{cpu:?}");
-    assert!(cpu.own_percent > 0.0 && cpu.own_percent <= cpu.percent, "{cpu:?}");
+    assert!(
+        cpu.own_percent > 0.0 && cpu.own_percent <= cpu.percent,
+        "{cpu:?}"
+    );
     let memory = now.memory.expect("memory is measured");
     assert!(memory.used > 0 && memory.used <= memory.total, "{memory:?}");
     assert!(memory.own > 0 && memory.own <= memory.used, "{memory:?}");
@@ -108,4 +116,18 @@ fn windows_reports_the_video_memory_in_use_on_this_machines_graphics_cards() {
         assert!((0.0..=100.0).contains(&gpu.percent), "{gpu:?}");
         assert!(gpu.adapter != 0, "{gpu:?}");
     }
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_names_the_processor_with_its_cores_threads_and_speed() {
+    let processor = sbm_core::processor().expect("Windows names its processor");
+
+    assert!(!processor.name.trim().is_empty(), "{processor:?}");
+    assert_eq!(processor.name, processor.name.trim(), "{processor:?}");
+    assert!(
+        processor.cores >= 1 && processor.threads >= processor.cores,
+        "{processor:?}"
+    );
+    assert!(processor.mhz > 0, "{processor:?}");
 }
