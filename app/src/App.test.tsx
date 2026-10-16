@@ -53,7 +53,7 @@ describe("App", () => {
 
   it("skips onboarding once it has finished", async () => {
     mockIPC((command) => {
-      if (command === "settings") return { accelerator: "cpu", hotkey: "Alt+Space" };
+      if (command === "settings") return { accelerator: "cpu", hotkey: "Ctrl+Shift+Space" };
       if (command === "speed_choices") return cpuOnly;
     });
 
@@ -216,11 +216,11 @@ describe("App", () => {
     await screen.findByText("3 files found");
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
-    await screen.findByText("Alt + Space");
+    await screen.findByText("Ctrl + Shift + Space");
     await waitFor(() => expect(screen.getByRole("button", { name: /continue/i })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     await userEvent.click(await screen.findByRole("button", { name: /start searching/i }));
 
-    expect(finished).toEqual([{ choice: "cpu", hotkey: "Alt+Space" }]);
+    expect(finished).toEqual([{ choice: "cpu", hotkey: "Ctrl+Shift+Space" }]);
   });
 });

@@ -2,7 +2,7 @@ import { type KeyboardEvent, useEffect, useState } from "react";
 import { Button } from "../ui/Button";
 
 /** The shortcut offered first, in the form the Rust side registers. */
-const DEFAULT_HOTKEY = "Alt+Space";
+const DEFAULT_HOTKEY = "Ctrl+Shift+Space";
 
 type Props = {
   /** Registers `hotkey` for search; `false` when another app already uses it. */
