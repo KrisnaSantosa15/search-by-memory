@@ -209,6 +209,8 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
     * `Ctrl + C`: Copy the file itself to the clipboard, to paste anywhere (asks which Copy when there are several).
     * `Escape`: Dismiss launcher window without interrupting background indexing.
   * Opening a specific page uses the Copy the user last chose for that file, or the first listed Copy.
+  * Filter Prefixes may be typed anywhere in the Query and combined: `ext:` (several = any), `in:` (a folder name contains it; never the drive), `date:` (`today`, `yesterday`, `week`, `month`, `year`, `2025`, `2025-03`; by modified time), `code:`, `name:` (names only). Each shows as a chip in the Query bar. Filters with no Query words list the newest files that pass them (decided 2026-10-16).
+  * When only a Result's name is searched, the Preview Pane says why: the file is online only (download it to search inside), its format is not read, it is not read yet, or it could not be read (with the plain-language reason from FR-08).
 * **Acceptance Criteria**:
   * [ ] Launcher appears instantly on global hotkey trigger.
   * [ ] Selecting a result opens the target file in the correct default application.
