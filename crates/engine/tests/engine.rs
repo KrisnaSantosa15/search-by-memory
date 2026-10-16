@@ -11,7 +11,7 @@ use common::{
 };
 use sbm_core::ThrottleReason;
 use sbm_engine::{Engine, LoadedModel, ModelStatus};
-use sbm_index::{Exclusion, MatchReason, View};
+use sbm_index::{Exclusion, MatchReason, NotRead, View};
 use tempfile::TempDir;
 
 #[test]
@@ -368,6 +368,19 @@ fn newest_files_lists_the_files_keep_accepts_newest_modified_first() {
 
     let found: Vec<_> = results.iter().map(|result| &result.path).collect();
     assert_eq!(found, [&newest, &older]);
+}
+
+#[test]
+fn not_read_says_why_a_files_content_is_not_searched() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let photo = write(folder.path(), "holiday.jpg", "not text\n");
+    let notes = write(folder.path(), "notes.txt", "team meeting\n");
+    let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+
+    assert_eq!(engine.not_read(&photo).unwrap(), Some(NotRead::Format));
+    assert_eq!(engine.not_read(&notes).unwrap(), None);
 }
 
 #[test]

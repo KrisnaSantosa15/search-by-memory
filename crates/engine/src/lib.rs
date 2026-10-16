@@ -10,7 +10,9 @@ use sbm_core::{
     Activity, ChangeSource, Embedding, EmbeddingProvider, Neighbor, Result, ThrottleReason,
     VectorId, VectorStore,
 };
-use sbm_index::{Exclusion, FailedFile, Index, IndexedFolder, MatchReason, SearchResult, View};
+use sbm_index::{
+    Exclusion, FailedFile, Index, IndexedFolder, MatchReason, NotRead, SearchResult, View,
+};
 use sbm_store_usearch::{Precision, UsearchStore};
 
 /// Name Matches looked at per Result asked for, when only some files are kept.
@@ -373,6 +375,11 @@ impl Engine {
     /// Files whose content could not be indexed, with the reason.
     pub fn failed_files(&self) -> Result<Vec<FailedFile>> {
         self.index.lock().unwrap().failed_files()
+    }
+
+    /// Why the content of the file at `path` is not searched; `None` when it is.
+    pub fn not_read(&self, path: &Path) -> Result<Option<NotRead>> {
+        self.index.lock().unwrap().not_read(path)
     }
 
     /// Finds files by name and content; by name only until the model is loaded.
