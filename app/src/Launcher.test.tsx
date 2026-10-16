@@ -517,6 +517,21 @@ describe("Launcher", () => {
     );
   });
 
+  it("says why a file found by name could not be read", async () => {
+    const locked = {
+      ...foundByName,
+      notRead: { kind: "failed" as const, reason: "passwordProtected" as const },
+    };
+    render(<Launcher search={answers(locked)} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "report");
+
+    const preview = await screen.findByRole("region", { name: "Preview" });
+    expect(preview).toHaveTextContent(
+      "Only its name is searched: what is inside could not be read. Protected by a password.",
+    );
+  });
+
   it("shows the code icon while the search keeps to code", async () => {
     const search = vi.fn(async (typed: string) => ({
       query: "retry with backoff",

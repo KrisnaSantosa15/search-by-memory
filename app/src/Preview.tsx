@@ -6,6 +6,7 @@ import { Path } from "./Path";
 import { type LoadPdfPage, PdfPage, type PdfPagePreview } from "./PdfPage";
 import { size } from "./size";
 import type { LoadThumbnail } from "./Thumbnail";
+import { UNREADABLE } from "./unreadable";
 import { Button } from "./ui/Button";
 
 /** How large a picture or video is asked for: the Preview Pane's width at 2× scaling. */
@@ -23,14 +24,16 @@ const NOT_READ_KINDS: Record<Kind, string> = {
 
 /** Why only the name of `result` is searched, or `null` when its content is too. */
 function notRead(result: ResultRow): string | null {
-  switch (result.notRead?.kind) {
-    case undefined:
-      return null;
+  const notRead = result.notRead;
+  if (!notRead) return null;
+  switch (notRead.kind) {
     case "onlineOnly":
       return "Only its name is searched: it is online only. Download it to search what is inside.";
     case "pending":
       return "Only its name is searched for now: what is inside is not read yet.";
-    default:
+    case "failed":
+      return `Only its name is searched: what is inside could not be read. ${UNREADABLE[notRead.reason]}.`;
+    case "format":
       return `Only its name is searched: ${NOT_READ_KINDS[result.kind]}`;
   }
 }
