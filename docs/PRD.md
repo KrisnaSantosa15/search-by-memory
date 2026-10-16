@@ -241,7 +241,7 @@ Following the **Modular 5-Layer Architecture**, the core business logic remains 
 * **Description**: Determines which files are indexed, parses supported content, and splits long documents into coherent Chunks.
 * **Specifications**:
   * The user selects Indexed Folders (any folder or whole drive). Everything beneath them, including hidden files, enters the Name Index unless excluded.
-  * Onboarding asks for **one** location, the way an installer asks where to install: the personal folder is pre-filled, *Change…* opens the system folder picker, *Reset to default* returns to the personal folder, and the location shows an estimate (files and size, Default Exclusions applied). More Indexed Folders are added in Settings.
+  * Onboarding asks for **one** location, the way an installer asks where to install: the personal folder is pre-filled, *Change…* opens the system folder picker, *Reset to default* returns to the personal folder, and the location shows an estimate (files and size, Default Exclusions applied). More Indexed Folders are added on Home's Folders page. Onboarding's Indexing step and Home show the same three steps (reading model, file names, contents), and say content reading waits for the reading model's download.
   * **Default Exclusions** (pre-filled, removable, extendable by the user):
     * On the system drive only: `Windows`, `Program Files`, `Program Files (x86)`, `ProgramData`, `$Recycle.Bin`, `System Volume Information`, `Users\*\AppData`, `Users\Default`, `Users\Public`. Personal folders under `C:\Users\<name>\` (Documents, Desktop, Downloads, Pictures, source, etc.) remain indexed.
     * Anywhere on any drive: `node_modules`, `.git`, `target`, `venv`, `.venv`, `__pycache__`, `.cache`, `$RECYCLE.BIN`.
