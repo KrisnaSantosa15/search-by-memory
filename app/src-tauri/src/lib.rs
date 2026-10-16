@@ -987,6 +987,24 @@ mod commands {
         shortcuts.register(hotkey.as_str()).is_ok()
     }
 
+    /// Makes `hotkey` bring up search from now on, saving it; `false` and the
+    /// keys before kept when another app already uses it.
+    #[tauri::command]
+    pub fn change_hotkey(app: AppHandle, hotkey: String) -> Result<bool, String> {
+        let mut settings = Settings::load(&data_dir()).ok_or("onboarding has not finished")?;
+        let shortcuts = app.global_shortcut();
+        let _ = shortcuts.unregister_all();
+        if shortcuts.register(hotkey.as_str()).is_err() {
+            let _ = shortcuts.register(settings.hotkey.as_str());
+            return Ok(false);
+        }
+        settings.hotkey = hotkey;
+        settings
+            .save(&data_dir())
+            .map_err(|error| error.to_string())?;
+        Ok(true)
+    }
+
     /// What onboarding decided; `None` until it has finished.
     #[tauri::command]
     pub fn settings() -> Option<Settings> {
@@ -1651,7 +1669,8 @@ pub fn run() {
             commands::purge_index,
             commands::quit,
             commands::hide_launcher,
-            commands::open_search
+            commands::open_search,
+            commands::change_hotkey
         ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");
