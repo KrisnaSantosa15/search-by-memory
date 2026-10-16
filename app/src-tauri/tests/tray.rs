@@ -49,6 +49,17 @@ fn running_indexing_says_how_many_files_are_left_or_that_all_are_done() {
 }
 
 #[test]
+fn with_every_file_indexed_nothing_waits_whatever_the_computer_is_doing() {
+    let done = Status {
+        pending: 0,
+        throttled: Some(ThrottleReason::FullScreen),
+        ..Status::default()
+    };
+
+    assert_eq!(indexing_state(&done, &Zoned::now()), "All files are indexed");
+}
+
+#[test]
 fn paused_indexing_says_so_whatever_else_holds_it_back() {
     let paused = Status {
         pending: 10,

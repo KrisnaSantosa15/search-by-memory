@@ -188,11 +188,14 @@ pub fn indexing_state(status: &Status, now: &Zoned) -> String {
         };
         return format!("Indexing is paused until {day}{}", until.strftime("%H:%M"));
     }
+    // Throttling holds back reading only; with nothing left to read, nothing waits.
+    if status.pending == 0 {
+        return "All files are indexed".into();
+    }
     match status.throttled {
         Some(ThrottleReason::FullScreen) => "Indexing waits while a full-screen app is open".into(),
         Some(ThrottleReason::Battery) => "Indexing waits until the computer is plugged in".into(),
         Some(ThrottleReason::Busy) => "Indexing waits while the computer is busy".into(),
-        None if status.pending == 0 => "All files are indexed".into(),
         None if status.pending == 1 => "Indexing: 1 file to go".into(),
         None => format!("Indexing: {} files to go", thousands(status.pending)),
     }
