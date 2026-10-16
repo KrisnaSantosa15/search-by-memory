@@ -23,7 +23,7 @@ export type OverviewProps = {
 
 /** The Home page: what can be searched now, at a glance. */
 export function Overview({ dashboard, settings, openSearch }: OverviewProps) {
-  const { status } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
+  const { status, speed } = useIndexingProgress(dashboard, REFRESH_EVERY_MS, Date.now);
   const [hotkey, setHotkey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export function Overview({ dashboard, settings, openSearch }: OverviewProps) {
         <h2 id="progress" className="text-sm font-medium">
           Progress
         </h2>
-        <Pipeline status={status} />
+        <Pipeline status={status} speed={speed} />
       </section>
       <ThisComputer model={status.model} hotkey={hotkey} />
     </div>
