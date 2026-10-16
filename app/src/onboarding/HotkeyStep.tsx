@@ -7,17 +7,24 @@ const DEFAULT_HOTKEY = "Ctrl+Shift+Space";
 type Props = {
   /** Registers `hotkey` for search; `false` when another app already uses it. */
   tryHotkey: (hotkey: string) => Promise<boolean>;
+  /** Calls `pressed` each time the registered keys are pressed; returns how to stop. */
+  listenPressed?: (pressed: () => void) => () => void;
   onContinue: (hotkey: string) => void;
 };
 
 /** Onboarding step that sets the keys which bring up search from anywhere. */
-export function HotkeyStep({ tryHotkey, onContinue }: Props) {
+export function HotkeyStep({ tryHotkey, listenPressed, onContinue }: Props) {
   const [hotkey, setHotkey] = useState(DEFAULT_HOTKEY);
   const [free, setFree] = useState<boolean | null>(null);
+  // The user pressed the keys and search heard them.
+  const [works, setWorks] = useState(false);
+
+  useEffect(() => listenPressed?.(() => setWorks(true)), [listenPressed]);
 
   useEffect(() => {
     let current = true;
     setFree(null);
+    setWorks(false);
     tryHotkey(hotkey).then((free) => current && setFree(free));
     return () => {
       current = false;
@@ -56,6 +63,11 @@ export function HotkeyStep({ tryHotkey, onContinue }: Props) {
           {spoken(hotkey)}
         </kbd>
       </button>
+      {free && (
+        <p className={`text-sm ${works ? "text-ink" : "text-muted"}`}>
+          {works ? "They work." : "Try them now: press the keys."}
+        </p>
+      )}
       {free === false && (
         <p className="rounded-xl border border-accent bg-accent-soft p-4 text-sm">
           Another app already uses these keys. Press other keys you would like to use.

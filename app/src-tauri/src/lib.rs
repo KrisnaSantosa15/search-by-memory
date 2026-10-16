@@ -15,7 +15,7 @@ mod preview;
 pub use preview::{TextPreview, text_preview};
 use std::sync::atomic::Ordering;
 
-use tauri::{Manager, WindowEvent};
+use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 
 /// One way to run the embedding model, as the onboarding speed step offers it.
@@ -1197,6 +1197,8 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
+                        // Onboarding's keys step listens, to say the keys work.
+                        let _ = app.emit("search-keys-pressed", ());
                         commands::show(app);
                     }
                 })

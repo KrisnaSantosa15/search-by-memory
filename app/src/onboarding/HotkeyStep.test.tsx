@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { HotkeyStep } from "./HotkeyStep";
@@ -14,6 +14,25 @@ describe("HotkeyStep", () => {
 
     expect(tryHotkey).toHaveBeenCalledWith("Ctrl+Shift+Space");
     expect(onContinue).toHaveBeenCalledWith("Ctrl+Shift+Space");
+  });
+
+  it("says the keys work once the user tries them", async () => {
+    let pressed = () => {};
+    render(
+      <HotkeyStep
+        tryHotkey={async () => true}
+        listenPressed={(handler) => {
+          pressed = handler;
+          return () => {};
+        }}
+        onContinue={() => {}}
+      />,
+    );
+    expect(await screen.findByText("Try them now: press the keys.")).toBeInTheDocument();
+
+    act(() => pressed());
+
+    expect(screen.getByText("They work.")).toBeInTheDocument();
   });
 
   it("says when another app already uses Ctrl + Shift + Space and asks for other keys", async () => {

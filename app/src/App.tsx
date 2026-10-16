@@ -17,6 +17,12 @@ const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
 const estimateLocation = (location: string) => invoke<Estimate>("estimate_location", { location });
 const pickLocation = () => invoke<string | null>("pick_location");
 const indexingProgress = () => invoke<Dashboard>("dashboard");
+const listenPressed = (pressed: () => void) => {
+  const stop = listen("search-keys-pressed", pressed);
+  return () => {
+    stop.then((stop) => stop());
+  };
+};
 
 const launcher = {
   search: (query: string, onlyCode: boolean) =>
@@ -113,7 +119,7 @@ export default function App() {
         />
       );
     }
-    if (shown) return <HotkeyStep tryHotkey={tryHotkey} onContinue={setHotkey} />;
+    if (shown) return <HotkeyStep tryHotkey={tryHotkey} listenPressed={listenPressed} onContinue={setHotkey} />;
     if (indexing) {
       return (
         <IndexingStep
