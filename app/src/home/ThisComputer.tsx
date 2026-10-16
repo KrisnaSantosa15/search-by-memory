@@ -16,7 +16,7 @@ export function ThisComputer({ model, hotkey }: { model: ModelState; hotkey: str
       <dl className="flex flex-col gap-3">
         <Fact Icon={BrainCircuit} term="Reading model">
           EmbeddingGemma 2
-          <span className="block text-xs font-normal text-muted">Understands 100+ languages</span>
+          <span className="block text-xs font-normal text-muted">Works across many languages, Indonesian too</span>
         </Fact>
         <Fact Icon={Cpu} term="Runs on">
           {runsOn(model)}
