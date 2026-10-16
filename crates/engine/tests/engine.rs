@@ -6,8 +6,8 @@ use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant, SystemTime};
 
 use common::{
-    BagOfWords, BrokenJournal, ChangingActivity, GatedJournal, NoJournal, RecordingJournal,
-    SteadyActivity, write,
+    BagOfWords, BrokenJournal, ChangingActivity, GatedEmbedder, GatedJournal, NoJournal,
+    RecordingJournal, SteadyActivity, write,
 };
 use sbm_core::ThrottleReason;
 use sbm_engine::{Engine, LoadedModel, ModelStatus};
@@ -554,6 +554,27 @@ fn names_are_being_found_until_the_first_pass_over_a_new_folder_ends() {
     engine.wait_until_idle();
     assert!(!engine.status().unwrap().scanning);
     assert_eq!(engine.status().unwrap().files, 1);
+}
+
+#[test]
+fn the_file_being_read_is_named_until_it_is_read() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let notes = write(folder.path(), "notes.txt", "groceries");
+    let embedder = GatedEmbedder::default();
+    let engine =
+        Engine::start(data.path(), Arc::new(embedder.clone()), Box::new(NoJournal)).unwrap();
+
+    engine.add_indexed_folder(folder.path()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while engine.status().unwrap().current.is_none() {
+        assert!(Instant::now() < deadline, "no file was named as being read");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(engine.status().unwrap().current, Some(notes));
+
+    embedder.open();
+    engine.wait_until_idle();
+    assert_eq!(engine.status().unwrap().current, None);
 }
 
 #[test]

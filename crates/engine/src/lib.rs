@@ -65,6 +65,8 @@ pub struct Status {
     /// The names in a newly added Indexed Folder are still being found; they
     /// are searchable once this turns false.
     pub scanning: bool,
+    /// The file whose content is being read right now.
+    pub current: Option<PathBuf>,
     /// Content indexing stopped by [`Engine::pause`].
     pub paused: bool,
     /// When a pause from [`Engine::pause_until`] ends by itself.
@@ -138,6 +140,8 @@ struct Work {
     throttled: Option<ThrottleReason>,
     /// The pass that finds the names in the newest Indexed Folder.
     scan_pass: u64,
+    /// The file whose content is being read, if any.
+    current: Option<PathBuf>,
 }
 
 impl Engine {
@@ -336,6 +340,7 @@ impl Engine {
             },
             throttled: work.throttled,
             scanning: work.completed < work.scan_pass,
+            current: work.current.clone(),
             paused: work.paused,
             paused_until: work.paused_until,
             size_on_disk: size_on_disk(&self.data_dir),
@@ -509,7 +514,15 @@ fn index_pass(
             break Ok(());
         }
         let throttled = shared.throttle.lock().unwrap().reason();
-        shared.work.lock().unwrap().throttled = throttled;
+        let next = match index.next_queued_file(throttled.is_some()) {
+            Ok(next) => next,
+            Err(error) => break Err(error),
+        };
+        {
+            let mut work = shared.work.lock().unwrap();
+            work.throttled = throttled;
+            work.current = next;
+        }
         let ran = match throttled {
             Some(_) => index.run_live_jobs(&*model.embedder, &mut store, 1),
             None => index.run_jobs(&*model.embedder, &mut store, 1),
@@ -524,6 +537,7 @@ fn index_pass(
             unsaved = 0;
         }
     };
+    shared.work.lock().unwrap().current = None;
     model.store.read().unwrap().save(&data_dir.join(VECTORS))?;
     result
 }

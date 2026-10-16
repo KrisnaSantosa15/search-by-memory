@@ -80,6 +80,35 @@ impl ChangeSource for GatedJournal {
     }
 }
 
+/// Like [`BagOfWords`], but reading a file's Chunks waits until [`GatedEmbedder::open`],
+/// so a test can look at the Engine while a file is being read. Clones share one gate.
+#[derive(Clone, Default)]
+pub struct GatedEmbedder(Arc<(Mutex<bool>, std::sync::Condvar)>);
+
+impl GatedEmbedder {
+    pub fn open(&self) {
+        let (open, changed) = &*self.0;
+        *open.lock().unwrap() = true;
+        changed.notify_all();
+    }
+}
+
+impl EmbeddingProvider for GatedEmbedder {
+    fn dimensions(&self) -> usize {
+        BagOfWords.dimensions()
+    }
+    fn embed_query(&self, query: &str) -> Result<Embedding> {
+        BagOfWords.embed_query(query)
+    }
+    fn embed_chunks(&self, chunks: &[&str]) -> Result<Vec<Embedding>> {
+        let (open, changed) = &*self.0;
+        let _open = changed
+            .wait_while(open.lock().unwrap(), |open| !*open)
+            .unwrap();
+        BagOfWords.embed_chunks(chunks)
+    }
+}
+
 pub fn write(root: &Path, relative: &str, content: &str) -> PathBuf {
     let path = root.join(relative);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
