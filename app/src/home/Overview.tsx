@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useIndexingProgress } from "../IndexingProgress";
 import type { Dashboard } from "../Settings";
 import { size } from "../size";
+import { Pipeline } from "./Pipeline";
 
 /** How often the status is asked again while the window is open. */
 const REFRESH_EVERY_MS = 2_000;
@@ -17,6 +18,7 @@ export function Overview({ dashboard }: Props) {
   if (!status) return null;
 
   return (
+    <>
     <ul aria-label="At a glance" className="grid grid-cols-3 gap-3">
       <Tile Icon={Files} label="Files found" tone="sky">
         {status.files.toLocaleString()}
@@ -28,6 +30,10 @@ export function Overview({ dashboard }: Props) {
         {size(status.sizeOnDisk)}
       </Tile>
     </ul>
+    <section className="rounded-2xl border border-line bg-panel/40 p-5">
+      <Pipeline status={status} />
+    </section>
+    </>
   );
 }
 

@@ -84,6 +84,28 @@ describe("Home", () => {
     ]);
   });
 
+  it("shows on Home that reading what is inside files waits for the download", async () => {
+    renderHome({
+      dashboard: async () => ({
+        ...running,
+        indexed: 0,
+        pending: 1_000,
+        model: { state: "loading" },
+        download: { done: 1_200_000_000, total: 3_000_000_000 },
+      }),
+    });
+
+    const steps = await screen.findByRole("list", { name: "Getting ready" });
+    const model = within(steps).getByRole("listitem", { name: "Reading model" });
+    const contents = within(steps).getByRole("listitem", { name: "Contents" });
+    expect(model).toHaveTextContent("Downloading: 1.2 of 3.0 GB");
+    expect(within(model).getByRole("progressbar", { name: "Download" })).toHaveAttribute(
+      "aria-valuenow",
+      "40",
+    );
+    expect(contents).toHaveTextContent("Starts once the download finishes");
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
