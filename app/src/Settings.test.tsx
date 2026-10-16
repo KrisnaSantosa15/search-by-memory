@@ -61,6 +61,16 @@ describe("Settings", () => {
     expect(props.close).toHaveBeenCalled();
   });
 
+  it("shows reading as onboarding does: files read of the total and the file being read", async () => {
+    renderSettings({
+      dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
+    });
+
+    expect(await screen.findByText("340 of 1,000 files read")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Files read" })).toBeInTheDocument();
+    expect(screen.getByText("Q3 Report.pdf")).toBeInTheDocument();
+  });
+
   it("shows the files found and how far content search reaches", async () => {
     renderSettings();
 

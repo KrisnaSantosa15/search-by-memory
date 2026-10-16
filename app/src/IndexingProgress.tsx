@@ -50,7 +50,16 @@ function speed(first: Look | null, latest: Look | null): number | null {
 }
 
 /** How far reading what is inside the files has got. */
-export function ReadingProgress({ status, speed }: { status: Dashboard; speed: number | null }) {
+export function ReadingProgress({
+  status,
+  speed,
+  showState = true,
+}: {
+  status: Dashboard;
+  speed: number | null;
+  /** Says why reading waits; off where the page says it already. */
+  showState?: boolean;
+}) {
   // Only files with content to read count: not online-only files or unknown formats.
   const total = status.indexed + status.pending + status.failed;
   return (
@@ -76,7 +85,7 @@ export function ReadingProgress({ status, speed }: { status: Dashboard; speed: n
         </span>
       )}
       {/* While nothing is read, say why: the model is loading, or indexing waits. */}
-      {!status.current && status.state && (
+      {showState && !status.current && status.state && (
         <span className="text-xs text-muted">{status.state}</span>
       )}
     </div>

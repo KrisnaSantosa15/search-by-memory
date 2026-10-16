@@ -1,5 +1,6 @@
 import { Activity, FolderOpen, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { ReadingProgress, useIndexingProgress } from "./IndexingProgress";
 import { Path } from "./Path";
 import { size } from "./size";
 import { Button } from "./ui/Button";
@@ -361,19 +362,21 @@ function label(row: ExclusionRow): string {
 }
 
 function StatusTab({ dashboard, failedFiles, pause, resume, purge }: StatusProps) {
-  const [status, setStatus] = useState<Dashboard | null>(null);
+  const { status, speed, refresh: refreshStatus } = useIndexingProgress(
+    dashboard,
+    REFRESH_EVERY_MS,
+    Date.now,
+  );
   const [failed, setFailed] = useState<FailedFile[]>([]);
 
-  const refresh = useCallback(
-    () => Promise.all([dashboard().then(setStatus), failedFiles().then(setFailed)]),
-    [dashboard, failedFiles],
-  );
+  const refreshFailed = useCallback(() => failedFiles().then(setFailed), [failedFiles]);
+  const refresh = () => Promise.all([refreshStatus(), refreshFailed()]);
 
   useEffect(() => {
-    refresh();
-    const every = setInterval(refresh, REFRESH_EVERY_MS);
+    refreshFailed();
+    const every = setInterval(refreshFailed, REFRESH_EVERY_MS);
     return () => clearInterval(every);
-  }, [refresh]);
+  }, [refreshFailed]);
 
   if (!status) return null;
 
@@ -388,6 +391,7 @@ function StatusTab({ dashboard, failedFiles, pause, resume, purge }: StatusProps
         <p className="text-sm text-muted">{contentProgress(status)}</p>
         <p className="text-sm text-muted">The index takes {size(status.sizeOnDisk)} on disk</p>
       </section>
+      <ReadingProgress status={status} speed={speed} showState={false} />
       <div className={`${PANEL} px-4 py-3`}>
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm">{status.state}</p>
