@@ -270,6 +270,8 @@ pub struct FailedFile {
 pub enum NotRead {
     /// An Online-only File: its content is still in the cloud.
     OnlineOnly,
+    /// No extractor reads files of this kind (e.g. pictures, videos).
+    Format,
 }
 
 /// How each reason is stored in `index_jobs.failure_reason`.
@@ -934,7 +936,12 @@ impl Index {
                 |row| row.get(0),
             )
             .optional()?;
-        Ok((online_only == Some(true)).then_some(NotRead::OnlineOnly))
+        Ok(match online_only {
+            None => None,
+            Some(true) => Some(NotRead::OnlineOnly),
+            Some(false) if sbm_extract::extractor_for(path).is_none() => Some(NotRead::Format),
+            Some(false) => None,
+        })
     }
 
     /// Files in the Name Index.
