@@ -499,6 +499,7 @@ fn period(value: &str, now: &Zoned) -> Option<(Timestamp, Timestamp)> {
     let today = now.start_of_day().ok()?;
     match value.to_lowercase().as_str() {
         "today" => Some((today.timestamp(), today.tomorrow().ok()?.timestamp())),
+        "yesterday" => Some((today.yesterday().ok()?.timestamp(), today.timestamp())),
         _ => None,
     }
 }

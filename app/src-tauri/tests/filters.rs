@@ -103,3 +103,17 @@ fn date_today_keeps_files_modified_since_midnight() {
     assert!(filters.keeps(&this_morning));
     assert!(!filters.keeps(&last_night));
 }
+
+#[test]
+fn date_yesterday_keeps_files_modified_the_day_before() {
+    let folder = tempfile::tempdir().unwrap();
+    let this_morning = modified_at(folder.path(), "a.txt", "2026-10-16T09:00[Asia/Jakarta]");
+    let last_night = modified_at(folder.path(), "b.txt", "2026-10-15T23:30[Asia/Jakarta]");
+    let two_days_ago = modified_at(folder.path(), "c.txt", "2026-10-14T23:30[Asia/Jakarta]");
+
+    let filters = Filters::parse("date:Yesterday", &now());
+
+    assert!(filters.keeps(&last_night));
+    assert!(!filters.keeps(&this_morning));
+    assert!(!filters.keeps(&two_days_ago));
+}
