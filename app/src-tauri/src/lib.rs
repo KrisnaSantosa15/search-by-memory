@@ -406,15 +406,18 @@ pub struct Filters {
     extensions: Vec<String>,
     /// Parts of folder names, lowercase; a file must be inside a folder matching each.
     folders: Vec<String>,
+    /// From `date:`: a file must be last modified in `start..end`.
+    modified: Option<(Timestamp, Timestamp)>,
     code_only: bool,
 }
 
 impl Filters {
     /// Lifts the filter prefixes (e.g. `ext:pdf`) out of `typed`; the rest is the Query.
-    pub fn parse(typed: &str, _now: &Zoned) -> Filters {
+    pub fn parse(typed: &str, now: &Zoned) -> Filters {
         let mut words = Vec::new();
         let mut extensions = Vec::new();
         let mut folders = Vec::new();
+        let mut modified = None;
         let mut code_only = false;
         let typed = words_of(typed);
         for word in &typed {
@@ -432,6 +435,12 @@ impl Filters {
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("in") => {
                     folders.push(value.to_lowercase())
                 }
+                Some((prefix, value)) if prefix.eq_ignore_ascii_case("date") => {
+                    match period(value, now) {
+                        Some(found) => modified = Some(found),
+                        None => words.push(word),
+                    }
+                }
                 // `code:` takes no value: a word typed right after it is part of the Query.
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("code") => {
                     code_only = true;
@@ -446,6 +455,7 @@ impl Filters {
             query: words.join(" "),
             extensions,
             folders,
+            modified,
             code_only,
         }
     }
@@ -473,6 +483,23 @@ impl Filters {
                 .folders
                 .iter()
                 .all(|part| folder_names.iter().any(|name| name.contains(part)))
+            && self.modified.is_none_or(|(start, end)| {
+                // Asked only when filtering by date: it touches the file system.
+                std::fs::metadata(path)
+                    .and_then(|metadata| metadata.modified())
+                    .ok()
+                    .and_then(|time| Timestamp::try_from(time).ok())
+                    .is_some_and(|time| start <= time && time < end)
+            })
+    }
+}
+
+/// The span of time a `date:` value names, as of `now`; `None` if it names none.
+fn period(value: &str, now: &Zoned) -> Option<(Timestamp, Timestamp)> {
+    let today = now.start_of_day().ok()?;
+    match value.to_lowercase().as_str() {
+        "today" => Some((today.timestamp(), today.tomorrow().ok()?.timestamp())),
+        _ => None,
     }
 }
 

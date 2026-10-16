@@ -1,6 +1,8 @@
 //! Filter prefixes typed into the launcher: `ext:`, `in:`, `date:`, `code:`, `name:`.
 
-use std::path::Path;
+use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use jiff::Zoned;
 use sbm_app::Filters;
@@ -77,4 +79,27 @@ fn code_prefix_keeps_only_code_and_what_follows_it_stays_in_the_query() {
         assert!(filters.keeps(Path::new(r"D:\src\config.rs")), "{typed}");
         assert!(!filters.keeps(Path::new(r"D:\Docs\config.pdf")), "{typed}");
     }
+}
+
+/// A file in `folder` last modified at `time`.
+fn modified_at(folder: &Path, name: &str, time: &str) -> PathBuf {
+    let path = folder.join(name);
+    let file = File::create(&path).unwrap();
+    let time: Zoned = time.parse().unwrap();
+    file.set_modified(SystemTime::from(time.timestamp()))
+        .unwrap();
+    path
+}
+
+#[test]
+fn date_today_keeps_files_modified_since_midnight() {
+    let folder = tempfile::tempdir().unwrap();
+    let this_morning = modified_at(folder.path(), "a.txt", "2026-10-16T09:00[Asia/Jakarta]");
+    let last_night = modified_at(folder.path(), "b.txt", "2026-10-15T23:30[Asia/Jakarta]");
+
+    let filters = Filters::parse("date:today notes", &now());
+
+    assert_eq!(filters.query(), "notes");
+    assert!(filters.keeps(&this_morning));
+    assert!(!filters.keeps(&last_night));
 }
