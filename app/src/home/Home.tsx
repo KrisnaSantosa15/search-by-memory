@@ -2,6 +2,7 @@ import { Activity, FolderOpen, House, Settings as SettingsIcon, X } from "lucide
 import { useState } from "react";
 import { ActivityPage, FoldersPage, type FoldersProps, type StatusProps } from "../Settings";
 import { BrandMark } from "../ui/BrandMark";
+import { EngineMonitor } from "./EngineMonitor";
 import { Overview, type OverviewProps } from "./Overview";
 import { SettingsPage, type SettingsPageProps } from "./SettingsPage";
 import { SidebarFolders } from "./SidebarFolders";
@@ -65,7 +66,8 @@ export function Home(props: HomeProps) {
           refreshKey={page}
           onOpen={() => setPage("Folders")}
         />
-        <div className="mt-auto p-3">
+        <div className="mt-auto flex flex-col gap-2 p-3">
+          <EngineMonitor dashboard={props.dashboard} />
           <StatusCard dashboard={props.dashboard} />
         </div>
       </aside>

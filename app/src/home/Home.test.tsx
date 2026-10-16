@@ -236,6 +236,21 @@ describe("Home", () => {
     await waitFor(() => expect(sidebar).toHaveTextContent("Up to date"));
   });
 
+  it("lists the Engine's parts in the sidebar, each with what it is doing", async () => {
+    renderHome();
+
+    const engine = await screen.findByRole("list", { name: "Engine" });
+    await waitFor(() => expect(within(engine).getAllByRole("listitem")).toHaveLength(3));
+    const [model, names, contents] = within(engine).getAllByRole("listitem");
+    expect(model).toHaveTextContent("Reading model");
+    expect(model).toHaveTextContent("EmbeddingGemma on the graphics card");
+    expect(names).toHaveTextContent("File names");
+    expect(names).toHaveTextContent("12,345 files");
+    expect(contents).toHaveTextContent("Contents");
+    expect(contents).toHaveTextContent("34%");
+    expect(contents).toHaveTextContent("660 to go");
+  });
+
   it("shows on Home which model reads the files, where it runs, and that nothing leaves the computer", async () => {
     renderHome({
       dashboard: async () => ({ ...running, model: { state: "ready", device: "directml" } }),
