@@ -225,6 +225,17 @@ export function Launcher(props: Props) {
         )}
       </label>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        {!typed.trim() ? (
+          <div className="overflow-y-auto border-r border-line bg-chrome/40 p-2">
+            <Suggestions
+              recent={recentSearches(props.memory)}
+              onPick={(picked) => {
+                setTyped(picked);
+                box.current?.focus();
+              }}
+            />
+          </div>
+        ) : (
         <div
           role="listbox"
           aria-label="Results"
@@ -280,6 +291,7 @@ export function Launcher(props: Props) {
             </div>
           )}
         </div>
+        )}
         <div className="min-h-0 overflow-y-auto p-5">
           {result ? (
             <Preview
@@ -299,15 +311,7 @@ export function Launcher(props: Props) {
               Press Enter to {unfolded ? "hide" : "show"} them.
             </p>
           ) : (
-            !typed.trim() && (
-              <Suggestions
-                recent={recentSearches(props.memory)}
-                onPick={(picked) => {
-                  setTyped(picked);
-                  box.current?.focus();
-                }}
-              />
-            )
+            !typed.trim() && <FilterTips />
           )}
         </div>
       </div>
@@ -456,12 +460,10 @@ const EXAMPLES = [
 /** What the Preview Pane offers while nothing is typed: examples, and searches from before. */
 function Suggestions({ recent, onPick }: { recent: string[]; onPick: (typed: string) => void }) {
   return (
-    <div className="flex flex-col gap-6 pt-6">
-      <div className="flex flex-col items-center gap-3">
-        <p className="text-center text-sm leading-relaxed text-muted">
-          Describe it the way you remember it, for example:
-        </p>
-        <ul aria-label="Examples" className="flex flex-wrap justify-center gap-2">
+    <div className="flex flex-col gap-5 px-1 pt-1">
+      <div className="flex flex-col gap-2">
+        <p className="px-2 pt-1.5 text-xs font-semibold text-muted">Try describing it</p>
+        <ul aria-label="Examples" className="flex flex-wrap gap-1.5 px-2">
           {EXAMPLES.map((example) => (
             <li key={example}>
               <button
@@ -478,7 +480,7 @@ function Suggestions({ recent, onPick }: { recent: string[]; onPick: (typed: str
       </div>
       {recent.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 id="recent-searches" className="px-1 text-xs font-semibold text-muted">
+          <h2 id="recent-searches" className="px-2 text-xs font-semibold text-muted">
             Recent searches
           </h2>
           <ul aria-labelledby="recent-searches" className="flex flex-col gap-0.5">
@@ -499,6 +501,41 @@ function Suggestions({ recent, onPick }: { recent: string[]; onPick: (typed: str
         </section>
       )}
     </div>
+  );
+}
+
+/** The Filter Prefixes, explained while nothing is typed. */
+const TIPS: [string, string][] = [
+  ["ext:pdf", "Only one kind of file; several mean any of them"],
+  ["in:taxes", "Only in folders whose name has these words"],
+  ["date:month", "Changed today, this week, month, year, or in 2025-03"],
+  ["code:", "Only source code and configs"],
+  ["name:", "Match names only, not what is inside"],
+];
+
+function FilterTips() {
+  return (
+    <section aria-labelledby="filter-tips" className="flex flex-col gap-3 pt-1">
+      <h2 id="filter-tips" className="text-sm font-semibold">
+        Narrow it down
+      </h2>
+      <p className="text-[13px] text-muted">
+        Add these anywhere in what you type. They combine, like{" "}
+        <code className="font-mono text-ink">ext:pdf date:year invoice</code>.
+      </p>
+      <dl className="flex flex-col divide-y divide-line/70 rounded-xl border border-line bg-panel/40">
+        {TIPS.map(([prefix, meaning]) => (
+          <div key={prefix} className="flex items-baseline gap-3 px-3.5 py-2">
+            <dt className="w-24 shrink-0">
+              <code className="rounded-md bg-raised px-1.5 py-0.5 font-mono text-xs text-accent">
+                {prefix}
+              </code>
+            </dt>
+            <dd className="text-[13px] text-muted">{meaning}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
