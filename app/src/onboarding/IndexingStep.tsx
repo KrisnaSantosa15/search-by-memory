@@ -28,7 +28,7 @@ export function IndexingStep({
   onContinue,
 }: Props) {
   const [latest, setLatest] = useState<Look | null>(null);
-  // The first look, which the speed is measured from.
+  // The first look once reading began, which the speed is measured from.
   const [first, setFirst] = useState<Look | null>(null);
   const status = latest?.status ?? null;
 
@@ -39,7 +39,8 @@ export function IndexingStep({
         if (!current) return;
         const look = { status, at: now() };
         setLatest(look);
-        setFirst((first) => first ?? look);
+        const reading = status.current !== null || status.indexed > 0;
+        setFirst((first) => first ?? (reading ? look : null));
       });
     look();
     const timer = setInterval(look, every);

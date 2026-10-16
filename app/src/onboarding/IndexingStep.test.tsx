@@ -105,6 +105,25 @@ describe("IndexingStep", () => {
     expect(onRetryDownload).toHaveBeenCalled();
   });
 
+  it("measures the speed from when reading began, not while the model loaded", async () => {
+    const looks = [
+      { at: 0, status: status({ files: 1_000, pending: 1_000 }) },
+      { at: 60_000, status: status({ files: 1_000, pending: 1_000, current: "C:\\a.txt" }) },
+      { at: 120_000, status: status({ files: 1_000, indexed: 60, pending: 940, current: "C:\\b.txt" }) },
+    ];
+    let look = 0;
+    render(
+      <IndexingStep
+        progress={async () => looks[Math.min(look, 2)].status}
+        now={() => looks[Math.min(look++, 2)].at}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText("60 files a minute")).toBeInTheDocument();
+  });
+
   it("says how fast files are read and how long the rest takes", async () => {
     // A minute passes between the first look and every later one.
     const looks = [
