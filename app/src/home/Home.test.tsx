@@ -203,6 +203,24 @@ describe("Home", () => {
     expect(props.openSearch).toHaveBeenCalledWith("date:week ");
   });
 
+  it("says in the sidebar what search is doing, on every page", async () => {
+    let status: Dashboard = { ...running, model: { state: "loading" }, download: { done: 4, total: 10 } };
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderHome({ dashboard: async () => status });
+    await userEvent.click(screen.getByRole("tab", { name: "Folders" }));
+
+    const sidebar = await screen.findByRole("status", { name: "Search status" });
+    await waitFor(() => expect(sidebar).toHaveTextContent("Downloading the reading model40%"));
+
+    status = running;
+    await vi.advanceTimersByTimeAsync(2_000);
+    await waitFor(() => expect(sidebar).toHaveTextContent("Reading files34%"));
+
+    status = { ...running, indexed: 1_000, pending: 0 };
+    await vi.advanceTimersByTimeAsync(2_000);
+    await waitFor(() => expect(sidebar).toHaveTextContent("Up to date"));
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
@@ -257,7 +275,9 @@ describe("Home", () => {
     });
 
     expect(
-      await screen.findByText("Indexing waits while a full-screen app is open"),
+      await within(screen.getByRole("tabpanel")).findByText(
+        "Indexing waits while a full-screen app is open",
+      ),
     ).toBeInTheDocument();
   });
 
