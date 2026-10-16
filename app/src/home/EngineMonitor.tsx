@@ -11,6 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useIndexingProgress } from "../IndexingProgress";
 import type { Dashboard } from "../Settings";
+import { ProgressBar } from "../ui/ProgressBar";
 import { DevicePanel, type DeviceUsage } from "./DevicePanel";
 
 /** How often the status is asked again while the window is open. */
@@ -27,6 +28,8 @@ type Part = {
   tone: Tone;
   /** How far it has got, or what to do about it, where that is known. */
   amount?: string;
+  /** How far it has got, from 0 to 1, drawn as a bar under what it is doing. */
+  progress?: number;
   /** The page that shows more of it. */
   page: EnginePage;
 };
@@ -84,15 +87,15 @@ function parts(status: Dashboard): Part[] {
       Icon: ScanText,
       name: "Contents",
       ...contents(status),
-      amount: total > 0 ? `${Math.floor((status.indexed * 100) / total)}%` : undefined,
+      progress: total > 0 ? status.indexed / total : undefined,
       page: "Activity",
     },
   ];
   if (status.failed > 0) {
     list.push({
       Icon: FileWarning,
-      name: "Unreadable files",
-      doing: `${thousands.format(status.failed)} could not be read`,
+      name: "Unreadable",
+      doing: `${thousands.format(status.failed)} ${status.failed === 1 ? "file" : "files"}`,
       tone: "failed",
       amount: "Check",
       page: "Activity",
@@ -118,8 +121,7 @@ function model(status: Dashboard): Pick<Part, "doing" | "tone" | "amount"> {
   }
   if (model.state === "failed") return { doing: "Could not be loaded", tone: "failed" };
   if (model.state === "loading") return { doing: "Getting ready…", tone: "busy" };
-  const where = model.device === "cpu" ? "the processor" : "the graphics card";
-  return { doing: `EmbeddingGemma on ${where}`, tone: "ok" };
+  return { doing: `EmbeddingGemma on ${model.device === "cpu" ? "CPU" : "GPU"}`, tone: "ok" };
 }
 
 const DOTS: Record<Tone, string> = {
@@ -246,21 +248,26 @@ export function EngineMonitor({ dashboard, deviceUsage, pause, resume, onOpen }:
       </div>
       <ul aria-label="Engine" className="flex flex-col gap-0.5">
         {status &&
-          parts(status).map(({ Icon, name, doing, tone, amount, page }) => (
+          parts(status).map(({ Icon, name, doing, tone, amount, progress, page }) => (
             <li key={name}>
               <button
                 type="button"
                 onClick={() => onOpen(page)}
-                className="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left transition-colors hover:bg-hover/60"
+                className="flex w-full items-center gap-2.5 rounded-[10px] px-1.5 py-1 text-left transition-colors hover:bg-hover/60"
               >
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-raised text-muted">
+                <span className="grid size-6 shrink-0 place-items-center rounded-md border border-line bg-raised text-muted">
                   <Icon aria-hidden className="size-3.5" strokeWidth={1.75} />
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[13px] font-medium">{name}</span>
-                  <span className="truncate text-[11px] text-muted" title={doing}>
+                  <span className="truncate text-[12.5px] leading-[18px] font-medium">{name}</span>
+                  <span className="truncate text-[11px] leading-[15px] text-muted" title={doing}>
                     {doing}
                   </span>
+                  {progress !== undefined && (
+                    <span className="block pt-1 pr-1">
+                      <ProgressBar label={`${name} read`} value={progress} />
+                    </span>
+                  )}
                 </span>
                 {amount && (
                   <span

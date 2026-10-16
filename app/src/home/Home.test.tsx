@@ -263,20 +263,24 @@ describe("Home", () => {
     await waitFor(() => expect(within(engine).getAllByRole("listitem")).toHaveLength(3));
     const [model, names, contents] = within(engine).getAllByRole("listitem");
     expect(model).toHaveTextContent("Reading model");
-    expect(model).toHaveTextContent("EmbeddingGemma on the graphics card");
+    expect(model).toHaveTextContent("EmbeddingGemma on GPU");
     expect(names).toHaveTextContent("File names");
     expect(names).toHaveTextContent("12,345 files");
     expect(contents).toHaveTextContent("Contents");
-    expect(contents).toHaveTextContent("34%");
     expect(contents).toHaveTextContent("660 to go");
+    expect(within(contents).getByRole("progressbar", { name: "Contents read" })).toHaveAttribute(
+      "aria-valuenow",
+      "34",
+    );
   });
 
   it("flags in the Engine the files that could not be read, and goes to them in Activity", async () => {
     renderHome({ dashboard: async () => ({ ...running, failed: 3 }) });
 
     const engine = await screen.findByRole("list", { name: "Engine" });
-    const unreadable = await within(engine).findByRole("button", { name: /Unreadable files/ });
-    expect(unreadable).toHaveTextContent("3 could not be read");
+    const unreadable = await within(engine).findByRole("button", { name: /Unreadable/ });
+    expect(unreadable).toHaveTextContent("3 files");
+    expect(unreadable).toHaveTextContent("Check");
     await userEvent.click(unreadable);
 
     expect(screen.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
