@@ -6,10 +6,12 @@ use std::time::Duration;
 
 mod system_activity;
 mod system_file_availability;
+mod system_usage;
 mod system_volumes;
 
 pub use system_activity::SystemActivity;
 pub use system_file_availability::SystemFileAvailability;
+pub use system_usage::{CounterValue, GpuCounters, GpuLoad, gpu_loads};
 pub use system_volumes::SystemVolumes;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
