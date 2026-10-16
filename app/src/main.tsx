@@ -3,18 +3,18 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import {
-  Settings,
-  type Dashboard,
-  type ExclusionList,
-  type ExclusionRow,
-  type FailedFile,
-  type IndexedFolder,
+import { Home } from "./home/Home";
+import type {
+  Dashboard,
+  ExclusionList,
+  ExclusionRow,
+  FailedFile,
+  IndexedFolder,
 } from "./Settings";
 import "@fontsource-variable/inter";
 import "./index.css";
 
-const settings = {
+const home = {
   dashboard: () => invoke<Dashboard>("dashboard"),
   failedFiles: () => invoke<FailedFile[]>("failed_files"),
   folders: () => invoke<IndexedFolder[]>("indexed_folders"),
@@ -32,14 +32,14 @@ const settings = {
   retryFailed: () => invoke<void>("retry_failed"),
 };
 
-// The Settings window opens this page with `?view=settings`; the main window without.
-const settingsWindow = new URLSearchParams(location.search).get("view") === "settings";
+// The Home window opens this page with `?view=settings`; the main window without.
+const homeWindow = new URLSearchParams(location.search).get("view") === "settings";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {settingsWindow ? (
+    {homeWindow ? (
       <div className="h-full surface">
-        <Settings {...settings} />
+        <Home {...home} />
       </div>
     ) : (
       <App />

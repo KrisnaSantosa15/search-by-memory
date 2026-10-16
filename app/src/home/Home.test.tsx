@@ -1,14 +1,14 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  Settings,
-  type Dashboard,
-  type ExclusionList,
-  type ExclusionRow,
-  type FailedFile,
-  type IndexedFolder,
-} from "./Settings";
+import type {
+  Dashboard,
+  ExclusionList,
+  ExclusionRow,
+  FailedFile,
+  IndexedFolder,
+} from "../Settings";
+import { Home, type HomeProps } from "./Home";
 
 // 15 March 2025, midday UTC: the same month in every time zone.
 const midMarch2025 = Date.UTC(2025, 2, 15, 12);
@@ -28,7 +28,7 @@ const running: Dashboard = {
   download: null,
 };
 
-function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {}) {
+function renderHome(overrides: Partial<HomeProps> = {}) {
   const props = {
     dashboard: async () => running,
     failedFiles: async () => [] as FailedFile[],
@@ -47,17 +47,17 @@ function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {})
     retryFailed: vi.fn(async () => {}),
     ...overrides,
   };
-  render(<Settings {...props} />);
+  render(<Home {...props} />);
   return props;
 }
 
-describe("Settings", () => {
+describe("Home", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
   it("closes from the close button, as the window has no frame of its own", async () => {
-    const props = renderSettings();
+    const props = renderHome();
 
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
 
@@ -65,7 +65,7 @@ describe("Settings", () => {
   });
 
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
-    renderSettings({
+    renderHome({
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
     });
 
@@ -75,7 +75,7 @@ describe("Settings", () => {
   });
 
   it("shows the files found and how far content search reaches", async () => {
-    renderSettings();
+    renderHome();
 
     expect(await screen.findByText("12,345 files found")).toBeInTheDocument();
     expect(
@@ -84,7 +84,7 @@ describe("Settings", () => {
   });
 
   it("shows the content index as complete before any file is found", async () => {
-    renderSettings({
+    renderHome({
       dashboard: async () => ({ ...running, files: 0, indexed: 0, pending: 0, readySince: null }),
     });
 
@@ -92,7 +92,7 @@ describe("Settings", () => {
   });
 
   it("shows how much disk the index takes", async () => {
-    renderSettings();
+    renderHome();
 
     expect(await screen.findByText("The index takes 1.2 GB on disk")).toBeInTheDocument();
   });
@@ -100,7 +100,7 @@ describe("Settings", () => {
   it("keeps the status up to date while it is open", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let files = 10;
-    renderSettings({ dashboard: async () => ({ ...running, files }) });
+    renderHome({ dashboard: async () => ({ ...running, files }) });
     expect(await screen.findByText("10 files found")).toBeInTheDocument();
 
     files = 25;
@@ -110,7 +110,7 @@ describe("Settings", () => {
   });
 
   it("says why indexing waits", async () => {
-    renderSettings({
+    renderHome({
       dashboard: async () => ({
         ...running,
         state: "Indexing waits while a full-screen app is open",
@@ -123,7 +123,7 @@ describe("Settings", () => {
   });
 
   it("lists the files whose content could not be indexed, and why in plain words", async () => {
-    renderSettings({
+    renderHome({
       failedFiles: async () => [
         {
           path: "C:\\Users\\ana\\Documents\\locked.pdf",
@@ -142,7 +142,7 @@ describe("Settings", () => {
     let failed = [
       { path: "C:\\Users\\ana\\Documents\\open.docx", reason: "inUse" as const, detail: "in use" },
     ];
-    const props = renderSettings({
+    const props = renderHome({
       failedFiles: async () => failed,
       retryFailed: vi.fn(async () => {
         failed = [];
@@ -156,7 +156,7 @@ describe("Settings", () => {
   });
 
   it("shows the underlying error of a failed file only when asked", async () => {
-    renderSettings({
+    renderHome({
       failedFiles: async () => [
         {
           path: "C:\\Users\\ana\\Documents\\report.docx",
@@ -176,7 +176,7 @@ describe("Settings", () => {
 
   it("pauses indexing, then offers to resume it", async () => {
     let paused = false;
-    const props = renderSettings({
+    const props = renderHome({
       dashboard: async () => ({
         ...running,
         paused,
@@ -196,7 +196,7 @@ describe("Settings", () => {
   });
 
   it("deletes the index once the user confirms it", async () => {
-    const props = renderSettings();
+    const props = renderHome();
 
     await userEvent.click(await screen.findByRole("button", { name: "Delete index…" }));
     expect(props.purge).not.toHaveBeenCalled();
@@ -206,7 +206,7 @@ describe("Settings", () => {
   });
 
   it("keeps the index when the user changes their mind", async () => {
-    const props = renderSettings();
+    const props = renderHome();
 
     await userEvent.click(await screen.findByRole("button", { name: "Delete index…" }));
     await userEvent.click(screen.getByRole("button", { name: "Keep" }));
@@ -216,7 +216,7 @@ describe("Settings", () => {
   });
 
   it("lists the Indexed Folders and says which drives are disconnected", async () => {
-    renderSettings({
+    renderHome({
       folders: async () => [
         { path: "C:\\Users\\ana", connected: true },
         { path: "E:\\Photos", connected: false },
@@ -235,7 +235,7 @@ describe("Settings", () => {
 
   it("adds a folder the user picks and lists it", async () => {
     let list: IndexedFolder[] = [];
-    const props = renderSettings({
+    const props = renderHome({
       folders: async () => list,
       addFolder: vi.fn(async () => {
         list = [{ path: "D:\\Projects", connected: true }];
@@ -255,7 +255,7 @@ describe("Settings", () => {
       { path: "C:\\Users\\ana", connected: true },
       { path: "D:\\Projects", connected: true },
     ];
-    const props = renderSettings({
+    const props = renderHome({
       folders: async () => list,
       removeFolder: vi.fn(async (path: string) => {
         list = list.filter((folder) => folder.path !== path);
@@ -273,7 +273,7 @@ describe("Settings", () => {
   });
 
   it("keeps a folder when the user changes their mind", async () => {
-    const props = renderSettings({
+    const props = renderHome({
       folders: async () => [{ path: "D:\\Projects", connected: true }],
     });
     await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
@@ -286,7 +286,7 @@ describe("Settings", () => {
   });
 
   it("lists the Exclusions with the defaults marked", async () => {
-    renderSettings({
+    renderHome({
       exclusions: async () => ({
         rows: [
           { kind: "name", pattern: "node_modules", default: true },
@@ -311,7 +311,7 @@ describe("Settings", () => {
 
   it("marks the system drive's default folders and offers to turn them off", async () => {
     const windows: ExclusionRow = { kind: "folder", path: "C:\\Windows", default: true };
-    const props = renderSettings({
+    const props = renderHome({
       exclusions: async () => ({ rows: [windows], defaultsTurnedOff: false }),
     });
     await userEvent.click(await screen.findByRole("tab", { name: "Folders" }));
@@ -327,7 +327,7 @@ describe("Settings", () => {
     const nodeModules: ExclusionRow = { kind: "name", pattern: "node_modules", default: true };
     const backups: ExclusionRow = { kind: "name", pattern: "*.bak", default: false };
     let rows = [nodeModules, backups];
-    const props = renderSettings({
+    const props = renderHome({
       exclusions: async () => ({ rows, defaultsTurnedOff: false }),
       removeExclusion: vi.fn(async (row: ExclusionRow) => {
         rows = rows.filter((other) => other !== row);
@@ -348,7 +348,7 @@ describe("Settings", () => {
 
   it("restores the defaults once one is turned off", async () => {
     let turnedOff = true;
-    const props = renderSettings({
+    const props = renderHome({
       exclusions: async () => ({
         rows: turnedOff ? [] : [{ kind: "name", pattern: "node_modules", default: true }],
         defaultsTurnedOff: turnedOff,
@@ -368,7 +368,7 @@ describe("Settings", () => {
 
   it("excludes the names the user types", async () => {
     let rows: ExclusionRow[] = [];
-    const props = renderSettings({
+    const props = renderHome({
       exclusions: async () => ({ rows, defaultsTurnedOff: false }),
       excludeNames: vi.fn(async (pattern: string) => {
         rows = [{ kind: "name", pattern, default: false }];
@@ -387,7 +387,7 @@ describe("Settings", () => {
 
   it("excludes a folder the user picks", async () => {
     let rows: ExclusionRow[] = [];
-    const props = renderSettings({
+    const props = renderHome({
       exclusions: async () => ({ rows, defaultsTurnedOff: false }),
       excludeFolder: vi.fn(async () => {
         rows = [{ kind: "folder", path: "C:\\Users\\ana\\private" }];

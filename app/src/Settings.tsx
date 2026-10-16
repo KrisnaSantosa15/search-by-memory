@@ -1,4 +1,4 @@
-import { Activity, FolderOpen, RotateCw, X } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { ReadingProgress, useIndexingProgress } from "./IndexingProgress";
 import { Path } from "./Path";
@@ -52,7 +52,7 @@ export type IndexedFolder = {
   connected: boolean;
 };
 
-type StatusProps = {
+export type StatusProps = {
   dashboard: () => Promise<Dashboard>;
   failedFiles: () => Promise<FailedFile[]>;
   pause: () => Promise<void>;
@@ -63,7 +63,7 @@ type StatusProps = {
   retryFailed: () => Promise<void>;
 };
 
-type FoldersProps = {
+export type FoldersProps = {
   folders: () => Promise<IndexedFolder[]>;
   /** Asks the user for a folder and indexes it; false when they picked none. */
   addFolder: () => Promise<boolean>;
@@ -91,69 +91,8 @@ export type ExclusionList = {
   defaultsTurnedOff: boolean;
 };
 
-const TABS = [
-  { name: "Status", Icon: Activity },
-  { name: "Folders", Icon: FolderOpen },
-] as const;
-
-type WindowProps = {
-  /** Closes the Settings window, which has no frame of its own. */
-  close: () => void;
-};
-
-/** The Settings window: indexing status, Indexed Folders, and Exclusions. */
-export function Settings(props: StatusProps & FoldersProps & WindowProps) {
-  const [tab, setTab] = useState<(typeof TABS)[number]["name"]>("Status");
-
-  return (
-    <div className="flex h-full flex-col">
-      {/* The window has no frame: this strip moves it, and closes it. */}
-      <header
-        data-tauri-drag-region
-        className="flex h-10 shrink-0 items-center justify-between border-b border-line pl-5"
-      >
-        <span data-tauri-drag-region className="text-xs text-muted">
-          Search by Memory Settings
-        </span>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={props.close}
-          className="grid h-10 w-12 place-items-center text-muted transition-colors hover:bg-danger/80 hover:text-white"
-        >
-          <X aria-hidden className="size-4" strokeWidth={1.75} />
-        </button>
-      </header>
-    <div className="grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)]">
-      <nav className="border-r border-line bg-chrome/50 p-3">
-        <div role="tablist" aria-orientation="vertical" className="flex flex-col gap-0.5">
-          {TABS.map(({ name, Icon }) => (
-            <button
-              key={name}
-              type="button"
-              role="tab"
-              aria-selected={tab === name}
-              onClick={() => setTab(name)}
-              className="flex h-9 items-center gap-2.5 rounded-[10px] px-2.5 text-sm text-muted transition-colors hover:bg-hover/60 hover:text-ink aria-selected:bg-hover aria-selected:font-medium aria-selected:text-ink"
-            >
-              <Icon aria-hidden className="size-4" strokeWidth={1.75} />
-              {name}
-            </button>
-          ))}
-        </div>
-      </nav>
-      <div role="tabpanel" aria-label={tab} className="min-h-0 overflow-y-auto">
-        <div className="mx-auto flex max-w-2xl flex-col gap-6 px-8 pt-6 pb-12">
-          {tab === "Status" ? <StatusTab {...props} /> : <FoldersTab {...props} />}
-        </div>
-      </div>
-    </div>
-    </div>
-  );
-}
-
 /** A titled group of settings, as VoiceStudio draws them: a quiet glass panel. */
-function Section(props: {
+export function Section(props: {
   id?: string;
   title: string;
   action?: ReactNode;
@@ -175,9 +114,10 @@ function Section(props: {
 }
 
 /** The panel the rows of a Section sit in. */
-const PANEL = "flex flex-col divide-y divide-line/70 rounded-xl border border-line bg-panel/40";
+export const PANEL = "flex flex-col divide-y divide-line/70 rounded-xl border border-line bg-panel/40";
 
-function FoldersTab(props: FoldersProps) {
+/** The Folders page: Indexed Folders and Exclusions. */
+export function FoldersPage(props: FoldersProps) {
   const { folders, addFolder, removeFolder } = props;
   const [list, setList] = useState<IndexedFolder[]>([]);
   // The folder whose removal waits for the user to confirm it.
@@ -355,7 +295,8 @@ function label(row: ExclusionRow): string {
   return row.kind === "name" ? row.pattern : row.path;
 }
 
-function StatusTab({ dashboard, failedFiles, pause, resume, purge, retryFailed }: StatusProps) {
+/** The Activity page: reading progress, pausing, and files that could not be read. */
+export function ActivityPage({ dashboard, failedFiles, pause, resume, purge, retryFailed }: StatusProps) {
   const { status, speed, refresh: refreshStatus } = useIndexingProgress(
     dashboard,
     REFRESH_EVERY_MS,
