@@ -117,3 +117,25 @@ fn date_yesterday_keeps_files_modified_the_day_before() {
     assert!(!filters.keeps(&this_morning));
     assert!(!filters.keeps(&two_days_ago));
 }
+
+#[test]
+fn date_week_month_and_year_keep_files_modified_in_the_last_7_30_and_365_days() {
+    let folder = tempfile::tempdir().unwrap();
+    for (word, inside, outside) in [
+        ("week", "2026-10-09T08:00", "2026-10-08T23:00"),
+        ("month", "2026-09-16T08:00", "2026-09-15T23:00"),
+        ("year", "2025-10-16T08:00", "2025-10-15T23:00"),
+    ] {
+        let inside = modified_at(folder.path(), "in.txt", &format!("{inside}[Asia/Jakarta]"));
+        let outside = modified_at(
+            folder.path(),
+            "out.txt",
+            &format!("{outside}[Asia/Jakarta]"),
+        );
+
+        let filters = Filters::parse(&format!("date:{word}"), &now());
+
+        assert!(filters.keeps(&inside), "{word}");
+        assert!(!filters.keeps(&outside), "{word}");
+    }
+}

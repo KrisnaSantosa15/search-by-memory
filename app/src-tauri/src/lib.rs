@@ -497,9 +497,17 @@ impl Filters {
 /// The span of time a `date:` value names, as of `now`; `None` if it names none.
 fn period(value: &str, now: &Zoned) -> Option<(Timestamp, Timestamp)> {
     let today = now.start_of_day().ok()?;
+    let tomorrow = today.tomorrow().ok()?.timestamp();
+    let days_back = |days: i64| {
+        let start = today.checked_sub(jiff::Span::new().days(days)).ok()?;
+        Some((start.timestamp(), tomorrow))
+    };
     match value.to_lowercase().as_str() {
-        "today" => Some((today.timestamp(), today.tomorrow().ok()?.timestamp())),
+        "today" => Some((today.timestamp(), tomorrow)),
         "yesterday" => Some((today.yesterday().ok()?.timestamp(), today.timestamp())),
+        "week" => days_back(7),
+        "month" => days_back(30),
+        "year" => days_back(365),
         _ => None,
     }
 }
