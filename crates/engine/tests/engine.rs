@@ -578,6 +578,26 @@ fn the_file_being_read_is_named_until_it_is_read() {
 }
 
 #[test]
+fn trying_again_puts_the_files_that_could_not_be_read_back_in_the_queue() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    write(folder.path(), "broken.docx", "not really a zip archive");
+    let journal = GatedJournal::default();
+    journal.open();
+    let engine =
+        Engine::start(data.path(), Arc::new(BagOfWords), Box::new(journal.clone())).unwrap();
+    engine.add_indexed_folder(folder.path()).unwrap();
+    engine.wait_until_idle();
+    assert_eq!(engine.status().unwrap().failed, 1);
+
+    journal.close();
+    engine.retry_failed().unwrap();
+
+    let status = engine.status().unwrap();
+    assert_eq!((status.failed, status.pending), (0, 1));
+    journal.open();
+}
+
+#[test]
 fn purge_erases_the_indexes_from_disk_and_leaves_other_files() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     write(

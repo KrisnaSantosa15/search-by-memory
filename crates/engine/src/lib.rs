@@ -273,6 +273,14 @@ impl Engine {
         self.index.lock().unwrap().exclusions()
     }
 
+    /// Reads the files whose content could not be indexed once more, e.g. after
+    /// the program that had one open has closed it.
+    pub fn retry_failed(&self) -> Result<()> {
+        self.index.lock().unwrap().retry_failed()?;
+        self.request_pass();
+        Ok(())
+    }
+
     /// Every Default Exclusion, on or turned off.
     pub fn default_exclusions(&self) -> Vec<Exclusion> {
         self.index.lock().unwrap().default_exclusions()

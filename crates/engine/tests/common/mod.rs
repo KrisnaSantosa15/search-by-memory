@@ -68,6 +68,11 @@ impl GatedJournal {
         *open.lock().unwrap() = true;
         changed.notify_all();
     }
+
+    /// Makes the next pass wait at the journal again.
+    pub fn close(&self) {
+        *self.0.0.lock().unwrap() = false;
+    }
 }
 
 impl ChangeSource for GatedJournal {
