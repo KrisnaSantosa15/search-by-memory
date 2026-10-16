@@ -674,6 +674,26 @@ describe("Launcher", () => {
     await waitFor(() => expect(search).toHaveBeenLastCalledWith("ext:pdf "));
   });
 
+  it("offers what was searched for before, once a Result of it was opened, while the box is empty", async () => {
+    const saved = new Map<string, string>();
+    const memory = {
+      getItem: (key: string) => saved.get(key) ?? null,
+      setItem: (key: string, value: string) => void saved.set(key, value),
+    };
+    const search = vi.fn(answers(report));
+    const first = render(<Launcher search={search} {...actions()} memory={memory} />);
+    await userEvent.type(screen.getByRole("searchbox"), "dentist invoice");
+    await screen.findByRole("option");
+    await userEvent.keyboard("{Enter}");
+    first.unmount();
+
+    render(<Launcher search={search} {...actions()} memory={memory} />);
+    const recent = screen.getByRole("list", { name: "Recent searches" });
+    await userEvent.click(within(recent).getByRole("button", { name: "dentist invoice" }));
+
+    expect(screen.getByRole("searchbox")).toHaveValue("dentist invoice");
+  });
+
   it("hides with Escape", async () => {
     const spies = actions();
     render(<Launcher search={answers()} {...spies} />);

@@ -1,4 +1,4 @@
-import { CodeXml, Search } from "lucide-react";
+import { CodeXml, History, Search } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { LoadLines } from "./Lines";
 import { Marked } from "./Marked";
@@ -170,6 +170,7 @@ export function Launcher(props: Props) {
       if (result) pickCopy();
     } else if (reachable || !needsDrive) {
       if (copy !== null) rememberPicked(target, props.memory);
+      rememberSearch(typed, props.memory);
       action(target);
     }
   };
@@ -299,11 +300,13 @@ export function Launcher(props: Props) {
             </p>
           ) : (
             !typed.trim() && (
-              <p className="pt-16 text-center text-sm leading-relaxed text-muted">
-                Describe it the way you remember it,
-                <br />
-                like “the dentist invoice from March” or “slow-cooked beef recipe”.
-              </p>
+              <Suggestions
+                recent={recentSearches(props.memory)}
+                onPick={(picked) => {
+                  setTyped(picked);
+                  box.current?.focus();
+                }}
+              />
             )
           )}
         </div>
@@ -440,6 +443,67 @@ function status(typed: string, searching: boolean, found: number, weaker: number
   if (found + weaker === 0) return "Nothing matches yet";
   const results = found === 1 ? "1 result" : `${found} results`;
   return weaker > 0 ? `${results}, ${weaker} weaker` : results;
+}
+
+/** What the Preview Pane offers while nothing is typed: searches from before, to run again. */
+function Suggestions({ recent, onPick }: { recent: string[]; onPick: (typed: string) => void }) {
+  return (
+    <div className="flex flex-col gap-6 pt-6">
+      <p className="text-center text-sm leading-relaxed text-muted">
+        Describe it the way you remember it,
+        <br />
+        like “the dentist invoice from March” or “slow-cooked beef recipe”.
+      </p>
+      {recent.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 id="recent-searches" className="px-1 text-xs font-semibold text-muted">
+            Recent searches
+          </h2>
+          <ul aria-labelledby="recent-searches" className="flex flex-col gap-0.5">
+            {recent.map((typed) => (
+              <li key={typed}>
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => onPick(typed)}
+                  className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-1.5 text-left text-sm transition-colors hover:bg-hover/60"
+                >
+                  <History aria-hidden className="size-4 shrink-0 text-muted" strokeWidth={1.75} />
+                  <span className="truncate">{typed}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+/** Where the searches whose Results were used are kept, newest first. */
+const RECENT = "recent-searches";
+/** How many recent searches are kept. */
+const RECENT_KEPT = 5;
+
+/** The searches whose Results were used, newest first. */
+function recentSearches(memory: Memory | undefined): string[] {
+  try {
+    const kept: unknown = JSON.parse(recall(memory, RECENT) ?? "[]");
+    return Array.isArray(kept) ? kept.filter((typed) => typeof typed === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberSearch(typed: string, memory: Memory | undefined) {
+  const search = typed.trim();
+  if (!search) return;
+  const kept = [search, ...recentSearches(memory).filter((other) => other !== search)];
+  try {
+    memory?.setItem(RECENT, JSON.stringify(kept.slice(0, RECENT_KEPT)));
+  } catch {
+    // Storage full or blocked: the search is simply not offered again.
+  }
 }
 
 /** `index` kept within a list of `length` items. */
