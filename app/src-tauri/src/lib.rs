@@ -4,7 +4,7 @@ use std::path::{Component, Path, PathBuf};
 
 use jiff::civil::Date;
 use jiff::{Timestamp, Zoned};
-use sbm_core::{AppDirs, Location, ThrottleReason, Unreadable};
+use sbm_core::{AppDirs, Location, Processor, ThrottleReason, Unreadable, Usage};
 use sbm_embed_onnx::Accelerator;
 use sbm_engine::{ModelStatus, Status};
 use sbm_index::{Exclusion, FailedFile, MatchReason, NotRead, SearchResult};
@@ -272,6 +272,77 @@ pub fn dashboard(status: &Status, now: &Zoned) -> Dashboard {
             .ready_since
             .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|since| since.as_millis() as u64),
+    }
+}
+
+/// What the Engine monitor shows of this computer: how busy it is, and how
+/// much of that is this app.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceUsage {
+    pub cpu: Option<CpuUsageRow>,
+    pub memory: Option<MemoryUsageRow>,
+    pub gpus: Vec<GpuUsageRow>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CpuUsageRow {
+    pub percent: f64,
+    pub own_percent: f64,
+}
+
+/// Bytes of physical memory.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemoryUsageRow {
+    pub used: u64,
+    pub total: u64,
+    pub own: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GpuUsageRow {
+    pub name: String,
+    pub percent: f64,
+    pub own_percent: f64,
+    /// Bytes of video memory.
+    pub memory_used: u64,
+    pub memory_total: u64,
+    pub own_memory: u64,
+}
+
+pub fn device_usage(usage: &Usage, _processor: Option<&Processor>, gpus: &[Gpu]) -> DeviceUsage {
+    DeviceUsage {
+        cpu: usage.cpu.map(|cpu| CpuUsageRow {
+            percent: cpu.percent,
+            own_percent: cpu.own_percent,
+        }),
+        memory: usage.memory.map(|memory| MemoryUsageRow {
+            used: memory.used,
+            total: memory.total,
+            own: memory.own,
+        }),
+        gpus: gpus
+            .iter()
+            .map(|gpu| {
+                let load = usage
+                    .gpus
+                    .iter()
+                    .find(|load| load.adapter == gpu.adapter)
+                    .copied()
+                    .unwrap_or_default();
+                GpuUsageRow {
+                    name: gpu.name.clone(),
+                    percent: load.percent,
+                    own_percent: load.own_percent,
+                    memory_used: load.memory_used,
+                    memory_total: gpu.dedicated_memory,
+                    own_memory: load.own_memory,
+                }
+            })
+            .collect(),
     }
 }
 
