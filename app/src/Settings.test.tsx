@@ -24,6 +24,8 @@ const running: Dashboard = {
   scanning: false,
   current: null,
   failed: 0,
+  model: { state: "ready", device: "cuda" },
+  download: null,
 };
 
 function renderSettings(overrides: Partial<Parameters<typeof Settings>[0]> = {}) {

@@ -25,6 +25,8 @@ const idle = {
   scanning: false,
   current: null,
   failed: 0,
+  model: { state: "loading" },
+  download: null,
 };
 
 describe("App", () => {

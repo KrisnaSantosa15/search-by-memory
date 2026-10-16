@@ -1,3 +1,4 @@
+import { Hourglass } from "lucide-react";
 import { useEffect, useState } from "react";
 import { timeLeft } from "./onboarding/timeLeft";
 import type { Dashboard } from "./Settings";
@@ -54,12 +55,16 @@ export function ReadingProgress({
   status,
   speed,
   showState = true,
+  waitsForDownload = status.download !== null,
 }: {
   status: Dashboard;
   speed: number | null;
   /** Says why reading waits; off where the page says it already. */
   showState?: boolean;
+  /** A download the model needs runs or stopped; by default, the one the status reports. */
+  waitsForDownload?: boolean;
 }) {
+  if (waitsForDownload && status.model.state === "loading") return <WaitingForDownload />;
   // Only files with content to read count: not online-only files or unknown formats.
   const total = status.indexed + status.pending + status.failed;
   return (
@@ -92,6 +97,25 @@ export function ReadingProgress({
       {showState && !status.current && status.state && (
         <span className="text-xs text-muted">{status.state}</span>
       )}
+    </div>
+  );
+}
+
+/** Reading has not begun: the model that reads files is still downloading. */
+function WaitingForDownload() {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-dashed border-line bg-panel/30 p-4">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-raised text-muted">
+        <Hourglass aria-hidden className="size-4.5" strokeWidth={1.75} />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-sm font-medium">
+          Reading what is inside your files starts once the download finishes
+        </p>
+        <p className="text-[13px] text-muted">
+          Until then, files can already be found by their names.
+        </p>
+      </div>
     </div>
   );
 }

@@ -25,7 +25,18 @@ export type Dashboard = {
   current: string | null;
   /** Files whose content could not be read. */
   failed: number;
+  /** The model that reads what is inside files. */
+  model: ModelState;
+  /** The download content reading waits for, while it runs. */
+  download: { done: number; total: number } | null;
 };
+
+/** Whether the model that reads what is inside files can be used yet; see `ModelRow`. */
+export type ModelState =
+  | { state: "loading" }
+  /** `device` is the Accelerator's name, e.g. `cuda`, `directml`, or `cpu`. */
+  | { state: "ready"; device: string }
+  | { state: "failed"; reason: string };
 
 /** A file whose content could not be indexed. */
 export type FailedFile = { path: string; reason: Unreadable; detail: string };

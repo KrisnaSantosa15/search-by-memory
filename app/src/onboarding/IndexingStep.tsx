@@ -55,7 +55,13 @@ export function IndexingStep({
           </Button>
         </div>
       )}
-      {namesFound && <ReadingProgress status={status} speed={speed} />}
+      {namesFound && (
+        <ReadingProgress
+          status={status}
+          speed={speed}
+          waitsForDownload={download !== null || onRetryDownload !== undefined}
+        />
+      )}
       <Button variant="primary" disabled={!namesFound} onClick={onContinue} className="self-end">
         Continue
       </Button>

@@ -15,6 +15,8 @@ const status = (overrides: Partial<Dashboard>): Dashboard => ({
   scanning: false,
   current: null,
   failed: 0,
+  model: { state: "ready", device: "cuda" },
+  download: null,
   ...overrides,
 });
 
@@ -124,6 +126,23 @@ describe("IndexingStep", () => {
       "40",
     );
     expect(screen.getByText("1.2 of 3.0 GB")).toBeInTheDocument();
+  });
+
+  it("says reading starts once the download finishes, instead of counting files read", async () => {
+    render(
+      <IndexingStep
+        progress={polls(status({ files: 1_000, pending: 1_000, model: { state: "loading" } }))}
+        download={{ done: 1_200_000_000, total: 3_000_000_000, secondsLeft: 170 }}
+        every={10}
+        onContinue={() => {}}
+      />,
+    );
+
+    expect(
+      await screen.findByText("Reading what is inside your files starts once the download finishes"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar", { name: "Files read" })).not.toBeInTheDocument();
+    expect(screen.queryByText("0 of 1,000 files read")).not.toBeInTheDocument();
   });
 
   it("offers to try the download again when it stopped", async () => {
