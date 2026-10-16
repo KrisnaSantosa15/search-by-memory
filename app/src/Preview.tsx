@@ -34,7 +34,7 @@ function notRead(result: ResultRow): string | null {
     case "failed":
       return `Only its name is searched: what is inside could not be read. ${UNREADABLE[notRead.reason]}.`;
     case "format":
-      return `Only its name is searched: ${NOT_READ_KINDS[result.kind]}`;
+      return `Only its name is searched: ${NOT_READ_KINDS[result.kind]}.`;
   }
 }
 

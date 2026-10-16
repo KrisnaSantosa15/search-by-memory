@@ -490,7 +490,7 @@ describe("Launcher", () => {
     await userEvent.type(screen.getByRole("searchbox"), "holiday");
 
     const preview = await screen.findByRole("region", { name: "Preview" });
-    expect(preview).toHaveTextContent("Only its name is searched: pictures are not read");
+    expect(preview).toHaveTextContent("Only its name is searched: pictures are not read.");
   });
 
   it("says an Online-only File must be downloaded before what is inside it is searched", async () => {
