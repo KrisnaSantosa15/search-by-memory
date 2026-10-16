@@ -48,6 +48,21 @@ fn a_system_drive_default_exclusion_can_be_turned_off_and_restored() {
 }
 
 #[test]
+fn default_exclusions_include_the_system_drive_ones_even_when_turned_off() {
+    let drive = TempDir::new().unwrap();
+    let mut index = Index::open_in_memory()
+        .unwrap()
+        .with_system_drive(drive.path());
+    let windows = Exclusion::Folder(drive.path().join("Windows"));
+    index.remove_exclusion(&windows).unwrap();
+
+    let defaults = index.default_exclusions();
+
+    assert!(defaults.contains(&windows));
+    assert!(defaults.contains(&Exclusion::Name("node_modules".to_string())));
+}
+
+#[test]
 fn indexed_folder_is_remembered_and_its_files_become_content_searchable() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     let recipe = write(

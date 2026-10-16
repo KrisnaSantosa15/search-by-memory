@@ -318,6 +318,11 @@ impl Index {
         Self::migrated(Connection::open_in_memory()?)
     }
 
+    /// Every Default Exclusion, on or turned off.
+    pub fn default_exclusions(&self) -> Vec<Exclusion> {
+        [Exclusion::defaults(), self.system_drive_defaults()].concat()
+    }
+
     /// The system drive's own Default Exclusions, turned off or not.
     fn system_drive_defaults(&self) -> Vec<Exclusion> {
         self.system_drive
