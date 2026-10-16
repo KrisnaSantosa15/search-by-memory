@@ -512,6 +512,7 @@ fn restored_default_exclusions_take_their_files_out_of_search() {
         "lodash\n",
     );
     let engine = Engine::start(data.path(), Arc::new(BagOfWords), Box::new(NoJournal)).unwrap();
+    let defaults = engine.exclusions().unwrap();
     engine
         .remove_exclusion(&Exclusion::Name("node_modules".to_string()))
         .unwrap();
@@ -521,7 +522,7 @@ fn restored_default_exclusions_take_their_files_out_of_search() {
     engine.restore_default_exclusions().unwrap();
     engine.wait_until_idle();
 
-    assert_eq!(engine.exclusions().unwrap(), Exclusion::defaults());
+    assert_eq!(engine.exclusions().unwrap(), defaults);
     assert_eq!(engine.search("lodash", View::File, 20).unwrap(), []);
 }
 

@@ -8,6 +8,25 @@ use sbm_index::{Exclusion, Index, View};
 use tempfile::TempDir;
 
 #[test]
+fn personal_folder_on_the_system_drive_is_indexed_without_its_app_data() {
+    let drive = TempDir::new().unwrap();
+    write(drive.path(), "Users/ana/AppData/Local/Browser/notes.txt", "cache");
+    write(drive.path(), "Users/ana/Documents/notes.txt", "my notes");
+    let mut index = Index::open_in_memory()
+        .unwrap()
+        .with_system_drive(drive.path());
+
+    index
+        .add_indexed_folder(&drive.path().join("Users/ana"))
+        .unwrap();
+    index.scan_all().unwrap();
+
+    let matches = index.search_names("notes", 20).unwrap();
+    let paths: Vec<_> = matches.iter().map(|m| m.path.clone()).collect();
+    assert_eq!(paths, [drive.path().join("Users/ana/Documents/notes.txt")]);
+}
+
+#[test]
 fn indexed_folder_is_remembered_and_its_files_become_content_searchable() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     let recipe = write(
@@ -405,7 +424,10 @@ fn restored_default_exclusions_drop_their_files_on_the_next_scan() {
         "site/node_modules/lodash/readme.md",
         "lodash\n",
     );
-    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    let drive = TempDir::new().unwrap();
+    let mut index = Index::open(&data.path().join("index.sqlite"))
+        .unwrap()
+        .with_system_drive(drive.path());
     index.add_indexed_folder(folder.path()).unwrap();
     index
         .remove_exclusion(&Exclusion::Name("node_modules".to_string()))
@@ -415,7 +437,12 @@ fn restored_default_exclusions_drop_their_files_on_the_next_scan() {
     index.restore_default_exclusions().unwrap();
     index.scan_all().unwrap();
 
-    assert_eq!(index.exclusions().unwrap(), Exclusion::defaults());
+    let defaults = [
+        Exclusion::defaults(),
+        Exclusion::system_drive_defaults(drive.path()),
+    ]
+    .concat();
+    assert_eq!(index.exclusions().unwrap(), defaults);
     assert_eq!(index.search_names("lodash", 20).unwrap(), []);
 }
 

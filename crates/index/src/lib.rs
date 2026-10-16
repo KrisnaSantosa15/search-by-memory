@@ -296,6 +296,8 @@ pub struct Index {
     db: Connection,
     volumes: Box<dyn Volumes + Send>,
     availability: Box<dyn FileAvailability + Send>,
+    /// The root of the drive the operating system runs from, if known.
+    system_drive: Option<PathBuf>,
 }
 
 impl Index {
@@ -306,6 +308,14 @@ impl Index {
 
     pub fn open_in_memory() -> Result<Self> {
         Self::migrated(Connection::open_in_memory()?)
+    }
+
+    /// Treats `drive` as the system drive, whose own Default Exclusions apply.
+    pub fn with_system_drive(self, drive: &Path) -> Self {
+        Self {
+            system_drive: Some(drive.to_path_buf()),
+            ..self
+        }
     }
 
     /// Uses `volumes` instead of the operating system's to identify the drive of each file.
@@ -348,6 +358,9 @@ impl Index {
             db,
             volumes: Box::new(SystemVolumes),
             availability: Box::new(SystemFileAvailability),
+            // Windows names it like `C:`; elsewhere there is none.
+            system_drive: std::env::var_os("SystemDrive")
+                .map(|drive| PathBuf::from(drive).join(std::path::MAIN_SEPARATOR_STR)),
         })
     }
 
@@ -540,6 +553,9 @@ impl Index {
             .into_iter()
             .filter(|default| !matches!(default, Exclusion::Name(pattern) if turned_off.contains(pattern)))
             .collect();
+        if let Some(drive) = &self.system_drive {
+            exclusions.extend(Exclusion::system_drive_defaults(drive));
+        }
         for row in saved {
             exclusions.push(match row {
                 (Some(pattern), _, _) => Exclusion::Name(pattern),
