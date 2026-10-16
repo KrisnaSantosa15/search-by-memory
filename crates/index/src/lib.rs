@@ -274,6 +274,8 @@ pub enum NotRead {
     Format,
     /// Queued: its content is read later.
     Pending,
+    /// Tried and given up on, for this reason.
+    Failed(Unreadable),
 }
 
 /// How each reason is stored in `index_jobs.failure_reason`.
@@ -930,22 +932,31 @@ impl Index {
         let path = &normalized(path);
         let volume = self.volumes.volume_of(path)?;
         let relative = relative_path(path, &volume)?;
-        let file: Option<(bool, Option<String>)> = self
+        let file: Option<(bool, Option<String>, Option<String>)> = self
             .db
             .query_row(
-                "SELECT files.is_online_only, index_jobs.status
+                "SELECT files.is_online_only, index_jobs.status, index_jobs.failure_reason
                  FROM files LEFT JOIN index_jobs ON index_jobs.file_id = files.id
                  WHERE files.volume_id = ?1 AND files.relative_path = ?2",
                 params![volume.id, relative],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .optional()?;
-        Ok(match file {
-            None => None,
-            Some((true, _)) => Some(NotRead::OnlineOnly),
-            Some(_) if sbm_extract::extractor_for(path).is_none() => Some(NotRead::Format),
-            Some((false, Some(status))) if status == "pending" => Some(NotRead::Pending),
-            Some(_) => None,
+        let Some((online_only, status, reason)) = file else {
+            return Ok(None);
+        };
+        Ok(if online_only {
+            Some(NotRead::OnlineOnly)
+        } else if sbm_extract::extractor_for(path).is_none() {
+            Some(NotRead::Format)
+        } else {
+            match status.as_deref() {
+                Some("pending") => Some(NotRead::Pending),
+                Some("failed") => Some(NotRead::Failed(
+                    reason.as_deref().map_or(Unreadable::Other, reason_named),
+                )),
+                _ => None,
+            }
         })
     }
 
