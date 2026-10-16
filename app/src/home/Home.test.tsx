@@ -211,7 +211,7 @@ describe("Home", () => {
 
     const sidebar = await screen.findByRole("status", { name: "Search status" });
     await waitFor(() => expect(sidebar).toHaveTextContent("Downloading40%"));
-    expect(sidebar).toHaveTextContent("Reading files starts once it finishes");
+    expect(sidebar).toHaveTextContent("Reading waits for it");
     expect(sidebar).not.toHaveTextContent("files to go");
 
     status = running;

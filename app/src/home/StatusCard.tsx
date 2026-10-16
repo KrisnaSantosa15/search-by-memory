@@ -20,7 +20,7 @@ function summary(status: Dashboard): {
     return {
       title: "Downloading",
       amount: `${percent}%`,
-      detail: "Reading files starts once it finishes",
+      detail: "Reading waits for it",
       tone: "busy",
     };
   }
