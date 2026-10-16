@@ -51,7 +51,12 @@ fn a_quoted_value_may_hold_spaces() {
 
 #[test]
 fn a_prefix_with_nothing_after_it_yet_filters_nothing() {
-    for typed in ["invoice ext:", "invoice in:", r#"invoice in:"""#] {
+    for typed in [
+        "invoice ext:",
+        "invoice in:",
+        r#"invoice in:"""#,
+        "invoice date:",
+    ] {
         let filters = Filters::parse(typed, &now());
 
         assert_eq!(filters.query(), "invoice", "{typed}");

@@ -428,7 +428,9 @@ impl Filters {
             {
                 // A prefix with nothing after it yet filters nothing.
                 Some((prefix, ""))
-                    if ["ext", "in"].iter().any(|p| prefix.eq_ignore_ascii_case(p)) => {}
+                    if ["ext", "in", "date"]
+                        .iter()
+                        .any(|p| prefix.eq_ignore_ascii_case(p)) => {}
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("ext") => {
                     extensions.push(value.trim_start_matches('.').to_lowercase())
                 }
