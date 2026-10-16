@@ -1,5 +1,6 @@
 import { FolderOpen } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Path } from "../Path";
 import { size } from "../size";
 import { Button } from "../ui/Button";
 
@@ -55,8 +56,8 @@ export function LocationStep({ defaultLocation, estimate, pickFolder, onContinue
           <FolderOpen aria-hidden className="size-4.5" strokeWidth={1.75} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate font-mono text-xs" title={location}>
-            {location}
+          <span className="flex font-mono text-xs" title={location}>
+            <Path path={location} />
           </span>
           <span className="text-xs text-muted">
             {found
