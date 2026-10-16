@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Dashboard } from "../Settings";
@@ -19,6 +19,12 @@ const status = (overrides: Partial<Dashboard>): Dashboard => ({
   download: null,
   ...overrides,
 });
+
+/** Waits until the step `name` of getting ready says `text`, then gives that step. */
+async function step(name: string, text: string) {
+  await waitFor(() => expect(screen.getByRole("listitem", { name })).toHaveTextContent(text));
+  return screen.getByRole("listitem", { name });
+}
 
 /** Answers each poll with the next status, then keeps answering the last. */
 function polls(...statuses: Dashboard[]) {
@@ -63,18 +69,18 @@ describe("IndexingStep", () => {
       />,
     );
 
-    expect(await screen.findByText("340 of 1,000 files read")).toBeInTheDocument();
+    const contents = await step("Contents", "340 of 1,000 files read");
     // 340 read and 5 given up on, of 1,000.
-    expect(screen.getByRole("progressbar", { name: "Files read" })).toHaveAttribute(
+    expect(within(contents).getByRole("progressbar", { name: "Files read" })).toHaveAttribute(
       "aria-valuenow",
       "35",
     );
-    expect(screen.getByText("Q3 Report.pdf")).toBeInTheDocument();
-    expect(screen.getByText("5 could not be read")).toBeInTheDocument();
+    expect(within(contents).getByText("Q3 Report.pdf")).toBeInTheDocument();
+    expect(contents).toHaveTextContent("5 could not be read");
     expect(screen.queryByText("Indexing: 655 files to go")).not.toBeInTheDocument();
   });
 
-  it("fills the bar once every file was read or given up on", async () => {
+  it("says reading is done once every file was read or given up on", async () => {
     render(
       <IndexingStep
         progress={polls(status({ files: 17, indexed: 5, failed: 1 }))}
@@ -83,11 +89,7 @@ describe("IndexingStep", () => {
       />,
     );
 
-    expect(await screen.findByText("5 of 6 files read")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "Files read" })).toHaveAttribute(
-      "aria-valuenow",
-      "100",
-    );
+    await step("Contents", "5 files read, 1 could not be");
   });
 
   it("says why reading waits while no file is being read", async () => {
@@ -105,9 +107,7 @@ describe("IndexingStep", () => {
       />,
     );
 
-    expect(
-      await screen.findByText("Indexing waits until the computer is plugged in"),
-    ).toBeInTheDocument();
+    await step("Contents", "Indexing waits until the computer is plugged in");
   });
 
   it("shows the download that reading what is inside the files waits for", async () => {
@@ -120,12 +120,12 @@ describe("IndexingStep", () => {
       />,
     );
 
-    expect(await screen.findByText("Downloading what search needs to read your files")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "Download" })).toHaveAttribute(
+    const model = await step("Reading model", "Downloading: 1.2 of 3.0 GB");
+    expect(model).toHaveTextContent("About 3 minutes left");
+    expect(within(model).getByRole("progressbar", { name: "Download" })).toHaveAttribute(
       "aria-valuenow",
       "40",
     );
-    expect(screen.getByText("1.2 of 3.0 GB")).toBeInTheDocument();
   });
 
   it("says reading starts once the download finishes, instead of counting files read", async () => {
@@ -138,11 +138,9 @@ describe("IndexingStep", () => {
       />,
     );
 
-    expect(
-      await screen.findByText("Reading what is inside your files starts once the download finishes"),
-    ).toBeInTheDocument();
+    await step("Contents", "Starts once the download finishes");
     expect(screen.queryByRole("progressbar", { name: "Files read" })).not.toBeInTheDocument();
-    expect(screen.queryByText("0 of 1,000 files read")).not.toBeInTheDocument();
+    expect(screen.queryByText(/0 of 1,000 files read/)).not.toBeInTheDocument();
   });
 
   it("offers to try the download again when it stopped", async () => {
@@ -156,7 +154,7 @@ describe("IndexingStep", () => {
       />,
     );
 
-    expect(await screen.findByText(/download stopped/i)).toBeInTheDocument();
+    await step("Reading model", "The download stopped");
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(onRetryDownload).toHaveBeenCalled();
   });
@@ -215,7 +213,7 @@ describe("IndexingStep", () => {
       />,
     );
 
-    expect(await screen.findByText("6 files a minute")).toBeInTheDocument();
+    await step("Contents", "All 10 files read");
     expect(screen.queryByText(/left$/)).not.toBeInTheDocument();
   });
 });

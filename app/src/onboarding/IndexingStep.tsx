@@ -1,9 +1,7 @@
-import { ReadingProgress, useIndexingProgress } from "../IndexingProgress";
+import { Pipeline } from "../home/Pipeline";
+import { useIndexingProgress } from "../IndexingProgress";
 import type { Dashboard } from "../Settings";
 import { Button } from "../ui/Button";
-import { ProgressBar } from "../ui/ProgressBar";
-import { gigabytes } from "./DownloadStep";
-import { timeLeft } from "./timeLeft";
 
 type Props = {
   progress: () => Promise<Dashboard>;
@@ -16,6 +14,22 @@ type Props = {
   /** Set when that download stopped; starts it again from where it stopped. */
   onRetryDownload?: () => void;
   onContinue: () => void;
+};
+
+/** What there is to show before the first look at the progress: names are being found. */
+const STARTING: Dashboard = {
+  files: 0,
+  indexed: 0,
+  pending: 0,
+  readySince: null,
+  state: "",
+  paused: false,
+  sizeOnDisk: 0,
+  scanning: true,
+  current: null,
+  failed: 0,
+  model: { state: "loading" },
+  download: null,
 };
 
 /** Onboarding step that shows indexing as it happens. */
@@ -40,27 +54,23 @@ export function IndexingStep({
           File names come first, then what is inside them, newest files first.
         </p>
       </div>
-      <p className="text-sm font-medium">
-        {namesFound ? `${status.files.toLocaleString()} files found` : "Finding files…"}
-      </p>
-      {download && <DownloadProgress {...download} />}
+      <div className="rounded-2xl border border-line bg-panel/40 p-5">
+        <Pipeline
+          status={status ?? STARTING}
+          speed={speed}
+          download={download}
+          downloadStopped={onRetryDownload !== undefined}
+        />
+      </div>
       {onRetryDownload && (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-warning/40 bg-warning/10 p-4">
           <p className="text-sm">
-            The download stopped, so what is inside your files waits. Check your internet
-            connection; it picks up where it left off.
+            Check your internet connection; the download picks up where it left off.
           </p>
           <Button variant="primary" onClick={onRetryDownload} className="shrink-0">
             Try again
           </Button>
         </div>
-      )}
-      {namesFound && (
-        <ReadingProgress
-          status={status}
-          speed={speed}
-          waitsForDownload={download !== null || onRetryDownload !== undefined}
-        />
       )}
       <Button variant="primary" disabled={!namesFound} onClick={onContinue} className="self-end">
         Continue
@@ -71,16 +81,3 @@ export function IndexingStep({
 
 /** Bytes on disk so far, out of `total`; `secondsLeft` is `null` until the speed is known. */
 export type Download = { done: number; total: number; secondsLeft: number | null };
-
-function DownloadProgress({ done, total, secondsLeft }: Download) {
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border border-line bg-panel/40 p-4">
-      <span className="text-sm">Downloading what search needs to read your files</span>
-      <ProgressBar label="Download" value={total > 0 ? done / total : 0} />
-      <div className="flex justify-between gap-3 text-xs text-muted">
-        <span>{`${gigabytes(done)} of ${gigabytes(total)} GB`}</span>
-        <span>{timeLeft(secondsLeft)}</span>
-      </div>
-    </div>
-  );
-}
