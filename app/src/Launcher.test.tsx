@@ -433,6 +433,24 @@ describe("Launcher", () => {
     expect(preview).toHaveTextContent("net profit increased by 18%");
   });
 
+  it("shows the filters a search kept to as chips in the Query bar", async () => {
+    const search = async (): Promise<Searched> => ({
+      query: "invoice",
+      results: [report],
+      chips: [
+        { kind: "ext", label: "PDF" },
+        { kind: "date", label: "Last 7 days" },
+      ],
+    });
+    render(<Launcher search={search} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "ext:pdf date:week invoice");
+
+    const filters = await screen.findByRole("list", { name: "Filters" });
+    const chips = within(filters).getAllByRole("listitem").map((chip) => chip.textContent);
+    expect(chips).toEqual(["PDF", "Last 7 days"]);
+  });
+
   it("shows the code icon while the search keeps to code", async () => {
     const search = vi.fn(async (typed: string) => ({
       query: "retry with backoff",

@@ -190,6 +190,18 @@ export function Launcher(props: Props) {
           placeholder="Describe the file you remember"
           className="min-w-0 flex-1 bg-transparent text-lg tracking-[-0.01em] outline-none placeholder:text-muted/70 [&::-webkit-search-cancel-button]:hidden"
         />
+        {chips.length > 0 && (
+          <ul aria-label="Filters" className="flex shrink-0 gap-1.5">
+            {chips.map((chip, index) => (
+              <li
+                key={`${chip.kind}#${index}`}
+                className="rounded-full border border-accent/30 bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent"
+              >
+                {chip.label}
+              </li>
+            ))}
+          </ul>
+        )}
       </label>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
         <div
