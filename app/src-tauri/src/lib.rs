@@ -48,45 +48,6 @@ pub fn speed_choices(gpus: &[Gpu]) -> Vec<SpeedChoice> {
         .collect()
 }
 
-/// What a folder offered in onboarding is, so the UI can name it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum FolderKind {
-    /// The user's own folder: Documents, Desktop, Downloads, and the rest.
-    Personal,
-    /// A whole drive.
-    Drive,
-}
-
-/// A folder the onboarding folders step offers to make searchable.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FolderChoice {
-    pub path: PathBuf,
-    pub kind: FolderKind,
-    /// Picked until the user unpicks it.
-    pub picked: bool,
-}
-
-/// The personal folder `home`, picked, then every drive in `drives` that does
-/// not hold it, offered but not picked.
-pub fn folder_choices(home: &Path, drives: &[PathBuf]) -> Vec<FolderChoice> {
-    let personal = FolderChoice {
-        path: home.to_path_buf(),
-        kind: FolderKind::Personal,
-        picked: true,
-    };
-    let others = drives
-        .iter()
-        .filter(|drive| !home.starts_with(drive))
-        .map(|drive| FolderChoice {
-            path: drive.clone(),
-            kind: FolderKind::Drive,
-            picked: false,
-        });
-    std::iter::once(personal).chain(others).collect()
-}
-
 /// What onboarding decided; saved when it finishes, so the next start skips it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -451,7 +412,7 @@ mod commands {
     use tauri_plugin_opener::OpenerExt;
 
     use super::{
-        Dashboard, ExclusionList, ExclusionRow, FailedRow, FileKind, FolderChoice, ResultRow,
+        Dashboard, ExclusionList, ExclusionRow, FailedRow, FileKind, ResultRow,
         Settings, SpeedChoice, TextPreview, data_dir, failed_row,
     };
 
@@ -550,44 +511,31 @@ mod commands {
         cancel.store(true, Ordering::SeqCst);
     }
 
+    /// Where onboarding offers to search first: the user's personal folder.
     #[tauri::command]
-    pub fn folder_choices() -> Vec<FolderChoice> {
-        let home = std::env::var_os("USERPROFILE")
+    pub fn default_location() -> PathBuf {
+        std::env::var_os("USERPROFILE")
             .or_else(|| std::env::var_os("HOME"))
             .map(PathBuf::from)
-            .unwrap_or_default();
-        super::folder_choices(&home, &drives())
-    }
-
-    /// Drive roots present on this machine (Windows only).
-    fn drives() -> Vec<PathBuf> {
-        if !cfg!(windows) {
-            return Vec::new();
-        }
-        ('A'..='Z')
-            .map(|letter| PathBuf::from(format!("{letter}:\\")))
-            .filter(|root| root.exists())
-            .collect()
+            .unwrap_or_default()
     }
 
     /// The running Engine, once onboarding has started it.
     #[derive(Default)]
     pub struct Running(Mutex<Option<Engine>>);
 
-    /// Starts the Engine on `choice`'s Accelerator and makes `folders` searchable:
+    /// Starts the Engine on `choice`'s Accelerator and makes `location` searchable:
     /// names at once, content once the model is loaded.
     #[tauri::command]
     pub fn start_indexing(
         running: State<'_, Running>,
         choice: String,
-        folders: Vec<PathBuf>,
+        location: PathBuf,
     ) -> Result<(), String> {
         let engine = start_engine(&choice)?;
-        for folder in &folders {
-            engine
-                .add_indexed_folder(folder)
-                .map_err(|error| error.to_string())?;
-        }
+        engine
+            .add_indexed_folder(&location)
+            .map_err(|error| error.to_string())?;
         *running.0.lock().unwrap() = Some(engine);
         Ok(())
     }
@@ -1178,7 +1126,7 @@ pub fn run() {
             commands::speed_choices,
             commands::prepare,
             commands::cancel_prepare,
-            commands::folder_choices,
+            commands::default_location,
             commands::start_indexing,
             commands::settings,
             commands::try_hotkey,

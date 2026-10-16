@@ -6,8 +6,8 @@ import type { TextPreview } from "./Lines";
 import type { PdfPagePreview } from "./PdfPage";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
-import { FoldersStep, type FolderChoice } from "./onboarding/FoldersStep";
 import { HotkeyStep } from "./onboarding/HotkeyStep";
+import { LocationStep } from "./onboarding/LocationStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 
 type DownloadProgress = { done: number; total: number; secondsLeft: number | null };
@@ -44,7 +44,8 @@ export default function App() {
     total: 0,
     secondsLeft: null,
   });
-  const [folders, setFolders] = useState<FolderChoice[] | null>(null);
+  // Where to search: the personal folder until the user picks another.
+  const [location, setLocation] = useState<string | null>(null);
   const [indexing, setIndexing] = useState(false);
   const [hotkey, setHotkey] = useState<string | null>(null);
 
@@ -63,7 +64,7 @@ export default function App() {
     ).then((unlisten) => {
       invoke<boolean>("prepare", { choice })
         .then((complete) => {
-          if (complete) return invoke<FolderChoice[]>("folder_choices").then(setFolders);
+          if (complete) return invoke<string>("default_location").then(setLocation);
           // Cancelled: what was downloaded stays, and picking again resumes it.
           backToSpeeds();
         })
@@ -93,12 +94,12 @@ export default function App() {
       );
     }
     if (indexing) return <HotkeyStep tryHotkey={tryHotkey} onContinue={setHotkey} />;
-    if (folders) {
+    if (location) {
       return (
-        <FoldersStep
-          choices={folders}
-          onContinue={(paths) =>
-            invoke("start_indexing", { choice, folders: paths }).then(() => setIndexing(true))
+        <LocationStep
+          location={location}
+          onContinue={(location) =>
+            invoke("start_indexing", { choice, location }).then(() => setIndexing(true))
           }
         />
       );

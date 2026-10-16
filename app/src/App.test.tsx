@@ -115,15 +115,13 @@ describe("App", () => {
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
-  it("asks which folders to search once the download is done, then starts indexing them", async () => {
+  it("asks where to search, the personal folder by default, then starts indexing it", async () => {
     const started: unknown[] = [];
     mockIPC(
       (command, payload) => {
         if (command === "speed_choices") return cpuOnly;
         if (command === "prepare") return true;
-        if (command === "folder_choices") {
-          return [{ path: "C:\\Users\\ana", kind: "personal", picked: true }];
-        }
+        if (command === "default_location") return "C:\\Users\\ana";
         if (command === "start_indexing") started.push(payload);
       },
       { shouldMockEvents: true },
@@ -131,21 +129,19 @@ describe("App", () => {
     render(<App />);
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
 
-    await screen.findByRole("checkbox", { name: /your personal folders/i });
+    await screen.findByText("C:\\Users\\ana");
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
-    expect(started).toEqual([{ choice: "cpu", folders: ["C:\\Users\\ana"] }]);
+    expect(started).toEqual([{ choice: "cpu", location: "C:\\Users\\ana" }]);
   });
 
-  it("sets the search keys after the folders, then finishing saves what onboarding decided", async () => {
+  it("sets the search keys after the location, then finishing saves what onboarding decided", async () => {
     const finished: unknown[] = [];
     mockIPC(
       (command, payload) => {
         if (command === "speed_choices") return cpuOnly;
         if (command === "prepare") return true;
-        if (command === "folder_choices") {
-          return [{ path: "C:\\Users\\ana", kind: "personal", picked: true }];
-        }
+        if (command === "default_location") return "C:\\Users\\ana";
         if (command === "try_hotkey") return true;
         if (command === "finish_onboarding") finished.push(payload);
       },
@@ -153,7 +149,7 @@ describe("App", () => {
     );
     render(<App />);
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
-    await screen.findByRole("checkbox", { name: /your personal folders/i });
+    await screen.findByText("C:\\Users\\ana");
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     await screen.findByText("Alt + Space");
