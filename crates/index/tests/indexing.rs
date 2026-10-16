@@ -487,6 +487,28 @@ fn restored_default_exclusions_drop_their_files_on_the_next_scan() {
 }
 
 #[test]
+fn the_next_queued_file_is_the_one_run_jobs_reads_next() {
+    let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    let newer = write(folder.path(), "newer.txt", "budget for next year\n");
+    let older = write(folder.path(), "older.txt", "draft of the old report\n");
+    modified_days_ago(&newer, 10);
+    modified_days_ago(&older, 20);
+    let mut index = Index::open(&data.path().join("index.sqlite")).unwrap();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+
+    assert_eq!(index.next_queued_file(false).unwrap(), Some(newer));
+    index
+        .run_jobs(&BagOfWords::default(), &mut store(), 1)
+        .unwrap();
+    assert_eq!(index.next_queued_file(false).unwrap(), Some(older));
+    index
+        .run_jobs(&BagOfWords::default(), &mut store(), 1)
+        .unwrap();
+    assert_eq!(index.next_queued_file(false).unwrap(), None);
+}
+
+#[test]
 fn content_progress_states_how_far_back_content_is_ready() {
     let (data, folder) = (TempDir::new().unwrap(), TempDir::new().unwrap());
     let newest = write(folder.path(), "newest.txt", "budget for next year\n");

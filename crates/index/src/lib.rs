@@ -801,14 +801,14 @@ impl Index {
         self.run_queued(embedder, store, limit, true)
     }
 
-    fn run_queued(
-        &mut self,
-        embedder: &dyn EmbeddingProvider,
-        store: &mut impl VectorStore,
-        limit: usize,
-        only_live: bool,
-    ) -> Result<usize> {
-        // Files on a Disconnected Drive wait in the queue until it returns.
+    /// The file `run_jobs` (or, with `only_live`, `run_live_jobs`) reads next.
+    pub fn next_queued_file(&self, only_live: bool) -> Result<Option<PathBuf>> {
+        Ok(self.next_job(only_live)?.map(|(_job, path)| path))
+    }
+
+    /// The pending job to run next and its file: Live Updates first, then the
+    /// newest files; files on a Disconnected Drive wait until it returns.
+    fn next_job(&self, only_live: bool) -> Result<Option<(i64, PathBuf)>> {
         let disconnected: Vec<String> = self
             .db
             .prepare("SELECT id FROM volumes")?
@@ -825,23 +825,33 @@ impl Index {
             vec!["?"; disconnected.len()].join(", "),
             if only_live { "AND index_jobs.live" } else { "" },
         );
+        let next: Option<(i64, String, String)> = self
+            .db
+            .query_row(
+                &next_job,
+                rusqlite::params_from_iter(&disconnected),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        next.map(|(job, volume_id, path)| Ok((job, self.path_of(&volume_id, &path)?.0)))
+            .transpose()
+    }
+
+    fn run_queued(
+        &mut self,
+        embedder: &dyn EmbeddingProvider,
+        store: &mut impl VectorStore,
+        limit: usize,
+        only_live: bool,
+    ) -> Result<usize> {
         let mut done = 0;
         while done < limit {
-            let next: Option<(i64, String, String)> = self
-                .db
-                .query_row(
-                    &next_job,
-                    rusqlite::params_from_iter(&disconnected),
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-                )
-                .optional()?;
-            let Some((job, volume_id, path)) = next else {
+            let Some((job, path)) = self.next_job(only_live)? else {
                 if !only_live {
                     self.remove_unreferenced_content(store)?;
                 }
                 break;
             };
-            let (path, _connected) = self.path_of(&volume_id, &path)?;
             if let Err(error) = self.index_content(&path, embedder, store) {
                 // A bad file must not stop indexing (FR-03); it stays in the Name Index.
                 self.db.execute(
