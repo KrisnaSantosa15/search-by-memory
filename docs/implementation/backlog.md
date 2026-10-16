@@ -177,6 +177,7 @@
   - Found: a name-only Result ranks below unrelated content-only Results ("holiday" puts `retry.rs` above `holiday beach.jpg` on 7 files); the Download step counts 0.0 of 3.0 GB although the model is already on disk (Speed says 1.9 GB); speed keeps falling after reading ends.
   - Found: Live Updates run before Initial Indexing (`live DESC`), so a folder that keeps changing can hold content reading back; check with the Benchmark of a busy Downloads folder.
   - Found: while Initial Indexing runs (debug build, DirectML), a Query stayed "Searching…" for over 10 s; check whether Query embedding waits behind indexing batches.
+  - In progress: stage 5 (user, 2026-10-16): launcher scrolls to the selected row; Settings window becomes Home (dashboard, model and download status, sidebar); onboarding and Home say reading waits for the download.
 
 ## Next
 - Clean GPU benchmark (background apps closed); deferred by the user.
