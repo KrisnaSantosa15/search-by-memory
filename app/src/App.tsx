@@ -8,11 +8,10 @@ import type { Dashboard } from "./Settings";
 import { DoneStep } from "./onboarding/DoneStep";
 import { DownloadStep } from "./onboarding/DownloadStep";
 import { HotkeyStep } from "./onboarding/HotkeyStep";
-import { IndexingStep } from "./onboarding/IndexingStep";
+import { type Download, IndexingStep } from "./onboarding/IndexingStep";
 import { type Estimate, LocationStep } from "./onboarding/LocationStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
 
-type DownloadProgress = { done: number; total: number; secondsLeft: number | null };
 
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
 const estimateLocation = (location: string) => invoke<Estimate>("estimate_location", { location });
@@ -45,7 +44,7 @@ export default function App() {
   const [attempt, setAttempt] = useState(0);
   const [stopped, setStopped] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
-  const [progress, setProgress] = useState<DownloadProgress>({
+  const [progress, setProgress] = useState<Download>({
     done: 0,
     total: 0,
     secondsLeft: null,
@@ -67,7 +66,7 @@ export default function App() {
   useEffect(() => {
     if (!choice) return;
     // Listen before starting, so no progress report is missed.
-    const unlisten = listen<DownloadProgress>("setup-progress", (event) =>
+    const unlisten = listen<Download>("setup-progress", (event) =>
       setProgress(event.payload),
     ).then((unlisten) => {
       invoke<boolean>("prepare", { choice })
