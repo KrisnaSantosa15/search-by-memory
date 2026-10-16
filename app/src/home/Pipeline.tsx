@@ -76,10 +76,19 @@ function contentsStep(status: Dashboard): Step {
     return { name: "Contents", stage: "waiting", detail };
   }
   const total = status.indexed + status.pending + status.failed;
+  if (status.pending === 0) {
+    const detail =
+      status.failed > 0
+        ? `${status.indexed.toLocaleString()} files read, ${status.failed.toLocaleString()} could not be`
+        : `All ${total.toLocaleString()} files read`;
+    return { name: "Contents", stage: "done", detail };
+  }
   return {
     name: "Contents",
     stage: "active",
     detail: `${status.indexed.toLocaleString()} of ${total.toLocaleString()} files read`,
+    // Files given up on are done with too, as on the reading bar elsewhere.
+    bar: { label: "Files read", value: (status.indexed + status.failed) / total },
   };
 }
 

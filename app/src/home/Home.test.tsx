@@ -153,6 +153,34 @@ describe("Home", () => {
     );
   });
 
+  it("shows on Home how far reading contents has got, and when every file is read", async () => {
+    let indexed = 340;
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderHome({
+      dashboard: async () => ({ ...running, indexed, pending: 1_000 - indexed }),
+    });
+
+    const contents = await screen.findByRole("listitem", { name: "Contents" });
+    expect(contents).toHaveTextContent("340 of 1,000 files read");
+    expect(within(contents).getByRole("progressbar", { name: "Files read" })).toHaveAttribute(
+      "aria-valuenow",
+      "34",
+    );
+
+    indexed = 1_000;
+    await vi.advanceTimersByTimeAsync(2_000);
+    await waitFor(() => expect(contents).toHaveTextContent("All 1,000 files read"));
+    expect(within(contents).queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("does not say on Home that every file was read when some could not be", async () => {
+    renderHome({ dashboard: async () => ({ ...running, indexed: 995, pending: 0, failed: 5 }) });
+
+    expect(await screen.findByRole("listitem", { name: "Contents" })).toHaveTextContent(
+      "995 files read, 5 could not be",
+    );
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
