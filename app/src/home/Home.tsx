@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ActivityPage, FoldersPage, type FoldersProps, type StatusProps } from "../Settings";
 import { BrandMark } from "../ui/BrandMark";
 import { Overview, type OverviewProps } from "./Overview";
+import { SidebarFolders } from "./SidebarFolders";
 import { StatusCard } from "./StatusCard";
 
 const PAGES = [
@@ -32,7 +33,7 @@ export function Home(props: HomeProps) {
             Search by Memory
           </span>
         </div>
-        <nav className="flex-1 px-3 pt-2">
+        <nav className="px-3 pt-2">
           <div role="tablist" aria-orientation="vertical" className="flex flex-col gap-0.5">
             {PAGES.map(({ name, Icon }) => (
               <button
@@ -53,7 +54,12 @@ export function Home(props: HomeProps) {
             ))}
           </div>
         </nav>
-        <div className="p-3">
+        <SidebarFolders
+          folders={props.folders}
+          refreshKey={page}
+          onOpen={() => setPage("Folders")}
+        />
+        <div className="mt-auto p-3">
           <StatusCard dashboard={props.dashboard} />
         </div>
       </aside>

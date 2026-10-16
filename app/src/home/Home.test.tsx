@@ -234,6 +234,22 @@ describe("Home", () => {
     expect(card).toHaveTextContent("Nothing leaves this computer");
   });
 
+  it("lists in the sidebar the folders searched in, and goes to them on a click", async () => {
+    renderHome({
+      folders: async () => [
+        { path: "C:\\Users\\ana", connected: true },
+        { path: "E:\\Photos", connected: false },
+      ],
+    });
+
+    const folders = await screen.findByRole("list", { name: "Searching in" });
+    const rows = await within(folders).findAllByRole("button");
+    expect(rows.map((row) => row.textContent)).toEqual(["ana", "PhotosNot connected"]);
+    await userEvent.click(rows[1]);
+
+    expect(screen.getByRole("tab", { name: "Folders" })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
