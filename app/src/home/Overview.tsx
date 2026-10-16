@@ -5,6 +5,7 @@ import { keys, spoken } from "../onboarding/HotkeyStep";
 import type { AppSettings, Dashboard } from "../Settings";
 import { size } from "../size";
 import { Pipeline } from "./Pipeline";
+import { ThisComputer } from "./ThisComputer";
 import { WaysToSearch } from "./WaysToSearch";
 import { TONES, type Tone } from "../ui/tones";
 
@@ -44,9 +45,18 @@ export function Overview({ dashboard, settings, openSearch }: OverviewProps) {
         {size(status.sizeOnDisk)}
       </Tile>
     </ul>
-    <section className="rounded-2xl border border-line bg-panel/40 p-5">
-      <Pipeline status={status} />
-    </section>
+    <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
+      <section
+        aria-labelledby="progress"
+        className="flex flex-col gap-4 rounded-2xl border border-line bg-panel/40 p-5"
+      >
+        <h2 id="progress" className="text-sm font-medium">
+          Progress
+        </h2>
+        <Pipeline status={status} />
+      </section>
+      <ThisComputer model={status.model} hotkey={hotkey} />
+    </div>
     <WaysToSearch onSearch={openSearch} />
     </>
   );

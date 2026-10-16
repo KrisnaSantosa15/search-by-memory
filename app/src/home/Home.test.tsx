@@ -223,6 +223,17 @@ describe("Home", () => {
     await waitFor(() => expect(sidebar).toHaveTextContent("Up to date"));
   });
 
+  it("shows on Home which model reads the files, where it runs, and that nothing leaves the computer", async () => {
+    renderHome({
+      dashboard: async () => ({ ...running, model: { state: "ready", device: "directml" } }),
+    });
+
+    const card = await screen.findByRole("region", { name: "On this computer" });
+    expect(card).toHaveTextContent("EmbeddingGemma 2");
+    expect(card).toHaveTextContent("Graphics card");
+    expect(card).toHaveTextContent("Nothing leaves this computer");
+  });
+
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
     await renderPage("Activity", {
       dashboard: async () => ({ ...running, current: "C:\\Users\\ana\\Documents\\Q3 Report.pdf" }),
