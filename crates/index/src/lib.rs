@@ -272,6 +272,8 @@ pub enum NotRead {
     OnlineOnly,
     /// No extractor reads files of this kind (e.g. pictures, videos).
     Format,
+    /// Queued: its content is read later.
+    Pending,
 }
 
 /// How each reason is stored in `index_jobs.failure_reason`.
@@ -928,19 +930,22 @@ impl Index {
         let path = &normalized(path);
         let volume = self.volumes.volume_of(path)?;
         let relative = relative_path(path, &volume)?;
-        let online_only: Option<bool> = self
+        let file: Option<(bool, Option<String>)> = self
             .db
             .query_row(
-                "SELECT is_online_only FROM files WHERE volume_id = ?1 AND relative_path = ?2",
+                "SELECT files.is_online_only, index_jobs.status
+                 FROM files LEFT JOIN index_jobs ON index_jobs.file_id = files.id
+                 WHERE files.volume_id = ?1 AND files.relative_path = ?2",
                 params![volume.id, relative],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?;
-        Ok(match online_only {
+        Ok(match file {
             None => None,
-            Some(true) => Some(NotRead::OnlineOnly),
-            Some(false) if sbm_extract::extractor_for(path).is_none() => Some(NotRead::Format),
-            Some(false) => None,
+            Some((true, _)) => Some(NotRead::OnlineOnly),
+            Some(_) if sbm_extract::extractor_for(path).is_none() => Some(NotRead::Format),
+            Some((false, Some(status))) if status == "pending" => Some(NotRead::Pending),
+            Some(_) => None,
         })
     }
 

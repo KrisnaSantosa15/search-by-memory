@@ -37,3 +37,14 @@ fn file_of_a_format_that_is_not_read_says_so() {
 
     assert_eq!(index.not_read(&photo).unwrap(), Some(NotRead::Format));
 }
+
+#[test]
+fn file_still_queued_for_content_is_not_read_yet() {
+    let folder = TempDir::new().unwrap();
+    let notes = write(folder.path(), "notes.txt", "team meeting\n");
+    let mut index = Index::open_in_memory().unwrap();
+    index.add_indexed_folder(folder.path()).unwrap();
+    index.scan_all().unwrap();
+
+    assert_eq!(index.not_read(&notes).unwrap(), Some(NotRead::Pending));
+}
