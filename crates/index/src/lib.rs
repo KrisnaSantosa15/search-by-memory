@@ -1232,11 +1232,7 @@ fn rescan(
 ) -> Result<ScanChanges> {
     let folder = &beneath(&volume.root, folder_path);
     let mut changes = ScanChanges::default();
-    let entries = WalkDir::new(folder)
-        .into_iter()
-        .filter_entry(|entry| {
-            entry.depth() == 0 || !exclusions.iter().any(|e| e.excludes(entry.path()))
-        })
+    let entries = walk(folder, exclusions)
         // A deleted file or folder: whatever the index knows beneath it is swept below.
         .filter(|entry| folder.exists() || entry.is_ok());
     for entry in entries {
