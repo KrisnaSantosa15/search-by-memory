@@ -43,6 +43,12 @@ const launcher = {
     invoke<TextPreview | null>("preview_lines", { path, lineStart, lineEnd }),
   // The app's own WebView storage: kept across restarts, on this machine only.
   memory: localStorage,
+  listenSearchFor: (searchFor: (typed: string) => void) => {
+    const stop = listen<string>("search-for", (event) => searchFor(event.payload));
+    return () => {
+      stop.then((stop) => stop());
+    };
+  },
 };
 
 export default function App() {

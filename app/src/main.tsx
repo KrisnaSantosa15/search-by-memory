@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { Home } from "./home/Home";
 import type {
+  AppSettings,
   Dashboard,
   ExclusionList,
   ExclusionRow,
@@ -30,6 +31,8 @@ const home = {
   purge: () => invoke<void>("purge_index"),
   close: () => getCurrentWindow().close(),
   retryFailed: () => invoke<void>("retry_failed"),
+  settings: () => invoke<AppSettings | null>("settings"),
+  openSearch: (typed: string) => invoke<void>("open_search", { typed }),
 };
 
 // The Home window opens this page with `?view=settings`; the main window without.

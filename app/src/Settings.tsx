@@ -38,6 +38,14 @@ export type ModelState =
   | { state: "ready"; device: string }
   | { state: "failed"; reason: string };
 
+/** What onboarding decided; see `Settings` in `src-tauri`. */
+export type AppSettings = {
+  /** The picked Accelerator's name, e.g. `cuda`. */
+  accelerator: string;
+  /** The keys that bring up search anywhere, e.g. `Ctrl+Shift+Space`. */
+  hotkey: string;
+};
+
 /** A file whose content could not be indexed. */
 export type FailedFile = { path: string; reason: Unreadable; detail: string };
 

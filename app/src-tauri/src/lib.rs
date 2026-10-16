@@ -1425,6 +1425,13 @@ mod commands {
         }
     }
 
+    /// Brings up the launcher with `typed` in its Query box, as Home's search does.
+    #[tauri::command]
+    pub fn open_search(app: AppHandle, typed: String) {
+        show(&app);
+        let _ = app.emit_to("main", "search-for", typed);
+    }
+
     /// Brings up the Settings window, opening it the first time.
     pub fn open_settings(app: &AppHandle) {
         if let Some(window) = app.get_webview_window("settings") {
@@ -1643,7 +1650,8 @@ pub fn run() {
             commands::pdf_page,
             commands::purge_index,
             commands::quit,
-            commands::hide_launcher
+            commands::hide_launcher,
+            commands::open_search
         ])
         .run(tauri::generate_context!())
         .expect("the app window could not be opened");

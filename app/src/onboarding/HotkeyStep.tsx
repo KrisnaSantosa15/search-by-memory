@@ -119,6 +119,6 @@ export function spoken(hotkey: string): string {
 }
 
 /** Each key of `Ctrl+Shift+KeyK` as written on the keyboard: `Ctrl`, `Shift`, `K`. */
-function keys(hotkey: string): string[] {
+export function keys(hotkey: string): string[] {
   return hotkey.split("+").map((key) => key.replace(/^(Key|Digit)/, ""));
 }

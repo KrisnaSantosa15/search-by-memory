@@ -1,7 +1,7 @@
 import { Activity, FolderOpen, House, X } from "lucide-react";
 import { useState } from "react";
 import { ActivityPage, FoldersPage, type FoldersProps, type StatusProps } from "../Settings";
-import { Overview } from "./Overview";
+import { Overview, type OverviewProps } from "./Overview";
 
 const PAGES = [
   { name: "Home", Icon: House },
@@ -14,7 +14,7 @@ type WindowProps = {
   close: () => void;
 };
 
-export type HomeProps = StatusProps & FoldersProps & WindowProps;
+export type HomeProps = StatusProps & FoldersProps & OverviewProps & WindowProps;
 
 /** The Home window: indexing status, Indexed Folders, and Exclusions. */
 export function Home(props: HomeProps) {

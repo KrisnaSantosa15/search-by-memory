@@ -45,6 +45,8 @@ function renderHome(overrides: Partial<HomeProps> = {}) {
     purge: vi.fn(async () => {}),
     close: vi.fn(),
     retryFailed: vi.fn(async () => {}),
+    settings: async () => ({ accelerator: "cuda", hotkey: "Ctrl+Shift+Space" }),
+    openSearch: vi.fn((_typed: string) => {}),
     ...overrides,
   };
   render(<Home {...props} />);
@@ -179,6 +181,17 @@ describe("Home", () => {
     expect(await screen.findByRole("listitem", { name: "Contents" })).toHaveTextContent(
       "995 files read, 5 could not be",
     );
+  });
+
+  it("opens search from Home, showing the keys that bring it up anywhere", async () => {
+    const props = renderHome();
+
+    const search = await screen.findByRole("button", { name: /Search your files/ });
+    expect(search).toHaveAccessibleName("Search your files, or press Ctrl + Shift + Space");
+    expect(within(search).getAllByText(/^(Ctrl|Shift|Space)$/)).toHaveLength(3);
+    await userEvent.click(search);
+
+    expect(props.openSearch).toHaveBeenCalledWith("");
   });
 
   it("shows reading as onboarding does: files read of the total and the file being read", async () => {
