@@ -11,6 +11,7 @@ import { HotkeyStep } from "./onboarding/HotkeyStep";
 import { type Download, IndexingStep } from "./onboarding/IndexingStep";
 import { type Estimate, LocationStep } from "./onboarding/LocationStep";
 import { SpeedStep, type SpeedChoice } from "./onboarding/SpeedStep";
+import { WelcomeStep } from "./onboarding/WelcomeStep";
 
 
 const tryHotkey = (hotkey: string) => invoke<boolean>("try_hotkey", { hotkey });
@@ -44,6 +45,7 @@ const launcher = {
 export default function App() {
   // Onboarding finished before: the hotkey brought up the window.
   const [finished, setFinished] = useState(false);
+  const [started, setStarted] = useState(false);
   const [choices, setChoices] = useState<SpeedChoice[] | null>(null);
   const [choice, setChoice] = useState<string | null>(null);
   // Each attempt starts the download again; it resumes where the last one stopped.
@@ -152,6 +154,7 @@ export default function App() {
         />
       );
     }
+    if (!started) return <WelcomeStep onStart={() => setStarted(true)} />;
     return choices && <SpeedStep choices={choices} onContinue={setChoice} />;
   };
 

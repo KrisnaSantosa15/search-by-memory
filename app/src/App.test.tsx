@@ -28,13 +28,15 @@ const idle = {
 };
 
 describe("App", () => {
-  it("starts onboarding with the speed choices this machine offers", async () => {
+  it("welcomes the user, then offers the speed choices this machine offers", async () => {
     mockIPC((command) => {
       if (command === "speed_choices") return cpuOnly;
     });
 
     render(<App />);
 
+    expect(await screen.findByText("Find any file by what you remember of it")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Get started" }));
     expect(await screen.findByRole("radio", { name: /any computer/i })).toBeChecked();
   });
 
@@ -76,6 +78,7 @@ describe("App", () => {
       { shouldMockEvents: true },
     );
     render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Get started" }));
 
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
     await act(() =>
@@ -98,6 +101,7 @@ describe("App", () => {
       { shouldMockEvents: true },
     );
     render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Get started" }));
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
 
     await screen.findByRole("progressbar");
@@ -118,6 +122,7 @@ describe("App", () => {
       { shouldMockEvents: true },
     );
     render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Get started" }));
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
     await screen.findByText("C:\\Users\\ana");
@@ -146,6 +151,7 @@ describe("App", () => {
       { shouldMockEvents: true },
     );
     render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Get started" }));
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
 
     expect(await screen.findByText(/download stopped/i)).toBeInTheDocument();
@@ -167,6 +173,7 @@ describe("App", () => {
       { shouldMockEvents: true },
     );
     render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Get started" }));
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
 
     await userEvent.click(await screen.findByRole("button", { name: /cancel/i }));
@@ -187,6 +194,7 @@ describe("App", () => {
       { shouldMockEvents: true },
     );
     render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Get started" }));
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
 
     await screen.findByText("C:\\Users\\ana");
@@ -209,6 +217,7 @@ describe("App", () => {
       { shouldMockEvents: true },
     );
     render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Get started" }));
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
     await screen.findByText("C:\\Users\\ana");
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
