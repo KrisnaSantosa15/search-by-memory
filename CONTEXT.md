@@ -106,6 +106,14 @@ _Avoid_: Low-score hit, noise
 A `word:value` typed with the Query (`ext:pdf`, `in:taxes`, `date:week`, `code:`, `name:`) that narrows one search to files of a type, in a folder, changed in a span of time, to code, or to names only; it is lifted out of the Query before searching. Filter Prefixes with no Query words list the newest files that pass them.
 _Avoid_: Operator, search syntax, Exclusion (an Exclusion keeps files out of the index; a Filter Prefix narrows one search)
 
+**Home**:
+The app's own window, apart from the launcher: what search can do now (files found, contents read, the reading model and where it runs), the way into search, Ways to search with Filter Prefixes, and pages for Activity, Indexed Folders and Exclusions, and Settings. Opens when the app is started and after onboarding; the tray opens it again.
+_Avoid_: Settings window, dashboard window, main window (the main window is the launcher)
+
+**Reading model**:
+The embedding model that reads what is inside files, as the app names it to the user; until it is downloaded and loaded, files are found by name only.
+_Avoid_: AI, engine, embedder (in user-facing text)
+
 **Passage view**:
 One Result per Content Match, so a single file may appear several times. Kept in the index API and the Benchmark; the launcher does not show it.
 _Avoid_: Chunk view, flat view
