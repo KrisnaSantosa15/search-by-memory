@@ -169,7 +169,7 @@
   - Done: stage 3: Settings in the VoiceStudio layout (section rail, glass panels of rows); frameless acrylic Settings window with its own title strip and Close; Status shows the same reading progress as onboarding (shared `IndexingProgress`); Try again for unreadable files (`Index::retry_failed`, `Engine::retry_failed`, `retry_failed` command). Checked in the real window.
   - Found: the Settings window was once found minimized between two UI Automation calls; cause unknown.
   - Done: stage 4a: Filter Prefixes anywhere in the Query, combinable (`sbm_app::Filters`): `ext:` (several = any), `in:` (folder name contains; quoted values), `date:` today / yesterday / week / month / year (last 7/30/365 days) / `2025` / `2025-03` by modified time, `code:`, `name:` (`Engine::search_names`, names only); empty prefixes ignored, unknown ones stay in the Query. `search` takes the typed text and answers `{ query, results, chips }`; chips shown in the Query bar.
-  - In progress (agreed 2026-10-16): `in:` matches folder names only, not the drive; a Query of filters only lists matching files, newest modified first.
+  - Done: `in:` matches folder names only, not the drive; a Query of filters only (`date:today`) lists the newest files that pass them (`Engine::newest_files`), the Preview Pane says "It fits the filters".
   - Not yet: Filter Prefixes not checked in the real window.
   - Next: stage 4: features beyond DigUp (filter prefixes, name-only search, skipped files with reasons); Speed, Download and Search keys steps in the VoiceStudio card style.
   - Found: Live Updates run before Initial Indexing (`live DESC`), so a folder that keeps changing can hold content reading back; check with the Benchmark of a busy Downloads folder.
