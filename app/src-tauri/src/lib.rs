@@ -414,8 +414,13 @@ impl Filters {
         let mut words = Vec::new();
         let mut extensions = Vec::new();
         let mut folders = Vec::new();
-        for word in typed.split_whitespace() {
-            match word.split_once(':') {
+        let typed = words_of(typed);
+        for word in &typed {
+            let word = word.as_str();
+            match word
+                .split_once(':')
+                .map(|(prefix, value)| (prefix, value.trim_matches('"')))
+            {
                 Some((prefix, value)) if prefix.eq_ignore_ascii_case("ext") => {
                     extensions.push(value.trim_start_matches('.').to_lowercase())
                 }
@@ -455,6 +460,29 @@ impl Filters {
                 .iter()
                 .all(|part| folder_names.iter().any(|name| name.contains(part)))
     }
+}
+
+/// The words of `typed`, split at spaces outside double quotes; quotes are kept.
+fn words_of(typed: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quoted = false;
+    for character in typed.chars() {
+        if character == '"' {
+            quoted = !quoted;
+        }
+        if character.is_whitespace() && !quoted {
+            if !word.is_empty() {
+                words.push(std::mem::take(&mut word));
+            }
+        } else {
+            word.push(character);
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words
 }
 
 /// What the window can call; thin wrappers over the functions above.

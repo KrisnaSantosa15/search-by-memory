@@ -31,3 +31,12 @@ fn in_prefix_keeps_files_inside_a_folder_whose_name_contains_it() {
     assert!(filters.keeps(Path::new(r"D:\Documents\Taxes 2024\receipt.pdf")));
     assert!(!filters.keeps(Path::new(r"D:\Documents\receipt tax.pdf")));
 }
+
+#[test]
+fn a_quoted_value_may_hold_spaces() {
+    let filters = Filters::parse(r#"receipt in:"taxes 2024" march"#);
+
+    assert_eq!(filters.query(), "receipt march");
+    assert!(filters.keeps(Path::new(r"D:\Documents\Taxes 2024\receipt.pdf")));
+    assert!(!filters.keeps(Path::new(r"D:\Documents\Taxes 2023\2024 receipt.pdf")));
+}
