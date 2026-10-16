@@ -1,16 +1,18 @@
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { type AppSettings, Section } from "../Settings";
+import { type AppSettings, DeleteIndex, Section } from "../Settings";
 import { KeysPicker, spoken } from "../ui/KeysPicker";
 
 export type SettingsPageProps = {
   settings: () => Promise<AppSettings | null>;
   /** Makes `hotkey` bring up search; `false` when another app already uses it. */
   changeHotkey: (hotkey: string) => Promise<boolean>;
+  /** Erases the index from disk and starts setup again. */
+  purge: () => Promise<void>;
 };
 
 /** The Settings page: the search keys, and what search runs on. */
-export function SettingsPage({ settings, changeHotkey }: SettingsPageProps) {
+export function SettingsPage({ settings, changeHotkey, purge }: SettingsPageProps) {
   const [saved, setSaved] = useState<AppSettings | null>(null);
 
   useEffect(() => {
@@ -19,11 +21,19 @@ export function SettingsPage({ settings, changeHotkey }: SettingsPageProps) {
 
   if (!saved) return null;
   return (
-    <SearchKeys
-      hotkey={saved.hotkey}
-      change={changeHotkey}
-      onChanged={(hotkey) => setSaved({ ...saved, hotkey })}
-    />
+    <>
+      <SearchKeys
+        hotkey={saved.hotkey}
+        change={changeHotkey}
+        onChanged={(hotkey) => setSaved({ ...saved, hotkey })}
+      />
+      <Section
+        title="Start over"
+        description="Forget every file and set search up again. Your files themselves stay as they are."
+      >
+        <DeleteIndex purge={purge} />
+      </Section>
+    </>
   );
 }
 

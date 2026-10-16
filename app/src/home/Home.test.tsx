@@ -385,7 +385,7 @@ describe("Home", () => {
   });
 
   it("deletes the index once the user confirms it", async () => {
-    const props = await renderPage("Activity");
+    const props = await renderPage("Settings");
 
     await userEvent.click(await screen.findByRole("button", { name: "Delete index…" }));
     expect(props.purge).not.toHaveBeenCalled();
@@ -395,7 +395,7 @@ describe("Home", () => {
   });
 
   it("keeps the index when the user changes their mind", async () => {
-    const props = await renderPage("Activity");
+    const props = await renderPage("Settings");
 
     await userEvent.click(await screen.findByRole("button", { name: "Delete index…" }));
     await userEvent.click(screen.getByRole("button", { name: "Keep" }));

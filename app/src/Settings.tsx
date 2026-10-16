@@ -65,8 +65,6 @@ export type StatusProps = {
   failedFiles: () => Promise<FailedFile[]>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
-  /** Erases the index from disk and starts setup again. */
-  purge: () => Promise<void>;
   /** Reads the files that could not be read once more. */
   retryFailed: () => Promise<void>;
 };
@@ -304,7 +302,7 @@ function label(row: ExclusionRow): string {
 }
 
 /** The Activity page: reading progress, pausing, and files that could not be read. */
-export function ActivityPage({ dashboard, failedFiles, pause, resume, purge, retryFailed }: StatusProps) {
+export function ActivityPage({ dashboard, failedFiles, pause, resume, retryFailed }: StatusProps) {
   const { status, speed, refresh: refreshStatus } = useIndexingProgress(
     dashboard,
     REFRESH_EVERY_MS,
@@ -346,13 +344,12 @@ export function ActivityPage({ dashboard, failedFiles, pause, resume, purge, ret
       {failed.length > 0 && (
         <FailedFiles files={failed} onRetry={() => retryFailed().then(refresh)} />
       )}
-      <DeleteIndex purge={purge} />
     </>
   );
 }
 
 /** Erases the index after the user confirms it (FR-06). */
-function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
+export function DeleteIndex({ purge }: { purge: () => Promise<void> }) {
   const [asking, setAsking] = useState(false);
 
   if (!asking) {
