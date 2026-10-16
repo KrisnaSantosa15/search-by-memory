@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import type { ResultRow } from "./Launcher";
+import type { Kind, ResultRow } from "./Launcher";
 import { CodeLines, type LoadLines, PageLines, type TextPreview } from "./Lines";
 import { Marked } from "./Marked";
 import { Path } from "./Path";
@@ -10,6 +10,22 @@ import { Button } from "./ui/Button";
 
 /** How large a picture or video is asked for: the Preview Pane's width at 2× scaling. */
 const PICTURE_SIZE = 840;
+
+/** Each kind of file no extractor reads, in words. */
+const NOT_READ_KINDS: Record<Kind, string> = {
+  image: "pictures are not read",
+  video: "videos are not read",
+  audio: "audio is not read",
+  document: "this kind of file is not read",
+  code: "this kind of file is not read",
+  other: "this kind of file is not read",
+};
+
+/** Why only the name of `result` is searched, or `null` when its content is too. */
+function notRead(result: ResultRow): string | null {
+  if (!result.notRead) return null;
+  return `Only its name is searched: ${NOT_READ_KINDS[result.kind]}`;
+}
 
 const MATCH_REASONS = {
   name: "Its name matches",
@@ -80,6 +96,7 @@ export function Preview(props: Props) {
         {query.trim() ? MATCH_REASONS[result.matchReason] : "It fits the filters"}
         {result.location && `, ${result.location.toLowerCase()}`}
       </p>
+      {notRead(result) && <p className="text-sm text-muted">{notRead(result)}</p>}
       <div className="flex gap-2">
         <Action onClick={onOpen} primary>
           Open

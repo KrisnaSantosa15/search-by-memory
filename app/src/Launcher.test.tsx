@@ -19,6 +19,7 @@ const report: ResultRow = {
   lineStart: null,
   lineEnd: null,
   matchReason: "both",
+  notRead: null,
 };
 
 /** A search that finds `results` for whatever was typed, with no filters. */
@@ -465,6 +466,26 @@ describe("Launcher", () => {
     const preview = await screen.findByRole("region", { name: "Preview" });
     expect(preview).toHaveTextContent("It fits the filters");
     expect(preview).not.toHaveTextContent("Its name matches");
+  });
+
+  it("says why only the name of a Result is searched when its format is not read", async () => {
+    const photo = {
+      ...report,
+      name: "holiday.jpg",
+      path: "D:\\holiday.jpg",
+      kind: "image" as const,
+      snippet: null,
+      location: null,
+      page: null,
+      matchReason: "name" as const,
+      notRead: { kind: "format" as const },
+    };
+    render(<Launcher search={answers(photo)} {...actions()} />);
+
+    await userEvent.type(screen.getByRole("searchbox"), "holiday");
+
+    const preview = await screen.findByRole("region", { name: "Preview" });
+    expect(preview).toHaveTextContent("Only its name is searched: pictures are not read");
   });
 
   it("shows the code icon while the search keeps to code", async () => {

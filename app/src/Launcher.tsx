@@ -6,6 +6,7 @@ import { Path } from "./Path";
 import type { LoadPdfPage } from "./PdfPage";
 import { Preview } from "./Preview";
 import { cachedThumbnails, type LoadThumbnail, Thumbnail } from "./Thumbnail";
+import type { Unreadable } from "./unreadable";
 
 /** One Result, as the Rust side sends it. */
 export type ResultRow = {
@@ -33,7 +34,14 @@ export type ResultRow = {
   kind: Kind;
   /** A Weaker Match, folded away below the others. */
   weaker: boolean;
+  /** Why its content is not searched; `null` when it is. */
+  notRead: NotRead | null;
 };
+
+/** Why a Result's content is not searched. */
+export type NotRead =
+  | { kind: "onlineOnly" | "format" | "pending" }
+  | { kind: "failed"; reason: Unreadable };
 
 /** A filter prefix found in what was typed, e.g. `ext:pdf`, in plain words. */
 export type FilterChip = {
