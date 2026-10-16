@@ -32,7 +32,7 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
         <span className="relative grid size-14 place-items-center">
           <span
             aria-hidden
-            className="absolute inset-0 rounded-2xl bg-accent/40 blur-xl motion-safe:animate-pulse"
+            className="absolute inset-1 rounded-full bg-violet-500/35 blur-xl motion-safe:animate-pulse"
           />
           <BrandMark className="relative size-14" />
         </span>
